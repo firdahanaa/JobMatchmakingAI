@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { FormItem } from "@/components/ui/form";
 import { toast } from "sonner";
 import type { UserRole, WorkMode } from "@/types/database";
+import { saveTalentOnboarding, saveVendorOnboarding } from "./actions";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -106,23 +107,6 @@ export default function OnboardingPage() {
     setErrorText(null);
 
     try {
-      const supabase = createClient();
-
-      // 1. Ensure profile exists in profiles table
-      const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        await supabase.from("profiles").upsert({
-          id: userId,
-          role: role,
-          full_name: fullName || (role === "talent" ? "Talent" : orgName.trim()),
-        });
-      }
-
       if (role === "talent") {
         if (!headline.trim() || !education.trim() || !location.trim() || !hoursPerWeek) {
           setErrorText("Harap lengkapi semua kolom wajib untuk profil Talent.");
@@ -130,20 +114,18 @@ export default function OnboardingPage() {
           return;
         }
 
-        const { error } = await supabase
-          .from("talent_profiles")
-          .upsert({
-            user_id: userId,
-            headline: headline.trim(),
-            education: education.trim(),
-            location: location.trim(),
-            hours_per_week: Number(hoursPerWeek),
-            preferred_mode: preferredMode,
-            bio: bio.trim() || null,
-            updated_at: new Date().toISOString(),
-          });
+        const res = await saveTalentOnboarding({
+          headline: headline.trim(),
+          education: education.trim(),
+          location: location.trim(),
+          hoursPerWeek: Number(hoursPerWeek),
+          preferredMode,
+          bio: bio.trim() || undefined,
+        });
 
-        if (error) throw error;
+        if (!res.success) {
+          throw new Error(res.error || "Gagal menyimpan profil Talent.");
+        }
 
         toast.success("Profil Talent berhasil dilengkapi!");
         router.push("/talent/dashboard");
@@ -154,18 +136,16 @@ export default function OnboardingPage() {
           return;
         }
 
-        const { error } = await supabase
-          .from("vendor_profiles")
-          .upsert({
-            user_id: userId,
-            organization_name: orgName.trim(),
-            description: orgDesc.trim(),
-            location: orgLocation.trim(),
-            website: orgWebsite.trim() || null,
-            updated_at: new Date().toISOString(),
-          });
+        const res = await saveVendorOnboarding({
+          organizationName: orgName.trim(),
+          description: orgDesc.trim(),
+          location: orgLocation.trim(),
+          website: orgWebsite.trim() || undefined,
+        });
 
-        if (error) throw error;
+        if (!res.success) {
+          throw new Error(res.error || "Gagal menyimpan profil Vendor.");
+        }
 
         toast.success("Profil Vendor berhasil dilengkapi!");
         router.push("/vendor/dashboard");

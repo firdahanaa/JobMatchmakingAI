@@ -230,13 +230,11 @@ create policy "talent_skills: vendor lihat pelamar" on talent_skills
     )
   );
 
--- vendor_profiles: semua user login boleh baca (talent perlu lihat siapa pemilik project)
+-- vendor_profiles: semua user login boleh baca (talent perlu lihat siapa pemilik project); pemilik full akses
 create policy "vendor_profiles: baca semua" on vendor_profiles
   for select using (auth.role() = 'authenticated');
-create policy "vendor_profiles: pemilik buat" on vendor_profiles
-  for insert with check (auth.uid() = user_id);
-create policy "vendor_profiles: pemilik ubah" on vendor_profiles
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "vendor_profiles: pemilik" on vendor_profiles
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- projects: yang open bisa dibaca semua user login; vendor kelola miliknya (wajib bertipe vendor)
 create policy "projects: baca open atau milik sendiri" on projects

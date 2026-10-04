@@ -412,3 +412,143 @@ describe("Matching Engine: calculateMatch (End-to-End)", () => {
     expect(result.explanation).toContain("Pelajari Power BI");
   });
 });
+
+describe("Matching Engine: Rating Evolution (Review rating 5 dan 1)", () => {
+  const baseProject: ProjectContext = {
+    skills: [
+      { skillId: 1, name: "Next.js", minLevel: "intermediate", isRequired: true },
+      { skillId: 2, name: "TypeScript", minLevel: "intermediate", isRequired: true },
+    ],
+    hoursPerWeek: 20,
+    mode: "remote",
+  };
+
+  const baseTalentSkills = [
+    { skillId: 1, name: "Next.js", level: "intermediate" as const },
+    { skillId: 2, name: "TypeScript", level: "intermediate" as const },
+  ];
+
+  it("skenario cold-start (belum ada ulasan): avgRating = null -> ratingScore = 60", () => {
+    const talentBeforeReview: TalentContext = {
+      skills: baseTalentSkills,
+      hoursPerWeek: 20,
+      preferredMode: "remote",
+      isAvailable: true,
+      avgRating: null, // belum ada review
+    };
+
+    // calculateRatingScore murni
+    const ratingScore = calculateRatingScore(talentBeforeReview.avgRating);
+    expect(ratingScore).toBe(60);
+
+    // End-to-end match
+    const match = calculateMatch(talentBeforeReview, baseProject);
+    // skill = 100 * 0.50 = 50
+    // levelFit = 100 * 0.20 = 20
+    // availability = 100 * 0.15 = 15
+    // rating = 60 * 0.15 = 9.0
+    // total = 50 + 20 + 15 + 9 = 94
+    expect(match.breakdown.rating).toBe(60);
+    expect(match.score).toBe(94);
+  });
+
+  it("setelah review pertama dengan rating 5: avgRating = 5.0 -> ratingScore = 100", () => {
+    // Simulasi: Vendor menyelesaikan project dan memberi rating 5
+    // Database view talent_ratings: avg_rating = 5.0, review_count = 1
+    const avgRatingAfterReview5 = 5.0;
+
+    const talentAfterRating5: TalentContext = {
+      skills: baseTalentSkills,
+      hoursPerWeek: 20,
+      preferredMode: "remote",
+      isAvailable: true,
+      avgRating: avgRatingAfterReview5,
+    };
+
+    // Rumus: (avgRating / 5) * 100 = (5.0 / 5) * 100 = 100
+    const ratingScore = calculateRatingScore(talentAfterRating5.avgRating);
+    expect(ratingScore).toBe(100);
+
+    // End-to-end match
+    const match = calculateMatch(talentAfterRating5, baseProject);
+    // skill = 100 * 0.50 = 50
+    // levelFit = 100 * 0.20 = 20
+    // availability = 100 * 0.15 = 15
+    // rating = 100 * 0.15 = 15.0
+    // total = 50 + 20 + 15 + 15 = 100 (+6 poin dari cold start 94)
+    expect(match.breakdown.rating).toBe(100);
+    expect(match.score).toBe(100);
+  });
+
+  it("setelah review kedua dengan rating 1: avgRating = (5 + 1) / 2 = 3.0 -> ratingScore = 60", () => {
+    // Simulasi: Vendor kedua memberi review dengan rating 1
+    // Database view talent_ratings: avg(5, 1) = 3.00, review_count = 2
+    const reviews = [5, 1];
+    const avgRatingAfterReview1 = Number(
+      (reviews.reduce((acc, r) => acc + r, 0) / reviews.length).toFixed(2)
+    );
+    expect(avgRatingAfterReview1).toBe(3.0);
+
+    const talentAfterRating1: TalentContext = {
+      skills: baseTalentSkills,
+      hoursPerWeek: 20,
+      preferredMode: "remote",
+      isAvailable: true,
+      avgRating: avgRatingAfterReview1,
+    };
+
+    // Rumus: (avgRating / 5) * 100 = (3.0 / 5) * 100 = 60
+    const ratingScore = calculateRatingScore(talentAfterRating1.avgRating);
+    expect(ratingScore).toBe(60);
+
+    // End-to-end match
+    const match = calculateMatch(talentAfterRating1, baseProject);
+    // skill = 100 * 0.50 = 50
+    // levelFit = 100 * 0.20 = 20
+    // availability = 100 * 0.15 = 15
+    // rating = 60 * 0.15 = 9.0
+    // total = 50 + 20 + 15 + 9 = 94 (-6 poin dari saat rating 5 sempurna)
+    expect(match.breakdown.rating).toBe(60);
+    expect(match.score).toBe(94);
+  });
+
+  it("memverifikasi perubahan rating_score secara dinamis saat avgRating bertambah review", () => {
+    const simulateRatings = (...ratings: number[]): { avg: number; ratingScore: number; matchScore: number } => {
+      const avg = Number((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2));
+      const talent: TalentContext = {
+        skills: baseTalentSkills,
+        hoursPerWeek: 20,
+        preferredMode: "remote",
+        isAvailable: true,
+        avgRating: avg,
+      };
+      const match = calculateMatch(talent, baseProject);
+      return {
+        avg,
+        ratingScore: match.breakdown.rating,
+        matchScore: match.score,
+      };
+    };
+
+    // Langkah 1: Rating 5
+    const step1 = simulateRatings(5);
+    expect(step1.avg).toBe(5.0);
+    expect(step1.ratingScore).toBe(100);
+    expect(step1.matchScore).toBe(100);
+
+    // Langkah 2: Ditambah Rating 1 (avg jadi 3.0)
+    const step2 = simulateRatings(5, 1);
+    expect(step2.avg).toBe(3.0);
+    expect(step2.ratingScore).toBe(60);
+    expect(step2.matchScore).toBe(94);
+
+    // Langkah 3: Ditambah Rating 4 (avg jadi (5 + 1 + 4) / 3 = 3.33)
+    const step3 = simulateRatings(5, 1, 4);
+    expect(step3.avg).toBe(3.33);
+    // ratingScore = 3.33 / 5 * 100 = 66.6 -> breakdown dibulatkan ke 67
+    expect(step3.ratingScore).toBe(67);
+    // matchScore = 50 + 20 + 15 + (66.6 * 0.15 = 9.99) = 94.99 -> dibulatkan ke 95
+    expect(step3.matchScore).toBe(95);
+  });
+});
+

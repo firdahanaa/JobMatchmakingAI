@@ -1,36 +1,206 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MatchWork AI 🚀
+### Connecting People Who Need Experience With Opportunities That Need People
 
-## Getting Started
+MatchWork AI adalah platform matchmaking proyek freelance dan volunteer cerdas yang mempertemukan talenta muda (mahasiswa & fresh graduates yang membutuhkan pengalaman nyata dan portofolio) dengan UMKM & startup yang membutuhkan bantuan talenta fleksibel dan terjangkau. 
 
-First, run the development server:
+Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan transparan (4 komponen), analisis *skill gap* konstruktif, manajemen pelamar komparatif bagi vendor, serta sistem rating & ulasan performa kerja dua arah.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 🌟 Fitur Utama
+
+### 1. Mesin Matchmaking Berbasis AI (Pure Functional & Transparent)
+- **4 Komponen Penilaian Berbobot**:
+  - **Skill Match (50%)**: Membandingkan skill kandidat dengan skill proyek (skill *required* berbobot 1.0, non-required 0.5).
+  - **Level Fit (20%)**: Menilai kecukupan tingkat keahlian (*Beginner*, *Intermediate*, *Advanced*).
+  - **Availability (15%)**: Mencocokkan ketersediaan jam per minggu dan mode kerja (*Remote*, *Onsite*, *Hybrid*).
+  - **Reputasi / Rating (15%)**: Proporsional dari rata-rata ulasan riil (skor netral cold-start 60% bagi talenta baru).
+- **Analisis Skill Gap & Edukasi Konstruktif**:
+  - Menghitung persentase kesiapan (*readiness %*).
+  - Menampilkan daftar skill yang cocok (*matched skills*), skill yang belum dimiliki (*missing skills*), serta skill yang perlu dinaikkan levelnya (*under-level skills*).
+  - Menyajikan saran konstruktif yang menyemangati (bukan pesan penolakan).
+
+### 2. Sisi Talenta (Talent Experience)
+- **Profil Lengkap & Portofolio**:
+  - Headline, bio, pendidikan, lokasi, ketersediaan jam/minggu, preferensi mode kerja, dan multi-URL portofolio terverifikasi.
+  - Indikator kelengkapan profil (*progress bar* interaktif).
+  - Master list skill dengan penetapan tingkat keahlian (*Beginner / Intermediate / Advanced*).
+- **Dashboard Talenta (`/talent/dashboard`)**:
+  - Rekomendasi Top 5 Proyek dengan Match % tertinggi.
+  - **Skill Progress Bar**: Visualisasi kemahiran tiap keahlian (Beginner 33%, Intermediate 66%, Advanced 100%).
+  - **Skill Gap Teratas**: Agregasi 3 skill yang paling sering kurang dari seluruh proyek terbuka yang relevan beserta saran belajar terarah.
+  - Ringkasan metrik: Jumlah lamaran, proyek selesai, dan skor rata-rata rating dengan visualisasi bintang.
+- **Eksplorasi Proyek & Detail Kecocokan (`/talent/projects`)**:
+  - Filter berdasarkan kesulitan (*difficulty*), tipe (*freelance/volunteer*), mode kerja (*remote/onsite/hybrid*), dan pencarian kata kunci.
+  - Pengurutan default berdasarkan Match Score tertinggi, terbaru, atau deadline terdekat.
+  - Modal lamaran instan dengan pesan singkat dan snapshot skor server.
+- **Riwayat & Pelacakan Lamaran (`/talent/applications`)**:
+  - Pemantauan status lamaran (*Pending*, *Accepted*, *Rejected*, *Completed*, *Withdrawn*).
+  - Fitur penarikan (*withdraw*) lamaran yang masih berstatus pending.
+
+### 3. Sisi Vendor (Vendor Experience)
+- **Manajemen Proyek Lengkap (`/vendor/dashboard`)**:
+  - Posting proyek baru (`/vendor/projects/new`) & edit proyek (`/vendor/projects/[id]/edit`).
+  - Penentuan kebutuhan skill dari master catalog, tingkat minimum, dan status wajib (*required*).
+  - Pengubah status cepat (*Open*, *Closed*, *Completed*).
+  - Dialog konfirmasi aman sebelum menghapus proyek.
+  - Highlight pelamar teratas (*nama + match score*) langsung pada kartu proyek.
+- **Evaluasi & Komparasi Pelamar (`/vendor/projects/[id]/applicants`)**:
+  - Daftar pelamar terurut secara real-time berdasarkan skor kecocokan terbaru.
+  - Fitur **Bandingkan Pelamar**: Memilih 2–3 kandidat untuk ditampilkan berdampingan dalam tabel komparasi detail (skill, level fit, ketersediaan, rating, dan pengalaman).
+  - Modal detail pelamar dengan riwayat ulasan masa lalu dan info kontak terlindungi (hanya tampil setelah diterima).
+- **Rating & Review Pasca Selesai**:
+  - Tombol "Beri Penilaian" saat lamaran ditandai *Completed*.
+  - Evaluasi multi-kriteria: Rating keseluruhan (1–5 bintang, wajib), kualitas, ketepatan waktu, komunikasi, dan catatan evaluasi.
+  - Otomatis memperbarui view `talent_ratings` dan matching score talenta.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Teknologi |
+| :--- | :--- |
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router, Server Actions, Suspense) |
+| **Library UI** | [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [Lucide React](https://lucide.dev/) |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL, Row Level Security, Triggers, Views) |
+| **Validasi Skema** | [Zod v4](https://zod.dev/), [React Hook Form](https://react-hook-form.com/) |
+| **Notifikasi Toast** | [Sonner](https://sonner.emilkowal.ski/) |
+| **Unit Testing** | [Vitest](https://vitest.dev/) |
+
+---
+
+## 📁 Struktur Folder
+
+```text
+JobMatchmakingAI/
+├── docs/                        # Dokumentasi PRD & spesifikasi teknis
+│   └── PRD_MVP_Matchmaking.md
+├── src/
+│   ├── app/                     # Next.js App Router
+│   │   ├── auth/                # Callback autentikasi Supabase
+│   │   ├── login/               # Halaman masuk
+│   │   ├── register/            # Halaman pendaftaran (pilihan peran Talent/Vendor)
+│   │   ├── onboarding/          # Formulir onboarding pasca registrasi
+│   │   ├── talent/              # Rute khusus talenta
+│   │   │   ├── dashboard/       # Dashboard talenta, skill progress & gap
+│   │   │   ├── profile/         # Pengelolaan profil, portofolio & skill
+│   │   │   ├── projects/        # Eksplorasi & detail kecocokan proyek
+│   │   │   └── applications/    # Pelacakan status lamaran
+│   │   ├── vendor/              # Rute khusus vendor
+│   │   │   ├── dashboard/       # Dashboard statistik & daftar proyek vendor
+│   │   │   └── projects/        # Pembuatan, edit & seleksi pelamar
+│   │   ├── error.tsx            # Global error boundary
+│   │   ├── not-found.tsx        # Halaman 404
+│   │   ├── loading.tsx          # Root skeleton loader
+│   │   └── layout.tsx           # Root layout & metadata Bahasa Indonesia
+│   ├── components/              # Komponen modular reusable
+│   │   ├── talent/              # Komponen talenta (MatchScoreBadge, FilterBar, dll.)
+│   │   ├── ui/                  # Design system primitives (Button, Card, StarRating, Progress)
+│   │   └── vendor/              # Komponen vendor (ApplicantsManager, ProjectForm, dll.)
+│   ├── lib/
+│   │   ├── matching/            # Mesin Matchmaking (fungsi murni & kalkulasi skor)
+│   │   │   ├── types.ts         # Tipe data konteks & hasil match
+│   │   │   ├── skillGap.ts      # Kalkulasi kesenjangan skill
+│   │   │   ├── score.ts         # Algoritma pembobotan 4-komponen
+│   │   │   └── matching.test.ts # Unit test Vitest (44 tests)
+│   │   ├── supabase/            # Client Supabase (browser, server, middleware)
+│   │   ├── validators/          # Skema validasi Zod (auth, talent, project, application)
+│   │   └── utils.ts             # Utility classnames (clsx, tailwind-merge)
+│   └── types/                   # Definisi tipe database TypeScript
+├── supabase/
+│   ├── schema.sql               # Skema PostgreSQL lengkap, RLS, Enum, Triggers, Views
+│   └── seed_dummy.sql           # Data dummy 8 proyek dengan variasi skill lengkap
+├── package.json
+└── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚙️ Panduan Setup & Instalasi Lokal
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Prasyarat
+- **Node.js**: Versi 18.18 atau lebih baru (disarankan Node.js 20+).
+- **Package Manager**: `npm` (atau `pnpm` / `yarn`).
+- **Proyek Supabase**: Akun aktif di [Supabase.com](https://supabase.com) (gratis).
 
-## Learn More
+### 2. Klon Repositori & Pasang Dependensi
+```bash
+git clone https://github.com/firdahanaa/JobMatchmakingAI.git
+cd JobMatchmakingAI
+npm install
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Konfigurasi Environment Variables
+Salin contoh berkas konfigurasi lingkungan atau buat berkas `.env.local` di akar direktori:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env.local
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Isi variabel dengan kredensial dari dashboard Supabase Anda (**Project Settings -> API**):
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-## Deploy on Vercel
+### 4. Eksekusi Skema Database (`schema.sql`)
+1. Buka dashboard Supabase proyek Anda.
+2. Masuk ke menu **SQL Editor** -> klik **New query**.
+3. Buka file [`supabase/schema.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/schema.sql), salin seluruh isinya, dan tempel ke SQL Editor.
+4. Klik tombol **Run** (Ctrl + Enter) untuk membuat seluruh tabel, enum, indeks, trigger pembuatan profil otomatis, dan view `talent_ratings`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. Memasukkan Data Dummy (*Optional Seed*)
+Jika Anda ingin langsung mencoba aplikasi dengan data proyek yang bervariasi:
+1. Daftarkan minimal satu akun dengan role **Vendor** melalui halaman registrasi web (`/register`).
+2. Buka file [`supabase/seed_dummy.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/seed_dummy.sql) di SQL Editor Supabase.
+3. Klik **Run** untuk memasukkan 8 proyek dummy lengkap dengan kebutuhan skill dan tingkatannya.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🚀 Menjalankan Server & Pengujian
+
+### Menjalankan Server Pengembangan (Dev)
+```bash
+npm run dev
+```
+Buka peramban di [http://localhost:3000](http://localhost:3000).
+
+### Menjalankan Seluruh Unit Test
+Pengujian mencakup unit test mesin matching, validasi input formulir Zod, dan evolusi skor rating:
+```bash
+npm run test:run
+```
+
+Untuk menjalankan test dalam mode watch:
+```bash
+npm run test
+```
+
+### Menjalankan Linting
+```bash
+npm run lint
+```
+
+### Membangun Versi Produksi (*Build*)
+```bash
+npm run build
+npm run start
+```
+
+---
+
+## 🧪 Dokumentasi Rumus & Uji Match Score
+
+Mesin pencocokan mengimplementasikan kalkulasi murni tanpa efek samping:
+
+$$\text{Match Score} = \text{round}\left( 0.50 \times \text{SkillScore} + 0.20 \times \text{LevelFitScore} + 0.15 \times \text{AvailabilityScore} + 0.15 \times \text{RatingScore} \right)$$
+
+1. **Cold-Start**: Talenta yang belum memiliki review mendapatkan ratingScore netral = **60** (berkontribusi 9 poin ke skor keseluruhan).
+2. **Review Rating 5**: Setelah vendor memberikan ulasan bintang 5 pertama, ratingScore menjadi **100** ($5/5 \times 100$), meningkatkan skor keseluruhan sebesar +6 poin.
+3. **Review Rating 1**: Jika talenta kemudian menerima ulasan bintang 1, rata-rata menjadi 3.00, sehingga ratingScore kembali ke **60** ($3/5 \times 100$).
+Semua skenario ini teruji secara otomatis di `src/lib/matching/matching.test.ts`.
+
+---
+
+## 📄 Lisensi
+Proyek ini dikembangkan untuk tujuan edukasi dan portofolio profesional di bawah lisensi MIT.

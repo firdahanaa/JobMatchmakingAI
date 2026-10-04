@@ -10,6 +10,18 @@ import {
 } from "@/lib/validators/talent";
 import type { Skill, TalentSkill, TalentProfile, SkillLevel } from "@/types/database";
 
+export interface TalentReceivedReview {
+  id: string;
+  rating: number;
+  quality: number | null;
+  timeliness: number | null;
+  communication: number | null;
+  comment: string | null;
+  createdAt: string;
+  vendorName: string;
+  projectTitle: string;
+}
+
 export interface TalentProfilePageData {
   user: {
     id: string;
@@ -19,6 +31,12 @@ export interface TalentProfilePageData {
   talentProfile: TalentProfile | null;
   talentSkills: (TalentSkill & { skill: Skill })[];
   masterSkills: Skill[];
+  reviews: TalentReceivedReview[];
+  ratingStats: {
+    avgRating: number | null;
+    reviewCount: number;
+    completedProjectsCount: number;
+  };
 }
 
 export async function getTalentProfileData(): Promise<{
@@ -81,6 +99,75 @@ export async function getTalentProfileData(): Promise<{
       .order("category", { ascending: true })
       .order("name", { ascending: true });
 
+    // 4. Fetch received reviews & rating stats for talent
+    const [reviewsRes, ratingRes, completedAppsRes] = await Promise.all([
+      supabase
+        .from("reviews")
+        .select(`
+          id,
+          rating,
+          quality,
+          timeliness,
+          communication,
+          comment,
+          created_at,
+          vendor_profiles:vendor_id (
+            organization_name
+          ),
+          applications:application_id (
+            projects:project_id (
+              title
+            )
+          )
+        `)
+        .eq("talent_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("talent_ratings")
+        .select("avg_rating, review_count")
+        .eq("talent_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("applications")
+        .select("id")
+        .eq("talent_id", user.id)
+        .eq("status", "completed"),
+    ]);
+
+    type RawReviewRow = {
+      id: string;
+      rating: number;
+      quality: number | null;
+      timeliness: number | null;
+      communication: number | null;
+      comment: string | null;
+      created_at: string;
+      vendor_profiles?: { organization_name: string } | { organization_name: string }[] | null;
+      applications?: { projects?: { title: string } | { title: string }[] | null } | { projects?: { title: string } | { title: string }[] | null }[] | null;
+    };
+
+    const reviews: TalentReceivedReview[] = ((reviewsRes.data || []) as unknown as RawReviewRow[]).map((r) => {
+      const vObj = Array.isArray(r.vendor_profiles) ? r.vendor_profiles[0] : r.vendor_profiles;
+      const aObj = Array.isArray(r.applications) ? r.applications[0] : r.applications;
+      const pObj = Array.isArray(aObj?.projects) ? aObj?.projects[0] : aObj?.projects;
+
+      return {
+        id: r.id,
+        rating: r.rating,
+        quality: r.quality,
+        timeliness: r.timeliness,
+        communication: r.communication,
+        comment: r.comment,
+        createdAt: r.created_at,
+        vendorName: vObj?.organization_name || "Organisasi Vendor",
+        projectTitle: pObj?.title || "Proyek Selesai",
+      };
+    });
+
+    const avgRatingVal = ratingRes.data?.avg_rating != null ? Number(ratingRes.data.avg_rating) : null;
+    const reviewCountVal = ratingRes.data?.review_count || 0;
+    const completedCountVal = (completedAppsRes.data || []).length;
+
     return {
       data: {
         user: {
@@ -91,6 +178,12 @@ export async function getTalentProfileData(): Promise<{
         talentProfile: talentProfile as TalentProfile | null,
         talentSkills,
         masterSkills: (masterSkills || []) as Skill[],
+        reviews,
+        ratingStats: {
+          avgRating: avgRatingVal,
+          reviewCount: reviewCountVal,
+          completedProjectsCount: completedCountVal,
+        },
       },
       error: null,
     };

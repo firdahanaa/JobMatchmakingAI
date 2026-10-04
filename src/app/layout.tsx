@@ -9,7 +9,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MatchWork AI — Connecting People Who Need Experience With Opportunities That Need People",
+  title: {
+    default: "MatchWork AI — Platform Matchmaking Talenta & Proyek Cerdas",
+    template: "%s | MatchWork AI",
+  },
   description:
     "Platform matchmaking proyek freelance dan volunteer yang mempertemukan talenta muda dengan UMKM & startup, didukung skor kecocokan cerdas dan analisis skill gap transparan.",
 };

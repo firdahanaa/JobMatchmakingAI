@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { calculateMatch, calculateSkillGap } from "@/lib/matching";
 import { updateApplicationStatusSchema, uuidSchema } from "@/lib/validators/application";
+import { reviewSchema, type ReviewInput } from "@/lib/validators/review";
 import type {
   TalentContext,
   ProjectContext,
@@ -79,6 +80,17 @@ export interface DetailedApplicantItem {
     createdAt: string;
     vendorName?: string;
   }[];
+
+  // Review given by current vendor for this application (if completed)
+  review: {
+    id: string;
+    rating: number;
+    quality: number | null;
+    timeliness: number | null;
+    communication: number | null;
+    comment: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface ProjectApplicantsData {
@@ -226,6 +238,8 @@ export async function getProjectApplicantsRecalculated(
 
     const talentIds = apps.map((a) => a.talent_id);
 
+    const appIds = apps.map((a) => a.id);
+
     // 3. Batch fetch data talenta (Anti N+1)
     const [
       profilesRes,
@@ -234,6 +248,7 @@ export async function getProjectApplicantsRecalculated(
       ratingsRes,
       completedAppsRes,
       reviewsRes,
+      appReviewsRes,
     ] = await Promise.all([
       supabase.from("profiles").select("id, full_name, avatar_url").in("id", talentIds),
       supabase.from("talent_profiles").select("*").in("user_id", talentIds),
@@ -252,6 +267,10 @@ export async function getProjectApplicantsRecalculated(
         .select("id, talent_id, rating, comment, created_at, vendor_profiles:vendor_id(organization_name)")
         .in("talent_id", talentIds)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("reviews")
+        .select("id, application_id, rating, quality, timeliness, communication, comment, created_at")
+        .in("application_id", appIds),
     ]);
 
     // Map profiles
@@ -309,6 +328,22 @@ export async function getProjectApplicantsRecalculated(
       const arr = reviewsMap.get(rev.talent_id) || [];
       arr.push(rev);
       reviewsMap.set(rev.talent_id, arr);
+    }
+
+    // Map application reviews (reviews given for these specific applications)
+    type RawAppReview = {
+      id: string;
+      application_id: string;
+      rating: number;
+      quality: number | null;
+      timeliness: number | null;
+      communication: number | null;
+      comment: string | null;
+      created_at: string;
+    };
+    const appReviewsMap = new Map<string, RawAppReview>();
+    for (const ar of (appReviewsRes.data || []) as unknown as RawAppReview[]) {
+      appReviewsMap.set(ar.application_id, ar);
     }
 
     // 4. Hitung ulang kecocokan (Real-time Recalculated Match Score) untuk setiap pelamar
@@ -408,6 +443,19 @@ export async function getProjectApplicantsRecalculated(
         completedProjectsCount: completedCount,
         allTalentSkills: allDetailedSkills,
         reviews: formattedReviews,
+        review: (() => {
+          const r = appReviewsMap.get(app.id);
+          if (!r) return null;
+          return {
+            id: r.id,
+            rating: r.rating,
+            quality: r.quality,
+            timeliness: r.timeliness,
+            communication: r.communication,
+            comment: r.comment,
+            createdAt: r.created_at,
+          };
+        })(),
       };
     });
 
@@ -558,6 +606,133 @@ export async function updateApplicantStatus(
     return {
       success: false,
       error: err instanceof Error ? err.message : "Terjadi kesalahan saat memproses status pelamar.",
+    };
+  }
+}
+
+/**
+ * Submit review for a completed application
+ * Rule 1: Rating keseluruhan 1-5 bintang (wajib)
+ * Rule 2: Kualitas, ketepatan waktu, komunikasi 1-5 (opsional)
+ * Rule 3: Komentar (opsional)
+ * Rule 4: 1 review per application (cegah duplikat)
+ * Rule 5: Hanya vendor pemilik project yang bisa menulis
+ */
+export async function submitApplicantReview(
+  input: ReviewInput
+): Promise<{ success: boolean; error: string | null; reviewId?: string }> {
+  try {
+    const parseResult = reviewSchema.safeParse(input);
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: parseResult.error.issues[0]?.message || "Data penilaian tidak valid.",
+      };
+    }
+    const validated = parseResult.data;
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: "Kamu harus login untuk memberikan penilaian." };
+    }
+
+    // Role check: vendor only
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== "vendor") {
+      return {
+        success: false,
+        error: "Akses ditolak. Hanya akun Vendor yang dapat memberikan penilaian.",
+      };
+    }
+
+    // 1. Fetch application and verify project ownership & completed status
+    const { data: app, error: appError } = await supabase
+      .from("applications")
+      .select("id, project_id, talent_id, status, projects(vendor_id)")
+      .eq("id", validated.applicationId)
+      .maybeSingle();
+
+    if (appError || !app) {
+      return { success: false, error: "Data lamaran tidak ditemukan." };
+    }
+
+    const p = Array.isArray(app.projects) ? app.projects[0] : app.projects;
+    if (!p || p.vendor_id !== user.id) {
+      return {
+        success: false,
+        error: "Kamu tidak memiliki izin untuk menilai lamaran pada proyek vendor lain.",
+      };
+    }
+
+    if (app.status !== "completed") {
+      return {
+        success: false,
+        error: "Penilaian hanya dapat diberikan setelah proyek/lamaran berstatus 'completed' (selesai).",
+      };
+    }
+
+    // 2. Prevent duplicate reviews (one review per application)
+    const { data: existingReview } = await supabase
+      .from("reviews")
+      .select("id")
+      .eq("application_id", validated.applicationId)
+      .maybeSingle();
+
+    if (existingReview) {
+      return {
+        success: false,
+        error: "Penilaian untuk proyek/lamaran ini sudah pernah diberikan.",
+      };
+    }
+
+    // 3. Insert review
+    const { data: newReview, error: insertError } = await supabase
+      .from("reviews")
+      .insert({
+        application_id: validated.applicationId,
+        vendor_id: user.id,
+        talent_id: app.talent_id,
+        rating: validated.rating,
+        quality: validated.quality ?? null,
+        timeliness: validated.timeliness ?? null,
+        communication: validated.communication ?? null,
+        comment: validated.comment ? validated.comment.trim() : null,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !newReview) {
+      console.error("Insert review error:", insertError);
+      return {
+        success: false,
+        error: insertError?.message || "Gagal menyimpan penilaian.",
+      };
+    }
+
+    // 4. Revalidate all related pages
+    revalidatePath(`/vendor/projects/${app.project_id}/applicants`);
+    revalidatePath("/vendor/dashboard");
+    revalidatePath("/talent/profile");
+    revalidatePath("/talent/dashboard");
+    revalidatePath("/talent/applications");
+    revalidatePath("/talent/projects");
+
+    return { success: true, reviewId: newReview.id, error: null };
+  } catch (err: unknown) {
+    console.error("Error submitting review:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan penilaian.",
     };
   }
 }

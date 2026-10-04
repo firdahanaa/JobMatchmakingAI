@@ -21,6 +21,7 @@ import {
   type TalentProfilePageData,
 } from "./actions";
 import { toast } from "sonner";
+import { StarRating } from "@/components/ui/star-rating";
 import {
   User,
   Sparkles,
@@ -31,6 +32,9 @@ import {
   HelpCircle,
   ArrowRight,
   AlertTriangle,
+  Star,
+  Building2,
+  MessageSquare,
 } from "lucide-react";
 import type { WorkMode, SkillLevel } from "@/types/database";
 
@@ -339,14 +343,18 @@ export default function TalentProfilePage() {
           {/* Main Tabs Container */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsList className="grid w-full grid-cols-3 max-w-lg">
                 <TabsTrigger value="info" className="gap-2">
                   <User className="h-4 w-4" />
-                  Informasi & Ketersediaan
+                  <span>Informasi</span>
                 </TabsTrigger>
                 <TabsTrigger value="skills" className="gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Skill Saya ({selectedSkills.length})
+                  <span>Skill ({selectedSkills.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="gap-2">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  <span>Ulasan ({pageData?.reviews.length ?? 0})</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -546,6 +554,140 @@ export default function TalentProfilePage() {
                   >
                     ← Kembali ke Informasi & Ketersediaan
                   </Button>
+                </div>
+              </TabsContent>
+
+              {/* Tab 3: Reviews & Reputation */}
+              <TabsContent value="reviews" className="space-y-6">
+                {/* Stats Header */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Rating Average */}
+                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1.5">
+                    <p className="text-xs font-semibold text-amber-900">Rating Rata-rata</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-slate-900">
+                        {pageData?.ratingStats.avgRating != null
+                          ? pageData.ratingStats.avgRating.toFixed(1)
+                          : "Belum Ada"}
+                      </span>
+                      {pageData?.ratingStats.avgRating != null && (
+                        <span className="text-xs text-slate-500">/ 5.0</span>
+                      )}
+                    </div>
+                    <StarRating
+                      value={pageData?.ratingStats.avgRating ?? 0}
+                      readOnly
+                      size="sm"
+                    />
+                  </div>
+
+                  {/* Completed Projects */}
+                  <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1.5">
+                    <p className="text-xs font-semibold text-emerald-900">Proyek Selesai</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {pageData?.ratingStats.completedProjectsCount ?? 0}
+                    </p>
+                    <p className="text-2xs text-slate-500">Terselesaikan secara sukses</p>
+                  </div>
+
+                  {/* Total Reviews */}
+                  <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200 space-y-1.5">
+                    <p className="text-xs font-semibold text-purple-900">Total Ulasan</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {pageData?.ratingStats.reviewCount ?? 0}
+                    </p>
+                    <p className="text-2xs text-slate-500">Ulasan resmi dari vendor</p>
+                  </div>
+                </div>
+
+                {/* Reviews List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-purple-600" />
+                      <span>Ulasan yang Diterima</span>
+                    </h3>
+                    <Badge variant="outline" className="text-2xs font-semibold">
+                      {pageData?.reviews.length ?? 0} Ulasan
+                    </Badge>
+                  </div>
+
+                  {pageData?.reviews && pageData.reviews.length > 0 ? (
+                    <div className="space-y-3.5">
+                      {pageData.reviews.map((rev) => (
+                        <div
+                          key={rev.id}
+                          className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200/60 pb-2.5">
+                            <div>
+                              <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                <Building2 className="h-3.5 w-3.5 text-purple-600" />
+                                <span>{rev.vendorName}</span>
+                              </p>
+                              <p className="text-2xs text-slate-500 mt-0.5">
+                                Proyek: &ldquo;{rev.projectTitle}&rdquo;
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <StarRating value={rev.rating} readOnly size="sm" showValue />
+                              <span className="text-2xs text-slate-400">
+                                • {new Date(rev.createdAt).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Specific criteria ratings (Quality, Timeliness, Communication) */}
+                          {(rev.quality || rev.timeliness || rev.communication) && (
+                            <div className="flex flex-wrap gap-3 text-2xs text-slate-600 py-1">
+                              {rev.quality && (
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                  <span>Kualitas:</span>
+                                  <StarRating value={rev.quality} readOnly size="sm" />
+                                </div>
+                              )}
+                              {rev.timeliness && (
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                  <span>Ketepatan Waktu:</span>
+                                  <StarRating value={rev.timeliness} readOnly size="sm" />
+                                </div>
+                              )}
+                              {rev.communication && (
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                  <span>Komunikasi:</span>
+                                  <StarRating value={rev.communication} readOnly size="sm" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Written Comment */}
+                          {rev.comment && (
+                            <div className="p-3 rounded-xl bg-white border border-slate-100 text-xs text-slate-700 italic leading-relaxed">
+                              &ldquo;{rev.comment}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-2">
+                      <div className="mx-auto h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                        <Star className="h-5 w-5" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800">
+                        Belum Ada Ulasan Diterima
+                      </p>
+                      <p className="text-2xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        Selesaikan proyek pertamamu untuk mulai mengumpulkan bintang dan testimoni profesional dari vendor!
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

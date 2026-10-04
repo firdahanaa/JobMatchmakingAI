@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { ApplicantDetailModal } from "./applicant-detail-modal";
 import { ApplicantCompareModal } from "./applicant-compare-modal";
+import { ReviewApplicantDialog } from "./review-applicant-dialog";
 import { updateApplicantStatus, type DetailedApplicantItem } from "@/app/vendor/projects/[id]/applicants/actions";
 
 interface ApplicantsManagerProps {
@@ -36,12 +37,14 @@ interface ApplicantsManagerProps {
 
 export function ApplicantsManager({
   projectId,
+  projectTitle,
   initialApplicants,
 }: ApplicantsManagerProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [detailApplicant, setDetailApplicant] = useState<DetailedApplicantItem | null>(null);
+  const [reviewApplicant, setReviewApplicant] = useState<DetailedApplicantItem | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const handleToggleSelect = (applicantId: string) => {
@@ -338,34 +341,33 @@ export function ApplicantsManager({
                   </Button>
 
                   <div className="flex items-center gap-2">
-                    {/* Accept Action (Rule: project status -> in_progress) */}
-                    {app.status !== "accepted" && (
-                      <Button
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => handleStatusChange(app.id, "accepted")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3 gap-1.5 font-bold shadow-xs"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Terima Pelamar</span>
-                      </Button>
+                    {/* Status: Pending -> Terima atau Tolak */}
+                    {app.status === "pending" && (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handleStatusChange(app.id, "accepted")}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3 gap-1.5 font-bold shadow-xs"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Terima Pelamar</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handleStatusChange(app.id, "rejected")}
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 text-xs h-8 px-3 gap-1.5 font-medium"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          <span>Tolak</span>
+                        </Button>
+                      </>
                     )}
 
-                    {/* Reject Action */}
-                    {app.status !== "rejected" && app.status !== "accepted" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => handleStatusChange(app.id, "rejected")}
-                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 text-xs h-8 px-3 gap-1.5 font-medium"
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                        <span>Tolak</span>
-                      </Button>
-                    )}
-
-                    {/* Mark as Completed Action */}
+                    {/* Status: Accepted -> Tandai Selesai */}
                     {app.status === "accepted" && (
                       <Button
                         size="sm"
@@ -376,6 +378,30 @@ export function ApplicantsManager({
                         <FolderCheck className="h-3.5 w-3.5" />
                         <span>Tandai Selesai</span>
                       </Button>
+                    )}
+
+                    {/* Status: Completed -> Beri Penilaian atau Lihat Penilaian */}
+                    {app.status === "completed" && (
+                      app.review ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReviewApplicant(app)}
+                          className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs h-8 px-3 gap-1.5 font-semibold"
+                        >
+                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                          <span>Sudah Dinilai ({app.review.rating}★)</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => setReviewApplicant(app)}
+                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-8 px-3 gap-1.5 font-bold shadow-xs"
+                        >
+                          <Star className="h-3.5 w-3.5 fill-white text-white" />
+                          <span>Beri Penilaian</span>
+                        </Button>
+                      )
                     )}
                   </div>
                 </div>
@@ -411,7 +437,24 @@ export function ApplicantsManager({
         applicant={detailApplicant}
         isOpen={detailApplicant !== null}
         onClose={() => setDetailApplicant(null)}
+        onOpenReview={(app) => {
+          setDetailApplicant(null);
+          setReviewApplicant(app);
+        }}
       />
+
+      {/* Review Dialog */}
+      {reviewApplicant && (
+        <ReviewApplicantDialog
+          isOpen={reviewApplicant !== null}
+          onClose={() => setReviewApplicant(null)}
+          applicationId={reviewApplicant.id}
+          talentName={reviewApplicant.talentName}
+          projectTitle={projectTitle || "Proyek"}
+          existingReview={reviewApplicant.review}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </div>
   );
 }

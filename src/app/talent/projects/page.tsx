@@ -15,6 +15,12 @@ import { ProjectCard } from "@/components/talent/project-card";
 import { ProjectFilterBar } from "@/components/talent/project-filter-bar";
 import { getTalentProjects, type TalentProjectsFilter } from "./actions";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Eksplorasi Proyek",
+  description: "Temukan proyek freelance dan volunteer yang sesuai dengan keahlianmu berdasarkan AI Matchmaking.",
+};
 
 interface TalentProjectsPageProps {
   searchParams: Promise<{

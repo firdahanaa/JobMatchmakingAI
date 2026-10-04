@@ -232,6 +232,55 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                   </div>
                 )}
 
+                {/* Top Applicant Highlight (Requirement: Pelamar teratas nama + match %) */}
+                {project.topApplicant ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-purple-50/70 border border-purple-100 text-xs mt-1">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-full bg-purple-200 text-purple-800 flex items-center justify-center font-bold text-xs shrink-0">
+                        {project.topApplicant.talentName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[10px] text-purple-700 font-semibold block leading-tight">
+                          Pelamar Teratas (Skor Tertinggi)
+                        </span>
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {project.topApplicant.talentName}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                      {project.topApplicant.matchScore !== null ? (
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight ${
+                            project.topApplicant.matchScore >= 85
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : project.topApplicant.matchScore >= 70
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : "bg-slate-100 text-slate-700 border border-slate-300"
+                          }`}
+                        >
+                          Match {Math.round(project.topApplicant.matchScore)}%
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">Belum ada skor</span>
+                      )}
+                      <Link href={`/vendor/projects/${project.id}/applicants`}>
+                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs text-purple-700 hover:text-purple-900 font-bold">
+                          Lihat Pelamar
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : project.applicantCount > 0 ? (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 flex items-center justify-between mt-1">
+                    <span>{project.applicantCount} pelamar terdaftar</span>
+                    <Link href={`/vendor/projects/${project.id}/applicants`}>
+                      <span className="text-purple-700 font-semibold hover:underline">Evaluasi Pelamar &rarr;</span>
+                    </Link>
+                  </div>
+                ) : null}
+
                 {/* Bottom Meta & Action Buttons */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-slate-100 text-xs">
                   {/* Left: Deadline & Reward & Duration */}

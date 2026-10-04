@@ -4,6 +4,12 @@ import { ProjectForm } from "@/components/vendor/project-form";
 import { getMasterSkills, createProject } from "../actions";
 import { createClient } from "@/lib/supabase/server";
 import { PlusCircle } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Posting Proyek Baru",
+  description: "Publikasikan kebutuhan proyek freelance atau volunteer dan temukan talenta terbaik dengan AI.",
+};
 
 export default async function NewProjectPage() {
   const supabase = await createClient();

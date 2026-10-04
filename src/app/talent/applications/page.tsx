@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { ApplicationsList } from "@/components/talent/applications-list";
 import { getMyApplications } from "./actions";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Lamaran Saya",
+  description: "Pantau status lamaran proyek, skor kecocokan, dan perkembangan proses seleksi.",
+};
 
 export default async function TalentApplicationsPage() {
   const supabase = await createClient();

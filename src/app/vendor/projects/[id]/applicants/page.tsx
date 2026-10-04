@@ -7,9 +7,19 @@ import { ArrowLeft, AlertCircle, Edit3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApplicantsManager } from "@/components/vendor/applicants-manager";
+import type { Metadata } from "next";
 
 interface ApplicantsPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: ApplicantsPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const { data } = await getProjectApplicantsRecalculated(id);
+  return {
+    title: data?.project?.title ? `Pelamar: ${data.project.title}` : "Daftar Pelamar Proyek",
+    description: "Evaluasi pelamar terurut Match Score AI dan berikan status penerimaan.",
+  };
 }
 
 export default async function ApplicantsPage({ params }: ApplicantsPageProps) {

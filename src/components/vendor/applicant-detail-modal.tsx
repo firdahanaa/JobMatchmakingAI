@@ -20,18 +20,22 @@ import {
   Mail,
   Award,
 } from "lucide-react";
+import { StarRating } from "@/components/ui/star-rating";
+import { Button } from "@/components/ui/button";
 import type { DetailedApplicantItem } from "@/app/vendor/projects/[id]/applicants/actions";
 
 interface ApplicantDetailModalProps {
   applicant: DetailedApplicantItem | null;
   isOpen: boolean;
   onClose: () => void;
+  onOpenReview?: (applicant: DetailedApplicantItem) => void;
 }
 
 export function ApplicantDetailModal({
   applicant,
   isOpen,
   onClose,
+  onOpenReview,
 }: ApplicantDetailModalProps) {
   if (!applicant) return null;
 
@@ -212,6 +216,63 @@ export function ApplicantDetailModal({
           </div>
         )}
 
+        {/* Completed Project Review Section */}
+        {applicant.status === "completed" && (
+          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                <h4 className="font-bold text-xs text-amber-950 uppercase tracking-wider">
+                  Penilaian Proyek Ini
+                </h4>
+              </div>
+              {onOpenReview && (
+                <Button
+                  size="sm"
+                  onClick={() => onOpenReview(applicant)}
+                  className={
+                    applicant.review
+                      ? "bg-white text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs h-7 px-2.5 font-semibold"
+                      : "bg-amber-600 hover:bg-amber-700 text-white text-xs h-7 px-2.5 font-bold shadow-xs"
+                  }
+                >
+                  <Star className="h-3 w-3 fill-current" />
+                  <span>
+                    {applicant.review ? "Lihat Penilaian" : "Beri Penilaian"}
+                  </span>
+                </Button>
+              )}
+            </div>
+            {applicant.review ? (
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <StarRating
+                    value={applicant.review.rating}
+                    readOnly
+                    size="sm"
+                    showValue
+                  />
+                  <span className="text-2xs text-slate-500">
+                    diberikan pada{" "}
+                    {new Date(applicant.review.createdAt).toLocaleDateString(
+                      "id-ID"
+                    )}
+                  </span>
+                </div>
+                {applicant.review.comment && (
+                  <p className="text-xs text-slate-700 italic bg-white/70 p-2.5 rounded-lg border border-amber-100">
+                    &ldquo;{applicant.review.comment}&rdquo;
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-2xs text-amber-800 leading-relaxed">
+                Proyek ini telah selesai dikerjakan. Berikan penilaian performa kerja untuk membantu talenta muda membangun reputasi profesionalnya.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Reviews History */}
         <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
           <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
@@ -230,10 +291,12 @@ export function ApplicantDetailModal({
                     <span className="font-semibold text-slate-700">
                       {rev.vendorName}
                     </span>
-                    <div className="flex items-center gap-1 font-bold text-amber-700">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <span>{rev.rating} / 5</span>
-                    </div>
+                    <StarRating
+                      value={rev.rating}
+                      readOnly
+                      size="sm"
+                      showValue
+                    />
                   </div>
                   {rev.comment && (
                     <p className="text-slate-600 text-2xs italic leading-relaxed">

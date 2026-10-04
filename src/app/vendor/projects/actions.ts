@@ -17,6 +17,11 @@ import type {
 export interface VendorProjectWithStats extends Project {
   applicantCount: number;
   skills: (ProjectSkill & { skill: Skill })[];
+  topApplicant?: {
+    id: string;
+    talentName: string;
+    matchScore: number | null;
+  } | null;
 }
 
 export interface ProjectDetailData {
@@ -133,15 +138,46 @@ export async function getVendorProjects(): Promise<{
 
     const projectIds = projectsData.map((p) => p.id);
 
-    // Fetch applicant counts
+    // Fetch applications and top applicants
     const { data: applicationsData } = await supabase
       .from("applications")
-      .select("project_id")
+      .select("id, project_id, talent_id, match_score, created_at")
       .in("project_id", projectIds);
 
+    const talentIds = Array.from(new Set((applicationsData || []).map((a) => a.talent_id)));
+    const profilesMap = new Map<string, string>();
+    if (talentIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", talentIds);
+      for (const p of profilesData || []) {
+        profilesMap.set(p.id, p.full_name);
+      }
+    }
+
     const countMap: Record<string, number> = {};
+    const topApplicantMap: Record<
+      string,
+      { id: string; talentName: string; matchScore: number | null }
+    > = {};
+
     for (const app of applicationsData || []) {
       countMap[app.project_id] = (countMap[app.project_id] || 0) + 1;
+
+      const currentTop = topApplicantMap[app.project_id];
+      const appScore = app.match_score != null ? Number(app.match_score) : null;
+
+      if (
+        !currentTop ||
+        (appScore !== null && (currentTop.matchScore === null || appScore > currentTop.matchScore))
+      ) {
+        topApplicantMap[app.project_id] = {
+          id: app.id,
+          talentName: profilesMap.get(app.talent_id) || "Kandidat Talenta",
+          matchScore: appScore,
+        };
+      }
     }
 
     // Fetch skills for these projects
@@ -177,6 +213,7 @@ export async function getVendorProjects(): Promise<{
       ...p,
       applicantCount: countMap[p.id] || 0,
       skills: projectSkillsMap[p.id] || [],
+      topApplicant: topApplicantMap[p.id] || null,
     }));
 
     return {

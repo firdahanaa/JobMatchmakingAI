@@ -6,9 +6,19 @@ import { getProjectForEdit, updateProject } from "../../actions";
 import { createClient } from "@/lib/supabase/server";
 import { Edit3, AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
 
 interface EditProjectPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: EditProjectPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const { data } = await getProjectForEdit(id);
+  return {
+    title: data?.project?.title ? `Edit "${data.project.title}"` : "Edit Proyek",
+    description: "Perbarui informasi dan syarat keahlian proyek organisasi Anda.",
+  };
 }
 
 export default async function EditProjectPage({ params }: EditProjectPageProps) {

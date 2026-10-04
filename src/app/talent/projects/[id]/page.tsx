@@ -20,9 +20,22 @@ import { ApplyDialog } from "@/components/talent/apply-dialog";
 import { getTalentProjectDetail } from "../actions";
 import { getApplicationForProject } from "@/app/talent/applications/actions";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: ProjectDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const { project } = await getTalentProjectDetail(id);
+  if (!project) {
+    return { title: "Proyek Tidak Ditemukan" };
+  }
+  return {
+    title: `${project.title} — Detail Proyek`,
+    description: project.description.slice(0, 160),
+  };
 }
 
 const difficultyLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "success" | "warning" }> = {

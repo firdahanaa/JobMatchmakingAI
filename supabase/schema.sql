@@ -172,10 +172,35 @@ alter table reviews         enable row level security;
 -- profiles
 create policy "profiles: baca milik sendiri" on profiles
   for select using (auth.uid() = id);
+create policy "profiles: vendor lihat pelamar" on profiles
+  for select using (
+    exists (
+      select 1 from applications a
+      join projects p on p.id = a.project_id
+      where a.talent_id = profiles.id and p.vendor_id = auth.uid()
+    )
+  );
+create policy "profiles: baca profil vendor" on profiles
+  for select using (role = 'vendor' and auth.role() = 'authenticated');
 create policy "profiles: buat milik sendiri" on profiles
   for insert with check (auth.uid() = id);
 create policy "profiles: ubah milik sendiri" on profiles
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- Mencegah eskalasi hak akses / perubahan role setelah akun dibuat
+create or replace function prevent_profile_role_change()
+returns trigger language plpgsql as $$
+begin
+  if old.role is not null and new.role <> old.role then
+    raise exception 'Perubahan role profil tidak diizinkan demi keamanan.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tr_prevent_profile_role_change
+  before update on profiles
+  for each row execute function prevent_profile_role_change();
 
 -- skills: semua user login boleh baca
 create policy "skills: baca semua" on skills
@@ -213,15 +238,24 @@ create policy "vendor_profiles: pemilik buat" on vendor_profiles
 create policy "vendor_profiles: pemilik ubah" on vendor_profiles
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- projects: yang open bisa dibaca semua user login; vendor kelola miliknya
+-- projects: yang open bisa dibaca semua user login; vendor kelola miliknya (wajib bertipe vendor)
 create policy "projects: baca open atau milik sendiri" on projects
   for select using (status <> 'draft' or vendor_id = auth.uid());
 create policy "projects: vendor buat" on projects
-  for insert with check (auth.uid() = vendor_id);
+  for insert with check (
+    auth.uid() = vendor_id
+    and exists (select 1 from profiles pr where pr.id = auth.uid() and pr.role = 'vendor')
+  );
 create policy "projects: vendor ubah" on projects
-  for update using (auth.uid() = vendor_id);
+  for update using (
+    auth.uid() = vendor_id
+    and exists (select 1 from profiles pr where pr.id = auth.uid() and pr.role = 'vendor')
+  );
 create policy "projects: vendor hapus" on projects
-  for delete using (auth.uid() = vendor_id);
+  for delete using (
+    auth.uid() = vendor_id
+    and exists (select 1 from profiles pr where pr.id = auth.uid() and pr.role = 'vendor')
+  );
 
 -- project_skills
 create policy "project_skills: baca" on project_skills
@@ -243,13 +277,35 @@ create policy "applications: vendor lihat pelamar project-nya" on applications
   for select using (
     exists (select 1 from projects p where p.id = project_id and p.vendor_id = auth.uid())
   );
+-- Talent apply: wajib pending, proyek harus open dan bukan milik sendiri, serta akun berstatus talent
 create policy "applications: talent apply" on applications
-  for insert with check (auth.uid() = talent_id);
+  for insert with check (
+    auth.uid() = talent_id
+    and status = 'pending'
+    and exists (
+      select 1 from projects p
+      where p.id = project_id and p.status = 'open' and p.vendor_id <> auth.uid()
+    )
+    and exists (
+      select 1 from profiles pr
+      where pr.id = auth.uid() and pr.role = 'talent'
+    )
+  );
+-- Talent hanya boleh withdraw saat status masih pending (tidak boleh mengubah score atau status lain)
 create policy "applications: talent ubah (withdraw)" on applications
-  for update using (auth.uid() = talent_id);
+  for update using (
+    auth.uid() = talent_id and status = 'pending'
+  ) with check (
+    auth.uid() = talent_id and status = 'withdrawn'
+  );
+-- Vendor hanya boleh ubah status ke accepted, rejected, atau completed untuk proyek miliknya
 create policy "applications: vendor ubah status" on applications
   for update using (
     exists (select 1 from projects p where p.id = project_id and p.vendor_id = auth.uid())
+    and status in ('pending', 'accepted')
+  ) with check (
+    exists (select 1 from projects p where p.id = project_id and p.vendor_id = auth.uid())
+    and status in ('accepted', 'rejected', 'completed')
   );
 
 -- reviews: vendor menulis untuk project miliknya; talent & vendor terkait membaca
@@ -262,10 +318,20 @@ create policy "reviews: vendor tulis" on reviews
       where a.id = application_id
         and p.vendor_id = auth.uid()
         and a.status = 'completed'
+        and a.talent_id = reviews.talent_id
     )
   );
 create policy "reviews: talent & vendor baca" on reviews
   for select using (auth.uid() = talent_id or auth.uid() = vendor_id);
+-- Vendor berhak membaca review dari talenta yang melamar ke project miliknya
+create policy "reviews: vendor lihat review pelamar" on reviews
+  for select using (
+    exists (
+      select 1 from applications a
+      join projects p on p.id = a.project_id
+      where a.talent_id = reviews.talent_id and p.vendor_id = auth.uid()
+    )
+  );
 
 -- =====================================================
 -- SEED: master list skill (tambah sesuai kebutuhan)

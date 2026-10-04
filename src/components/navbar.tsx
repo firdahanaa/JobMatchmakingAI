@@ -126,6 +126,17 @@ export function Navbar({ initialUser }: NavbarProps) {
                 Jelajahi Proyek
               </Link>
               <Link
+                href="/talent/applications"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/talent/applications")
+                    ? "bg-purple-50 text-purple-700 font-semibold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                <Briefcase className="h-4 w-4" />
+                Lamaran Saya
+              </Link>
+              <Link
                 href="/talent/profile"
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
                   pathname.startsWith("/talent/profile")

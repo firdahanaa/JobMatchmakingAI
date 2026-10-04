@@ -1,10 +1,29 @@
 import Link from "next/link";
-import { Sparkles, PlusCircle, FolderPlus } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Sparkles, PlusCircle, FolderCheck, Users, Briefcase, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { VendorProjectsList } from "@/components/vendor/vendor-projects-list";
+import { getVendorProjects } from "../projects/actions";
+import { createClient } from "@/lib/supabase/server";
 
-export default function VendorDashboardPage() {
+export default async function VendorDashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) {
+    redirect("/login");
+  }
+
+  const { data: projects, user, error } = await getVendorProjects();
+
+  const totalOpen = projects.filter((p) => p.status === "open").length;
+  const totalCompleted = projects.filter((p) => p.status === "completed").length;
+  const totalApplicants = projects.reduce((acc, p) => acc + p.applicantCount, 0);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar />
@@ -19,15 +38,17 @@ export default function VendorDashboardPage() {
                   <Sparkles className="h-3.5 w-3.5" />
                   Vendor Dashboard
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold">Kelola Proyek & Temukan Talenta</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                  {user?.organizationName || "Kelola Proyek & Temukan Talenta"}
+                </h1>
                 <p className="text-sm text-purple-100 max-w-xl">
-                  Posting kebutuhan proyek organisasi/bisnis Anda dan biarkan AI mengurutkan pelamar berdasarkan skor kecocokan tertinggi.
+                  Posting kebutuhan proyek organisasi Anda dan biarkan AI mengurutkan talenta muda terbaik berdasarkan Match Score keahlian.
                 </p>
               </div>
 
               <div className="flex items-center gap-2.5">
                 <Link href="/vendor/projects/new">
-                  <Button variant="secondary" className="gap-2 bg-white text-purple-700 hover:bg-purple-50 shadow-none">
+                  <Button variant="secondary" className="gap-2 bg-white text-purple-700 hover:bg-purple-50 shadow-none font-semibold">
                     <PlusCircle className="h-4 w-4" />
                     Posting Proyek Baru
                   </Button>
@@ -37,71 +58,86 @@ export default function VendorDashboardPage() {
           </div>
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardDescription>Proyek Aktif</CardDescription>
-                <CardTitle className="text-2xl font-bold text-slate-900">0</CardTitle>
+                <CardDescription className="flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                  Total Proyek
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">
+                  {projects.length}
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-500">
-                0 proyek berstatus open
+                Semua proyek yang pernah dibuat
               </CardContent>
             </Card>
 
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardDescription>Total Pelamar Masuk</CardDescription>
-                <CardTitle className="text-2xl font-bold text-slate-900">0</CardTitle>
+                <CardDescription className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+                  Proyek Terbuka (Open)
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-emerald-600">
+                  {totalOpen}
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-500">
-                Belum ada pelamar baru
+                Sedang aktif menerima pelamar
               </CardContent>
             </Card>
 
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardDescription>Proyek Selesai</CardDescription>
-                <CardTitle className="text-2xl font-bold text-slate-900">0</CardTitle>
+                <CardDescription className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-purple-500" />
+                  Total Pelamar Masuk
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-purple-700">
+                  {totalApplicants}
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-500">
-                0 ulasan diberikan
+                Lamaran siap dievaluasi
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardDescription className="flex items-center gap-1.5">
+                  <FolderCheck className="h-3.5 w-3.5 text-blue-500" />
+                  Proyek Selesai
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">
+                  {totalCompleted}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-slate-500">
+                Telah rampung dikerjakan
               </CardContent>
             </Card>
           </div>
 
-          {/* Projects Section */}
+          {/* Error Banner if any */}
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Projects Management List */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Daftar Proyek Saya</h2>
-                <p className="text-xs text-slate-500">Kelola status proyek dan evaluasi kandidat pelamar</p>
-              </div>
-              <Link href="/vendor/projects/new">
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
-                  <PlusCircle className="h-4 w-4" />
-                  Tambah Proyek
-                </Button>
-              </Link>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Daftar Proyek Organisasi</h2>
+              <p className="text-xs text-slate-500">
+                Kelola status publikasi proyek, evaluasi lamaran kandidat, atau ubah rincian tugas.
+              </p>
             </div>
 
-            {/* Empty State */}
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600 mb-3">
-                <FolderPlus className="h-6 w-6" />
-              </div>
-              <h3 className="font-semibold text-slate-900 text-base">Belum Ada Proyek yang Diposting</h3>
-              <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
-                Mulai buat proyek freelance atau volunteer pertama Anda untuk menarik talenta muda potensial.
-              </p>
-              <div className="mt-5">
-                <Link href="/vendor/projects/new">
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Buat Proyek Pertama
-                  </Button>
-                </Link>
-              </div>
-            </div>
+            <VendorProjectsList initialProjects={projects} />
           </div>
         </div>
       </main>

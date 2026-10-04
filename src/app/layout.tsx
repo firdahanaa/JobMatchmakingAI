@@ -26,8 +26,12 @@ export default function RootLayout({
     <html
       lang="id"
       className={`${inter.variable} h-full antialiased font-sans`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-purple-600 selection:text-white">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-purple-600 selection:text-white"
+      >
         {children}
         <Toaster richColors position="top-right" />
       </body>

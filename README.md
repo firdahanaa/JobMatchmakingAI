@@ -149,11 +149,26 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 3. Buka file [`supabase/schema.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/schema.sql), salin seluruh isinya, dan tempel ke SQL Editor.
 4. Klik tombol **Run** (Ctrl + Enter) untuk membuat seluruh tabel, enum, indeks, trigger pembuatan profil otomatis, dan view `talent_ratings`.
 
-### 5. Memasukkan Data Dummy (*Optional Seed*)
-Jika Anda ingin langsung mencoba aplikasi dengan data proyek yang bervariasi:
-1. Daftarkan minimal satu akun dengan role **Vendor** melalui halaman registrasi web (`/register`).
-2. Buka file [`supabase/seed_dummy.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/seed_dummy.sql) di SQL Editor Supabase.
-3. Klik **Run** untuk memasukkan 8 proyek dummy lengkap dengan kebutuhan skill dan tingkatannya.
+### 5. Memasukkan Data Demo Realistis (*Seed Demo Data*)
+Tersedia dataset demo lengkap berisi **10 Talenta** (profil, bio, portfolio, ragam skill), **3 Vendor** (Kopi Nusantara, Edukarya Studio, Kreativa Lab), **12 Proyek** (variasi tingkat kesulitan Beginner/Intermediate/Advanced, freelance/volunteer, remote/onsite/hybrid), **8 Lamaran**, dan **2 Review Rating** untuk menguji algoritma matchmaking dan dashboard secara nyata.
+
+Seluruh akun demo dibuat dengan kata sandi: `Password123!`
+
+Pilih salah satu dari 2 cara berikut:
+
+#### Opsi A: Melalui Supabase SQL Editor (Paling Cepat & Mudah)
+1. Buka dashboard Supabase -> **SQL Editor** -> klik **New query**.
+2. Buka file [`supabase/seed_demo.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/seed_demo.sql), salin seluruh isinya, dan tempel ke SQL Editor.
+3. Klik tombol **Run** (Ctrl + Enter). Data demo akan langsung terisi lengkap.
+
+#### Opsi B: Melalui Skrip Node CLI (`scripts/seed.ts`)
+Skrip ini memanfaatkan Supabase Admin API untuk otomatisasi lokal:
+1. Tambahkan `SUPABASE_SERVICE_ROLE_KEY` ke `.env.local` Anda (didapat dari **Project Settings -> API -> service_role secret**).
+   > ⚠️ **Catatan Keamanan**: Service Role Key **HANYA** digunakan pada skrip lokal `scripts/seed.ts` dan **TIDAK PERNAH** diekspos di kode aplikasi Next.js maupun sisi browser.
+2. Jalankan perintah:
+   ```bash
+   npm run seed
+   ```
 
 ---
 

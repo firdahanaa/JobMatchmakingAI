@@ -65,8 +65,8 @@ export function TabsTrigger({ className, value, children, ...props }: TabsTrigge
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
         isSelected
-          ? "bg-white text-slate-950 shadow-xs dark:bg-slate-950 dark:text-slate-50"
-          : "hover:text-slate-900 dark:hover:text-slate-100",
+          ? "bg-white text-slate-900 shadow-xs dark:bg-white dark:text-slate-900 font-semibold"
+          : "hover:text-slate-900 dark:hover:text-slate-900",
         className
       )}
       {...props}

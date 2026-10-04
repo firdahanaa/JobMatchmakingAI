@@ -57,7 +57,7 @@ export function DialogContent({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
       <div
         className={cn(
-          "relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900",
+          "relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-200 dark:bg-[#f8fafc]",
           className
         )}
         {...props}
@@ -94,7 +94,7 @@ export function DialogTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-lg font-semibold leading-none tracking-tight text-slate-900 dark:text-white", className)}
+      className={cn("text-lg font-semibold leading-none tracking-tight text-slate-900 dark:text-slate-900", className)}
       {...props}
     />
   );

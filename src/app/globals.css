@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
   --primary: #7c3aed;
   --primary-foreground: #ffffff;
-  --card: #ffffff;
+  --card: #f8fafc; /* abu-abu terang / putih agak sedikit ke abu */
   --card-foreground: #0f172a;
   --border: #e2e8f0;
   --input: #e2e8f0;
@@ -17,6 +19,8 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --font-sans: var(--font-sans);
 }
 

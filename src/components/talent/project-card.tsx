@@ -80,7 +80,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
     : null;
 
   return (
-    <Card className="flex flex-col justify-between border-slate-200 hover:border-purple-300 hover:shadow-md transition-all duration-200 group bg-white">
+    <Card className="flex flex-col justify-between border-slate-200/90 hover:border-purple-300 hover:shadow-md transition-all duration-200 group bg-[#f8fafc] dark:bg-[#f8fafc]">
       <CardHeader className="p-5 pb-3 space-y-3">
         {/* Header row: Organization & Match Score Badge */}
         <div className="flex items-start justify-between gap-3">
@@ -214,7 +214,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="p-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/60 rounded-b-xl">
+      <CardFooter className="p-5 pt-3 border-t border-slate-200/80 flex items-center justify-between gap-3 bg-slate-100/70 dark:bg-slate-100/70 rounded-b-xl">
         <div className="text-2xs text-slate-500 truncate">
           {project.durationWeeks
             ? `Durasi: ${project.durationWeeks} minggu`

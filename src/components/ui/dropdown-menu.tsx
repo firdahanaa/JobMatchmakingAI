@@ -65,7 +65,7 @@ export function DropdownMenuContent({
   return (
     <div
       className={cn(
-        "absolute z-50 mt-2 min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-200 dark:bg-[#f8fafc]",
+        "absolute z-50 mt-2 min-w-[12rem] overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-1.5 shadow-xl backdrop-blur-xl dark:border-white/70 dark:bg-white/90",
         align === "right" ? "right-0" : "left-0",
         className
       )}
@@ -96,7 +96,7 @@ export function DropdownMenuItem({
       onClick={handleClick}
       role="menuitem"
       className={cn(
-        "relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-700 dark:hover:bg-slate-100 dark:hover:text-slate-900",
+        "relative flex cursor-pointer select-none items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none transition-colors hover:bg-[#f5f0ec] hover:text-slate-900",
         className
       )}
       {...props}
@@ -109,7 +109,7 @@ export function DropdownMenuItem({
 export function DropdownMenuSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("-mx-1 my-1 h-px bg-slate-100 dark:bg-slate-800", className)}
+      className={cn("-mx-1 my-1 h-px bg-slate-200", className)}
       {...props}
     />
   );
@@ -121,7 +121,7 @@ export function DropdownMenuLabel({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("px-3 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400", className)}
+      className={cn("px-3 py-1.5 text-xs font-semibold text-slate-600", className)}
       {...props}
     />
   );

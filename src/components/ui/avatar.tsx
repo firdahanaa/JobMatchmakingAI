@@ -13,7 +13,7 @@ export function Avatar({ className, src, alt = "Avatar", fallback = "U", ...prop
   return (
     <div
       className={cn(
-        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800",
+        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/70 bg-[#d7e5ec]",
         className
       )}
       {...props}
@@ -27,7 +27,7 @@ export function Avatar({ className, src, alt = "Avatar", fallback = "U", ...prop
           className="aspect-square h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-purple-100 text-sm font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+        <div className="flex h-full w-full items-center justify-center bg-[#d7e5ec] text-sm font-semibold text-sky-800">
           {fallback.slice(0, 2).toUpperCase()}
         </div>
       )}

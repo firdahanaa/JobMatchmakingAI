@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Masuk ke Akun",
-  description: "Masuk ke platform MatchWork AI untuk mulai matchmaking proyek dan talenta.",
+  description: "Masuk ke Pathfolio untuk menemukan proyek yang cocok dengan keahlianmu.",
 };
 
 export default function LoginLayout({

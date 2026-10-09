@@ -50,8 +50,8 @@ export function PortfolioInput({ urls, onChange }: PortfolioInputProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label>Tautan Portofolio & Proyek</Label>
-        <span className="text-xs text-slate-500">Maks. 5 tautan</span>
+        <Label>Tautan Portofolio &amp; Proyek</Label>
+        <span className="text-xs text-[#4A7AAF]">Maks. 5 tautan</span>
       </div>
 
       {/* Input row */}
@@ -72,14 +72,14 @@ export function PortfolioInput({ urls, onChange }: PortfolioInputProps) {
             }}
             className="pl-9 text-sm"
           />
-          <Globe className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Globe className="absolute left-3 top-2.5 h-4 w-4 text-[#93C5FD] pointer-events-none" />
         </div>
         <Button
           type="button"
           onClick={handleAdd}
           variant="secondary"
           size="default"
-          className="gap-1.5 shrink-0"
+          className="gap-1.5 shrink-0 bg-[#EFF6FF] text-[#1D4ED8] hover:bg-[#DBEAFE] border border-[#BFDBFE]"
           disabled={!newUrl.trim() || urls.length >= 5}
         >
           <Plus className="h-4 w-4" />
@@ -100,15 +100,15 @@ export function PortfolioInput({ urls, onChange }: PortfolioInputProps) {
           {urls.map((url, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs"
+              className="flex items-center justify-between gap-3 rounded-lg border border-[#BFDBFE] bg-[#F0F9FF] px-3 py-2 text-xs"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Globe className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                <Globe className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="truncate font-medium text-slate-700 hover:text-purple-700 hover:underline"
+                  className="truncate font-medium text-[#1D4ED8] hover:text-[#1E40AF] hover:underline"
                 >
                   {url}
                 </a>
@@ -116,7 +116,7 @@ export function PortfolioInput({ urls, onChange }: PortfolioInputProps) {
               <button
                 type="button"
                 onClick={() => handleRemove(idx)}
-                className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                className="text-[#93C5FD] hover:text-rose-600 transition-colors cursor-pointer shrink-0"
                 title="Hapus tautan"
               >
                 <Trash2 className="h-4 w-4" />
@@ -125,7 +125,7 @@ export function PortfolioInput({ urls, onChange }: PortfolioInputProps) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-400 italic">
+        <p className="text-xs text-[#4A7AAF] italic">
           Belum ada tautan portofolio yang ditambahkan. Tambahkan link GitHub, Figma, Behance, atau website pribadimu.
         </p>
       )}

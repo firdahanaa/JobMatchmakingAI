@@ -10,13 +10,13 @@ import {
   AlertCircle,
   TrendingUp,
 } from "lucide-react";
-import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { MatchBreakdownPanel } from "@/components/talent/match-breakdown-panel";
 import { ApplyDialog } from "@/components/talent/apply-dialog";
+import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import { getTalentProjectDetail } from "../actions";
 import { getApplicationForProject } from "@/app/talent/applications/actions";
 import { createClient } from "@/lib/supabase/server";
@@ -72,15 +72,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
   if (error || !project) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
-        <Navbar />
+      <div className="min-h-screen flex flex-col bg-[#F0F9FF] text-[#0F172A]">
         <main className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full rounded-2xl border border-rose-200 bg-white p-8 text-center space-y-4 shadow-sm">
+          <div className="max-w-md w-full rounded-3xl border border-sky-100 bg-white p-8 text-center space-y-4 shadow-xl shadow-sky-100/50">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
               <AlertCircle className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Proyek Tidak Ditemukan</h2>
-            <p className="text-xs text-slate-600">
+            <h2 className="text-lg font-bold text-[#0F172A]">Proyek Tidak Ditemukan</h2>
+            <p className="text-xs text-slate-500">
               {error || "Proyek mungkin sudah ditutup atau tidak tersedia lagi."}
             </p>
             <div className="pt-2">
@@ -137,21 +136,24 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   });
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Navbar />
-
+    <div className="min-h-screen flex flex-col bg-[#F0F9FF] text-[#0F172A]">
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl space-y-6">
           {/* Back Navigation Bar */}
-          <div className="flex items-center justify-between">
-            <Link href="/talent/projects">
-              <Button variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-slate-900 text-xs">
-                <ArrowLeft className="h-4 w-4" />
-                <span>Kembali ke Daftar Proyek</span>
-              </Button>
-            </Link>
-
-            <MatchScoreBadge score={project.matchResult.score} size="md" />
+          <div className="flex flex-col gap-3 rounded-3xl border border-sky-100 bg-white/90 p-3 shadow-md shadow-sky-100/50 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:contents">
+              <Link href="/talent/projects">
+                <span className="group inline-flex min-h-11 min-w-28 items-center justify-center rounded-full bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-1.5 text-sm font-bold text-white shadow-md shadow-blue-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2">
+                  <span>Kembali</span>
+                </span>
+              </Link>
+              <div className="sm:order-2">
+                <MatchScoreBadge score={project.matchResult.score} size="md" />
+              </div>
+            </div>
+            <div className="flex justify-center rounded-2xl border border-sky-100 bg-sky-50/70 p-1.5 sm:order-1">
+              <TalentPageNavigation activePage="projects" />
+            </div>
           </div>
 
           {/* Main 2-Column Grid: Left (Project Info) & Right (Match Breakdown Panel) */}
@@ -159,7 +161,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             {/* Left Column (8 cols): Project Details */}
             <div className="lg:col-span-7 space-y-6">
               {/* Project Header Card */}
-              <Card className="border-slate-200 bg-white shadow-xs">
+              <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
                 <CardHeader className="p-6 space-y-4">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -169,7 +171,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                       <Badge variant={typeInfo.variant} className="text-xs">
                         {typeInfo.label}
                       </Badge>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-800 border border-sky-200">
                         <span>{modeInfo.icon}</span>
                         <span>{modeInfo.label}</span>
                       </span>
@@ -178,18 +180,18 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                       </span>
                     </div>
 
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#0F172A] leading-tight">
                       {project.title}
                     </h1>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-1">
                       <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                        <Building2 className="h-4 w-4 text-slate-400" />
+                        <Building2 className="h-4 w-4 text-sky-600" />
                         <span>{project.vendor?.organizationName || "Organisasi Vendor"}</span>
                       </div>
                       {project.vendor?.location && (
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                          <MapPin className="h-3.5 w-3.5 text-sky-600" />
                           <span>{project.vendor.location}</span>
                         </div>
                       )}
@@ -198,46 +200,46 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                   </div>
 
                   {/* Summary Metric Strip */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-3xs font-semibold text-slate-400 block uppercase">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-sky-100">
+                    <div className="p-3 rounded-2xl bg-sky-50 border border-sky-100">
+                      <span className="text-3xs font-semibold text-slate-500 block uppercase">
                         Estimasi Imbalan
                       </span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block mt-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate block mt-0.5">
                         {formattedReward}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-3xs font-semibold text-slate-400 block uppercase">
+                    <div className="p-3 rounded-2xl bg-sky-50 border border-sky-100">
+                      <span className="text-3xs font-semibold text-slate-500 block uppercase">
                         Batas Waktu
                       </span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block mt-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate block mt-0.5">
                         {formattedDeadline}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-3xs font-semibold text-slate-400 block uppercase">
+                    <div className="p-3 rounded-2xl bg-sky-50 border border-sky-100">
+                      <span className="text-3xs font-semibold text-slate-500 block uppercase">
                         Durasi
                       </span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block mt-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate block mt-0.5">
                         {project.durationWeeks ? `${project.durationWeeks} Minggu` : "Fleksibel"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-3xs font-semibold text-slate-400 block uppercase">
+                    <div className="p-3 rounded-2xl bg-sky-50 border border-sky-100">
+                      <span className="text-3xs font-semibold text-slate-500 block uppercase">
                         Komitmen Waktu
                       </span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block mt-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate block mt-0.5">
                         {project.hoursPerWeek ? `${project.hoursPerWeek} jam / mgg` : "Fleksibel"}
                       </span>
                     </div>
                   </div>
 
                   {project.rewardNote && (
-                    <div className="text-xs p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-purple-900">
+                    <div className="text-xs p-3 rounded-2xl bg-sky-50 border border-sky-100 text-sky-900">
                       <strong>Catatan Imbalan / Manfaat:</strong> {project.rewardNote}
                     </div>
                   )}
@@ -245,22 +247,22 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               </Card>
 
               {/* Description Section */}
-              <Card className="border-slate-200 bg-white shadow-xs">
+              <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
                 <CardHeader className="p-6 pb-3">
-                  <CardTitle className="text-base font-bold text-slate-900">
+                  <CardTitle className="text-base font-black text-[#0F172A]">
                     Deskripsi Lengkap Proyek
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-6 pb-6 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                <CardContent className="px-6 pb-6 text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
                   {project.description}
                 </CardContent>
               </Card>
 
               {/* Required Skills Section with Talent Fit Comparison */}
-              <Card className="border-slate-200 bg-white shadow-xs">
+              <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
                 <CardHeader className="p-6 pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-slate-900">
+                    <CardTitle className="text-base font-black text-[#0F172A]">
                       Keahlian Yang Diperlukan
                     </CardTitle>
                     <span className="text-xs text-slate-500">
@@ -282,7 +284,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                               ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
                               : possessed
                               ? "bg-amber-50/70 border-amber-200 text-amber-950"
-                              : "bg-slate-50 border-slate-200 text-slate-800"
+                              : "bg-sky-50 border-sky-200 text-slate-700"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -309,19 +311,19 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                                 Perlu Tingkat
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-slate-200/70 text-slate-600 shrink-0">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-sky-100 text-sky-800 shrink-0">
                                 Belum Ada
                               </span>
                             )}
                           </div>
 
-                          <div className="mt-2 pt-2 border-t border-slate-200/60 text-2xs">
+                          <div className="mt-2 pt-2 border-t border-sky-100 text-2xs">
                             {possessed ? (
                               <span className="text-slate-600">
                                 Levelmu saat ini: <strong className="capitalize">{skill.talentStatus.talentLevel}</strong>
                               </span>
                             ) : (
-                              <span className="text-slate-400 italic">
+                              <span className="text-slate-500 italic">
                                 Belum kamu daftarkan di profil talent
                               </span>
                             )}
@@ -335,15 +337,15 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
               {/* Vendor Organization Profile */}
               {project.vendor && (
-                <Card className="border-slate-200 bg-white shadow-xs">
+                <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
                   <CardHeader className="p-6 pb-3">
-                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-purple-600" />
+                    <CardTitle className="text-base font-black text-[#0F172A] flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-sky-600" />
                       <span>Tentang Organisasi Vendor</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-6 pb-6 space-y-3 text-xs text-slate-600">
-                    <h3 className="text-sm font-bold text-slate-900">
+                    <h3 className="text-sm font-bold text-[#0F172A]">
                       {project.vendor.organizationName}
                     </h3>
                     {project.vendor.description && (
@@ -352,7 +354,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                     <div className="flex flex-wrap items-center gap-4 pt-1 text-slate-500">
                       {project.vendor.location && (
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                          <MapPin className="h-3.5 w-3.5 text-sky-600" />
                           <span>{project.vendor.location}</span>
                         </div>
                       )}
@@ -365,7 +367,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-purple-600 hover:text-purple-700 underline"
+                          className="flex items-center gap-1 text-sky-700 hover:text-sky-900 underline"
                         >
                           <Globe className="h-3.5 w-3.5" />
                           <span>Kunjungi Website Organisasi</span>
@@ -377,11 +379,11 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               )}
 
               {/* Apply Action Section */}
-              <Card className="border-slate-200 bg-white shadow-xs">
+              <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
-                      <h4 className="text-sm font-bold text-slate-900">
+                      <h4 className="text-sm font-bold text-[#0F172A]">
                         Tertarik dengan Proyek Ini?
                       </h4>
                       <p className="text-xs text-slate-500">

@@ -1,7 +1,7 @@
-# MatchWork AI 🚀
+# Pathfolio 🚀
 ### Connecting People Who Need Experience With Opportunities That Need People
 
-MatchWork AI adalah platform matchmaking proyek freelance dan volunteer cerdas yang mempertemukan talenta muda (mahasiswa & fresh graduates yang membutuhkan pengalaman nyata dan portofolio) dengan UMKM & startup yang membutuhkan bantuan talenta fleksibel dan terjangkau. 
+Pathfolio adalah platform matchmaking proyek freelance dan volunteer cerdas yang mempertemukan talenta muda (mahasiswa & fresh graduates yang membutuhkan pengalaman nyata dan portofolio) dengan UMKM & startup yang membutuhkan bantuan talenta fleksibel dan terjangkau. 
 
 Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan transparan (4 komponen), analisis *skill gap* konstruktif, manajemen pelamar komparatif bagi vendor, serta sistem rating & ulasan performa kerja dua arah.
 

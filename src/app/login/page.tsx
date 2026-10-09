@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Sparkles, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
+import { Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginInput } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormItem, FormMessage } from "@/components/ui/form";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -117,82 +118,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-4 font-bold text-2xl text-slate-900">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-200">
-            <Sparkles className="h-6 w-6" />
+    <AuthLayout
+      heading="Senang melihatmu kembali!"
+      description="Masuk ke Pathfolio untuk melanjutkan perjalanan dan menemukan proyek yang cocok dengan keahlianmu."
+    >
+      <div className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl shadow-slate-400/10 backdrop-blur-sm sm:p-8">
+        {errorMessage && (
+          <div className="mb-6 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <span>{errorMessage}</span>
           </div>
-          <span>
-            MatchWork<span className="text-purple-600">AI</span>
-          </span>
-        </Link>
-        <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900">
-          Masuk ke Akun Kamu
-        </h2>
-        <p className="mt-1 text-center text-sm text-slate-600">
-          Belum punya akun?{" "}
-          <Link href="/register" className="font-semibold text-purple-600 hover:text-purple-700">
-            Daftar sekarang
-          </Link>
-        </p>
-      </div>
+        )}
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-white py-8 px-6 shadow-md shadow-slate-200/60 rounded-2xl border border-slate-200 sm:px-10">
-          {errorMessage && (
-            <div className="mb-6 flex items-start gap-2.5 rounded-xl bg-rose-50 p-4 border border-rose-200 text-sm text-rose-800">
-              <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <FormItem>
+            <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Alamat email</Label>
+            <div className="relative mt-1.5">
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="nama@email.com"
+                className="h-12 rounded-full border-transparent bg-[#f5f0ec] pl-11 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                {...register("email")}
+              />
+              <Mail className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-500" />
             </div>
-          )}
+            {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
+          </FormItem>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* Email */}
-            <FormItem>
-              <Label htmlFor="email">Alamat Email</Label>
-              <div className="relative">
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="nama@email.com"
-                  className="pl-9"
-                  {...register("email")}
-                />
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
-              {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
-            </FormItem>
+          <FormItem>
+            <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</Label>
+            <div className="relative mt-1.5">
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Masukkan password"
+                className="h-12 rounded-full border-transparent bg-[#f5f0ec] pl-11 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                {...register("password")}
+              />
+              <Lock className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-500" />
+            </div>
+            {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
+          </FormItem>
 
-            {/* Password */}
-            <FormItem>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Masukkan password"
-                  className="pl-9"
-                  {...register("password")}
-                />
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
-              {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
-            </FormItem>
-
-            <Button
-              type="submit"
-              isLoading={isLoading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2 font-medium"
-            >
-              Masuk
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </form>
-        </div>
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            className="h-12 w-full rounded-full bg-[#f5f0ec] font-semibold text-slate-800 shadow-sm transition-colors hover:bg-white"
+          >
+            Masuk
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </form>
       </div>
-    </div>
+
+      <p className="mt-6 text-center text-sm text-slate-700">
+        Belum punya akun?{" "}
+        <Link href="/register" className="font-bold text-sky-800 underline-offset-4 hover:underline">
+          Daftar sekarang
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

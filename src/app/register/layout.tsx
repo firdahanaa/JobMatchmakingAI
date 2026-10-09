@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Daftar Akun Baru",
-  description: "Daftar sebagai Talenta atau Vendor di platform MatchWork AI.",
+  description: "Daftar sebagai Talenta atau Vendor di Pathfolio.",
 };
 
 export default function RegisterLayout({

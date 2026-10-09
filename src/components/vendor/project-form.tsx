@@ -254,7 +254,7 @@ export function ProjectForm({
       <div className="flex items-center justify-between">
         <Link
           href="/vendor/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8a7668] hover:text-[#5c4639] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke Dashboard Vendor
@@ -270,7 +270,7 @@ export function ProjectForm({
             type="submit"
             isLoading={isSubmitting}
             size="sm"
-            className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-xs"
+            className="bg-[#C98B75] hover:bg-[#b87a65] text-white gap-2 shadow-xs"
           >
             <Save className="h-4 w-4" />
             {isEdit ? "Simpan Perubahan" : "Posting Proyek"}
@@ -279,10 +279,10 @@ export function ProjectForm({
       </div>
 
       {/* Card 1: Informasi Pokok Proyek */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="rounded-2xl border border-[#e8d5d0] bg-white p-6 sm:p-8 shadow-xs space-y-6">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">1. Informasi Pokok Proyek</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-lg font-bold text-[#4a3728]">1. Informasi Pokok Proyek</h2>
+          <p className="text-xs text-[#8a7668] mt-0.5">
             Jelaskan lingkup pekerjaan yang dibutuhkan organisasi Anda secara detail dan menarik bagi talenta muda.
           </p>
         </div>
@@ -300,7 +300,7 @@ export function ProjectForm({
             required
             maxLength={150}
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#a89080]">
             Minimal 5 karakter, maksimal 150 karakter. ({title.length}/150)
           </p>
         </FormItem>
@@ -318,7 +318,7 @@ export function ProjectForm({
             onChange={(e) => setDescription(e.target.value)}
             required
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#a89080]">
             Minimal 20 karakter agar pelamar memahami ekspektasi tugas dengan jelas. ({description.length} karakter)
           </p>
         </FormItem>
@@ -338,7 +338,7 @@ export function ProjectForm({
               <option value="intermediate">Menengah (Intermediate)</option>
               <option value="advanced">Mahir (Advanced)</option>
             </Select>
-            <p className="text-[11px] text-slate-400">Dipakai AI untuk mencocokkan jenjang skill talent.</p>
+            <p className="text-[11px] text-[#a89080]">Dipakai AI untuk mencocokkan jenjang skill talent.</p>
           </FormItem>
 
           <FormItem>
@@ -373,11 +373,11 @@ export function ProjectForm({
       </div>
 
       {/* Card 2: Skill yang Dibutuhkan */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="rounded-2xl border border-[#e8d5d0] bg-white p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900">2. Skill yang Dibutuhkan</h2>
+              <h2 className="text-lg font-bold text-[#4a3728]">2. Skill yang Dibutuhkan</h2>
               <Badge
                 variant={selectedSkills.length >= 1 ? "success" : "destructive"}
                 className="text-xs"
@@ -385,7 +385,7 @@ export function ProjectForm({
                 {selectedSkills.length} Dipilih (Min. 1)
               </Badge>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#8a7668] mt-0.5">
               Pilih keahlian dari master list terstandar. Tentukan level minimum dan apakah skill bersifat wajib (Required) atau opsional (Nice to have).
             </p>
           </div>
@@ -405,7 +405,7 @@ export function ProjectForm({
                 onFocus={() => setIsSkillPickerOpen(true)}
                 className="pl-9 pr-4 text-sm"
               />
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
             </div>
 
             {/* Category Filter Pills */}
@@ -420,8 +420,8 @@ export function ProjectForm({
                   }}
                   className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     selectedCategory === cat
-                      ? "bg-purple-600 text-white shadow-xs"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      ? "bg-[#C98B75] text-white shadow-xs"
+                      : "bg-[#F7ECEA] text-[#7a6559] hover:bg-[#e8d5d0]"
                   }`}
                 >
                   {cat}
@@ -432,16 +432,16 @@ export function ProjectForm({
 
           {/* Suggestions Dropdown */}
           {isSkillPickerOpen && (
-            <div className="absolute z-30 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl space-y-3">
+            <div className="absolute z-30 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-xl border border-[#e8d5d0] bg-white p-3 shadow-xl space-y-3">
               {availableSkills.length > 0 ? (
                 Object.entries(groupedSkills).map(([cat, skills]) => (
                   <div key={cat} className="space-y-1.5">
-                    <div className="flex items-center justify-between px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50/60 rounded">
+                    <div className="flex items-center justify-between px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#b87a65] bg-[#F7ECEA]/60 rounded">
                       <span className="flex items-center gap-1.5">
                         <Layers className="h-3 w-3" />
                         {cat}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-normal">
+                      <span className="text-[10px] text-[#a89080] font-normal">
                         {skills.length} keahlian
                       </span>
                     </div>
@@ -452,10 +452,10 @@ export function ProjectForm({
                           key={skill.id}
                           type="button"
                           onClick={() => handleAddSkill(skill)}
-                          className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-purple-50 text-slate-800 hover:text-purple-900 cursor-pointer border border-slate-100 hover:border-purple-200"
+                          className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-[#F7ECEA] text-[#5c4639] hover:text-[#7a4f3f] cursor-pointer border border-[#F7ECEA] hover:border-[#e0c4bc]"
                         >
                           <span className="font-semibold truncate">{skill.name}</span>
-                          <span className="text-[10px] text-purple-600 font-medium ml-2 shrink-0">
+                          <span className="text-[10px] text-[#C98B75] font-medium ml-2 shrink-0">
                             + Tambah
                           </span>
                         </button>
@@ -464,7 +464,7 @@ export function ProjectForm({
                   </div>
                 ))
               ) : (
-                <div className="py-6 text-center text-xs text-slate-500">
+                <div className="py-6 text-center text-xs text-[#8a7668]">
                   {masterSkills.length === 0 ? (
                     <p>Memuat master keahlian...</p>
                   ) : (
@@ -480,7 +480,7 @@ export function ProjectForm({
 
         {/* Selected Skills List */}
         <div className="space-y-3">
-          <Label className="font-semibold text-slate-800">
+          <Label className="font-semibold text-[#5c4639]">
             Daftar Skill Yang Ditambahkan ({selectedSkills.length})
           </Label>
 
@@ -491,13 +491,13 @@ export function ProjectForm({
                   key={item.skillId}
                   className={`rounded-xl border p-4 shadow-xs transition-colors ${
                     item.isRequired
-                      ? "border-purple-200 bg-purple-50/30"
-                      : "border-slate-200 bg-slate-50/50"
+                      ? "border-[#e0c4bc] bg-[#F7ECEA]/30"
+                      : "border-[#e8d5d0] bg-[#F7ECEA]/50"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-bold text-slate-900 text-sm">
+                      <span className="font-bold text-[#4a3728] text-sm">
                         {item.skillName}
                       </span>
                       <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">
@@ -508,17 +508,17 @@ export function ProjectForm({
                     <button
                       type="button"
                       onClick={() => handleRemoveSkill(item.skillId)}
-                      className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                      className="text-[#a89080] hover:text-rose-600 transition-colors p-1 cursor-pointer"
                       title="Hapus skill"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#e8d5d0]/60">
                     {/* Minimum Level */}
                     <div>
-                      <Label className="text-[11px] text-slate-500 font-medium">Level Minimal:</Label>
+                      <Label className="text-[11px] text-[#8a7668] font-medium">Level Minimal:</Label>
                       <Select
                         value={item.minLevel}
                         onChange={(e) =>
@@ -534,14 +534,14 @@ export function ProjectForm({
 
                     {/* Is Required Toggle */}
                     <div>
-                      <Label className="text-[11px] text-slate-500 font-medium">Sifat Skill:</Label>
+                      <Label className="text-[11px] text-[#8a7668] font-medium">Sifat Skill:</Label>
                       <button
                         type="button"
                         onClick={() => handleToggleRequired(item.skillId)}
                         className={`w-full mt-1 h-8 rounded-lg px-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                           item.isRequired
-                            ? "bg-purple-600 text-white shadow-xs"
-                            : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                            ? "bg-[#C98B75] text-white shadow-xs"
+                            : "bg-[#e8d5d0] text-[#695449] hover:bg-[#d4b0a5]"
                         }`}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
@@ -567,10 +567,10 @@ export function ProjectForm({
       </div>
 
       {/* Card 3: Waktu, Reward & Status */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="rounded-2xl border border-[#e8d5d0] bg-white p-6 sm:p-8 shadow-xs space-y-6">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">3. Waktu, Kompensasi & Status Publikasi</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-lg font-bold text-[#4a3728]">3. Waktu, Kompensasi & Status Publikasi</h2>
+          <p className="text-xs text-[#8a7668] mt-0.5">
             Tentukan durasi kerja, estimasi jam mingguan, imbalan, batas pendaftaran, serta visibilitas proyek.
           </p>
         </div>
@@ -590,9 +590,9 @@ export function ProjectForm({
                 value={durationWeeks}
                 onChange={(e) => setDurationWeeks(e.target.value)}
               />
-              <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Clock className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
             </div>
-            <p className="text-xs text-slate-400">Total rentang waktu pengerjaan proyek.</p>
+            <p className="text-xs text-[#a89080]">Total rentang waktu pengerjaan proyek.</p>
           </FormItem>
 
           <FormItem>
@@ -608,9 +608,9 @@ export function ProjectForm({
                 value={hoursPerWeek}
                 onChange={(e) => setHoursPerWeek(e.target.value)}
               />
-              <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Clock className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#a89080]">
               Digunakan AI untuk mencocokkan ketersediaan waktu talent.
             </p>
           </FormItem>
@@ -630,9 +630,9 @@ export function ProjectForm({
                 value={rewardAmount}
                 onChange={(e) => setRewardAmount(e.target.value)}
               />
-              <Coins className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Coins className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
             </div>
-            <p className="text-xs text-slate-400">Nominal reward tunai (tidak boleh negatif).</p>
+            <p className="text-xs text-[#a89080]">Nominal reward tunai (tidak boleh negatif).</p>
           </FormItem>
 
           <FormItem>
@@ -644,7 +644,7 @@ export function ProjectForm({
               onChange={(e) => setRewardNote(e.target.value)}
               maxLength={200}
             />
-            <p className="text-xs text-slate-400">Sangat menarik bagi talenta pencari pengalaman.</p>
+            <p className="text-xs text-[#a89080]">Sangat menarik bagi talenta pencari pengalaman.</p>
           </FormItem>
         </div>
 
@@ -661,9 +661,9 @@ export function ProjectForm({
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
               />
-              <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#a89080]">
               Tidak boleh di masa lalu. Proyek tidak akan menerima lamaran baru setelah tanggal ini.
             </p>
           </FormItem>
@@ -684,7 +684,7 @@ export function ProjectForm({
                 </>
               )}
             </Select>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#a89080]">
               Pilih Draft jika masih ingin menyempurnakan rincian sebelum dipublikasikan.
             </p>
           </FormItem>
@@ -692,7 +692,7 @@ export function ProjectForm({
       </div>
 
       {/* Footer Submit Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#e8d5d0]">
         <Link href="/vendor/dashboard" className="w-full sm:w-auto">
           <Button type="button" variant="outline" className="w-full sm:w-auto">
             Batal
@@ -702,7 +702,7 @@ export function ProjectForm({
         <Button
           type="submit"
           isLoading={isSubmitting}
-          className="bg-purple-600 hover:bg-purple-700 text-white gap-2 w-full sm:w-auto"
+          className="bg-[#C98B75] hover:bg-[#b87a65] text-white gap-2 w-full sm:w-auto"
         >
           <Save className="h-4 w-4" />
           {isEdit ? "Simpan Perubahan Proyek" : "Posting Proyek Sekarang"}

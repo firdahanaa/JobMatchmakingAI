@@ -36,15 +36,15 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
+      <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
         <Navbar />
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-2xl border border-rose-200 bg-white p-8 text-center space-y-4 shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
               <AlertCircle className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Tidak Dapat Mengedit Proyek</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-bold text-[#4a3728]">Tidak Dapat Mengedit Proyek</h2>
+            <p className="text-sm text-[#7a6559]">
               {error || "Proyek tidak ditemukan atau Anda tidak memiliki hak akses."}
             </p>
             <div className="pt-2">
@@ -93,21 +93,21 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
       <Navbar />
 
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl space-y-6">
           {/* Header */}
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 text-purple-700 px-3 py-0.5 text-xs font-semibold">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F7ECEA] text-[#b87a65] px-3 py-0.5 text-xs font-semibold">
               <Edit3 className="h-3.5 w-3.5" />
               Edit Proyek
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#4a3728]">
               Perbarui Informasi Proyek
             </h1>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-[#7a6559]">
               Ubah rincian tugas, spesifikasi keahlian, dan status proyek Anda.
             </p>
           </div>

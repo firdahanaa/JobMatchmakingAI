@@ -47,7 +47,7 @@ export function StarRating({
   return (
     <div className={cn("inline-flex items-center gap-1.5", className)}>
       {label && (
-        <span className="text-xs font-medium text-slate-600 mr-1">{label}</span>
+        <span className="text-xs font-medium text-[#7a6559] mr-1">{label}</span>
       )}
 
       <div
@@ -94,10 +94,10 @@ export function StarRating({
                   sizeClasses,
                   "transition-colors duration-150",
                   isFilled
-                    ? "fill-amber-400 text-amber-400 drop-shadow-2xs"
+                    ? "fill-slate-400 text-slate-500 drop-shadow-2xs"
                     : isHalfFilled
-                    ? "fill-amber-400/50 text-amber-400"
-                    : "fill-transparent text-slate-300"
+                      ? "fill-slate-400/50 text-slate-500"
+                    : "fill-transparent text-[#d4b0a5]"
                 )}
               />
             </button>
@@ -108,7 +108,7 @@ export function StarRating({
       {showValue && (
         <span
           className={cn(
-            "font-semibold text-slate-700 ml-1 tabular-nums",
+            "font-semibold text-[#695449] ml-1 tabular-nums",
             textSizeClasses
           )}
         >

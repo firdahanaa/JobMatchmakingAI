@@ -36,8 +36,8 @@ export function MatchScoreBadge({
     iconClasses = "text-amber-600 dark:text-amber-600";
   } else {
     colorClasses =
-      "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200/80 dark:bg-slate-100 dark:text-slate-700 dark:border-slate-200";
-    iconClasses = "text-slate-500 dark:text-slate-500";
+      "bg-[#F7ECEA] text-[#695449] border-[#e8d5d0] hover:bg-[#e8d5d0]/80 dark:bg-[#F7ECEA] dark:text-[#695449] dark:border-[#e8d5d0]";
+    iconClasses = "text-[#8a7668] dark:text-[#8a7668]";
   }
 
   const sizeClasses = {

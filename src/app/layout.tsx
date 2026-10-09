@@ -10,8 +10,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "MatchWork AI — Platform Matchmaking Talenta & Proyek Cerdas",
-    template: "%s | MatchWork AI",
+    default: "Pathfolio — Temukan Proyek yang Cocok dengan Keahlianmu",
+    template: "%s | Pathfolio",
   },
   description:
     "Platform matchmaking proyek freelance dan volunteer yang mempertemukan talenta muda dengan UMKM & startup, didukung skor kecocokan cerdas dan analisis skill gap transparan.",
@@ -30,7 +30,7 @@ export default function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-purple-600 selection:text-white"
+        className="min-h-full flex flex-col bg-[#F0F9FF] text-[#0F172A] selection:bg-sky-500 selection:text-white"
       >
         {children}
         <Toaster richColors position="top-right" />

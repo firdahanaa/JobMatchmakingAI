@@ -41,15 +41,15 @@ export function ApplicantCompareModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto bg-white rounded-2xl p-6 space-y-6">
-        <DialogHeader className="pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-purple-700 font-semibold text-xs uppercase tracking-wider">
+        <DialogHeader className="pb-3 border-b border-[#F7ECEA]">
+          <div className="flex items-center gap-2 text-[#b87a65] font-semibold text-xs uppercase tracking-wider">
             <Scale className="h-4 w-4" />
             <span>Perbandingan Pelamar Berdampingan</span>
           </div>
-          <DialogTitle className="text-xl font-bold text-slate-900">
+          <DialogTitle className="text-xl font-bold text-[#4a3728]">
             Bandingkan {applicants.length} Pelamar Pilihan
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
+          <DialogDescription className="text-xs text-[#8a7668]">
             Tinjau perbedaan kompetensi, ketersediaan, dan rekam jejak untuk memilih talenta terbaik untuk proyekmu.
           </DialogDescription>
         </DialogHeader>
@@ -58,8 +58,8 @@ export function ApplicantCompareModal({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200">
-                <th className="py-3 px-3 text-slate-500 font-semibold uppercase text-3xs w-1/4">
+              <tr className="border-b border-[#e8d5d0]">
+                <th className="py-3 px-3 text-[#8a7668] font-semibold uppercase text-3xs w-1/4">
                   Kriteria
                 </th>
                 {applicants.map((app) => (
@@ -68,13 +68,13 @@ export function ApplicantCompareModal({
                       <div className="flex items-center gap-2.5">
                         <Avatar
                           fallback={app.talentName}
-                          className="h-10 w-10 text-sm font-bold bg-purple-100 text-purple-700 shrink-0"
+                          className="h-10 w-10 text-sm font-bold bg-[#F7ECEA] text-[#b87a65] shrink-0"
                         />
                         <div className="min-w-0">
-                          <h4 className="font-bold text-slate-900 text-sm truncate">
+                          <h4 className="font-bold text-[#4a3728] text-sm truncate">
                             {app.talentName}
                           </h4>
-                          <span className="text-3xs text-purple-700 font-semibold flex items-center gap-1 truncate">
+                          <span className="text-3xs text-[#b87a65] font-semibold flex items-center gap-1 truncate">
                             <Mail className="h-2.5 w-2.5" />
                             {app.contactEmail || "Email tersimpan"}
                           </span>
@@ -92,54 +92,54 @@ export function ApplicantCompareModal({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#F7ECEA]">
               {/* Row 1: Match Score Breakdown */}
-              <tr className="bg-slate-50/60">
-                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-slate-700 text-3xs uppercase tracking-wider">
+              <tr className="bg-[#F7ECEA]/60">
+                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-[#695449] text-3xs uppercase tracking-wider">
                   Rincian Komponen Skor
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Kecocokan Skill (50%)</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Kecocokan Skill (50%)</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-bold text-slate-900">
+                  <td key={app.id} className="py-2.5 px-3 font-bold text-[#4a3728]">
                     {app.matchBreakdown.skill}%
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Kesesuaian Level (20%)</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Kesesuaian Level (20%)</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-bold text-slate-900">
+                  <td key={app.id} className="py-2.5 px-3 font-bold text-[#4a3728]">
                     {app.matchBreakdown.levelFit}%
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Ketersediaan & Mode (15%)</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Ketersediaan & Mode (15%)</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-bold text-slate-900">
+                  <td key={app.id} className="py-2.5 px-3 font-bold text-[#4a3728]">
                     {app.matchBreakdown.availability}%
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Rating & Rekam Jejak (15%)</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Rating & Rekam Jejak (15%)</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-bold text-slate-900">
+                  <td key={app.id} className="py-2.5 px-3 font-bold text-[#4a3728]">
                     {app.matchBreakdown.rating}%
                   </td>
                 ))}
               </tr>
 
               {/* Row 2: Skill Fit Overview */}
-              <tr className="bg-slate-50/60">
-                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-slate-700 text-3xs uppercase tracking-wider">
+              <tr className="bg-[#F7ECEA]/60">
+                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-[#695449] text-3xs uppercase tracking-wider">
                   Analisis Keahlian
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Keahlian Cocok</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Keahlian Cocok</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3 align-top">
                     {app.matchedSkills.length > 0 ? (
@@ -155,13 +155,13 @@ export function ApplicantCompareModal({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400 italic text-3xs">Tidak ada</span>
+                      <span className="text-[#a89080] italic text-3xs">Tidak ada</span>
                     )}
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Perlu Peningkatan Level</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Perlu Peningkatan Level</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3 align-top">
                     {app.underLevelSkills.length > 0 ? (
@@ -183,7 +183,7 @@ export function ApplicantCompareModal({
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Keahlian Kurang</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Keahlian Kurang</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3 align-top">
                     {app.missingSkills.length > 0 ? (
@@ -191,7 +191,7 @@ export function ApplicantCompareModal({
                         {app.missingSkills.map((s) => (
                           <span
                             key={s}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-3xs"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F7ECEA] text-[#7a6559] text-3xs"
                           >
                             {s}
                           </span>
@@ -205,33 +205,33 @@ export function ApplicantCompareModal({
               </tr>
 
               {/* Row 3: Reputation & Experience */}
-              <tr className="bg-slate-50/60">
-                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-slate-700 text-3xs uppercase tracking-wider">
+              <tr className="bg-[#F7ECEA]/60">
+                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-[#695449] text-3xs uppercase tracking-wider">
                   Reputasi & Pengalaman
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Rating Rata-rata</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Rating Rata-rata</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3">
-                    <div className="flex items-center gap-1 font-bold text-slate-900">
+                    <div className="flex items-center gap-1 font-bold text-[#4a3728]">
                       <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                       <span>{app.avgRating !== null ? app.avgRating.toFixed(1) : "3.0"}</span>
-                      <span className="text-slate-400 font-normal">({app.reviewCount} ulasan)</span>
+                      <span className="text-[#a89080] font-normal">({app.reviewCount} ulasan)</span>
                     </div>
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Proyek Selesai</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Proyek Selesai</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-bold text-slate-800">
+                  <td key={app.id} className="py-2.5 px-3 font-bold text-[#5c4639]">
                     {app.completedProjectsCount} proyek
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Link Portofolio</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Link Portofolio</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3">
                     {app.portfolioUrls.length > 0 ? (
@@ -242,7 +242,7 @@ export function ApplicantCompareModal({
                             href={url.startsWith("http") ? url : `https://${url}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-purple-700 hover:underline text-3xs truncate max-w-[180px]"
+                            className="flex items-center gap-1 text-[#b87a65] hover:underline text-3xs truncate max-w-[180px]"
                           >
                             <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             <span className="truncate">{url}</span>
@@ -250,38 +250,38 @@ export function ApplicantCompareModal({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400 italic text-3xs">-</span>
+                      <span className="text-[#a89080] italic text-3xs">-</span>
                     )}
                   </td>
                 ))}
               </tr>
 
               {/* Row 4: Availability */}
-              <tr className="bg-slate-50/60">
-                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-slate-700 text-3xs uppercase tracking-wider">
+              <tr className="bg-[#F7ECEA]/60">
+                <td colSpan={applicants.length + 1} className="py-2 px-3 font-bold text-[#695449] text-3xs uppercase tracking-wider">
                   Ketersediaan Kerja
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Jam per Minggu</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Jam per Minggu</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-medium text-slate-800">
+                  <td key={app.id} className="py-2.5 px-3 font-medium text-[#5c4639]">
                     {app.hoursPerWeek ? `${app.hoursPerWeek} jam/mgg` : "Fleksibel"}
                   </td>
                 ))}
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium text-slate-500">Preferensi Mode</td>
+                <td className="py-2.5 px-3 font-medium text-[#8a7668]">Preferensi Mode</td>
                 {applicants.map((app) => (
-                  <td key={app.id} className="py-2.5 px-3 font-medium text-slate-800 capitalize">
+                  <td key={app.id} className="py-2.5 px-3 font-medium text-[#5c4639] capitalize">
                     {app.preferredMode || "Semua Mode (Fleksibel)"}
                   </td>
                 ))}
               </tr>
 
               {/* Row 5: Quick Decision Actions */}
-              <tr className="bg-slate-50/90">
-                <td className="py-3 px-3 font-bold text-slate-700 uppercase text-3xs">
+              <tr className="bg-[#F7ECEA]/90">
+                <td className="py-3 px-3 font-bold text-[#695449] uppercase text-3xs">
                   Aksi Keputusan
                 </td>
                 {applicants.map((app) => (

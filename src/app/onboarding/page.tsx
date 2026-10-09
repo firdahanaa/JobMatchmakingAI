@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Briefcase, MapPin, Clock, Building2, Globe, ArrowRight } from "lucide-react";
+import { User, Briefcase, MapPin, Clock, Building2, Globe, ArrowRight, ArrowLeft, Home } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 import type { UserRole, WorkMode } from "@/types/database";
 import { saveTalentOnboarding, saveVendorOnboarding } from "./actions";
 
-export default function OnboardingPage() {
+export default function OnboardingPage({ isProfilePage = false }: { isProfilePage?: boolean }) {
   const router = useRouter();
   const [role, setRole] = React.useState<UserRole>("talent");
   const [userId, setUserId] = React.useState<string | null>(null);
@@ -147,8 +148,8 @@ export default function OnboardingPage() {
           throw new Error(res.error || "Gagal menyimpan profil Vendor.");
         }
 
-        toast.success("Profil Vendor berhasil dilengkapi!");
-        router.push("/vendor/dashboard");
+        toast.success(isProfilePage ? "Profil Vendor berhasil diperbarui!" : "Profil Vendor berhasil dilengkapi!");
+        router.push(isProfilePage ? "/vendor/profile" : "/vendor/dashboard");
       }
 
       router.refresh();
@@ -166,27 +167,42 @@ export default function OnboardingPage() {
 
   if (isPageLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7ECEA]">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
-          <p className="text-sm font-medium text-slate-600">Memuat profil kamu...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#66879b] border-t-transparent" />
+          <p className="text-sm font-medium text-[#7a6559]">Memuat profil kamu...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-2xl">
+    <div className="relative min-h-screen overflow-hidden bg-[#F7ECEA] px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#c9dce7]/55 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-[#e8d5d0]/70 blur-3xl" />
+      <div className="relative mx-auto max-w-3xl">
+        {isProfilePage && (
+          <div className="mb-6">
+            <Link
+              href="/vendor/dashboard"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[#c9dce7] bg-white/80 px-4 text-sm font-semibold text-[#506c83] shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#9fb9c7] hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#66879b] focus-visible:ring-offset-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <Home className="h-4 w-4" />
+              Kembali ke Dashboard
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 mb-3 shadow-sm shadow-purple-100">
+        <div className="mb-8 text-center">
+          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9dce7] bg-white/80 text-[#506c83] shadow-sm">
             {role === "talent" ? <User className="h-6 w-6" /> : <Briefcase className="h-6 w-6" />}
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Lengkapi Profil {role === "talent" ? "Talent" : "Vendor"}{fullName ? `, ${fullName}` : ""}
+          <h1 className="text-2xl font-bold tracking-tight text-[#4a3728] sm:text-3xl">
+            {isProfilePage ? "Profil Vendor" : `Lengkapi Profil ${role === "talent" ? "Talent" : "Vendor"}`}{fullName ? `, ${fullName}` : ""}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-[#7a6559]">
             {role === "talent"
               ? "Profil ini akan digunakan sistem untuk menghitung Match Score dan mencocokkanmu dengan proyek yang ideal."
               : "Bantu talent mengenal profil organisasi atau bisnis kamu dengan lebih jelas."}
@@ -194,7 +210,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Card Form */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-sm">
+        <div className="rounded-[1.75rem] border border-[#e8d5d0] bg-white/95 p-5 shadow-xl shadow-[#695449]/5 sm:p-8 lg:p-10">
           {errorText && (
             <div className="mb-6 rounded-xl bg-rose-50 p-4 border border-rose-200 text-sm text-rose-800">
               {errorText}
@@ -217,7 +233,7 @@ export default function OnboardingPage() {
                       required
                     />
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#8a7668]">
                     Sebutkan keahlian utama atau fokus peran yang kamu cari.
                   </p>
                 </FormItem>
@@ -249,7 +265,7 @@ export default function OnboardingPage() {
                         onChange={(e) => setLocation(e.target.value)}
                         required
                       />
-                      <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
                     </div>
                   </FormItem>
                 </div>
@@ -270,7 +286,7 @@ export default function OnboardingPage() {
                         onChange={(e) => setHoursPerWeek(Number(e.target.value))}
                         required
                       />
-                      <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <Clock className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
                     </div>
                   </FormItem>
 
@@ -316,7 +332,7 @@ export default function OnboardingPage() {
                       onChange={(e) => setOrgName(e.target.value)}
                       required
                     />
-                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
                   </div>
                 </FormItem>
 
@@ -333,7 +349,7 @@ export default function OnboardingPage() {
                       onChange={(e) => setOrgLocation(e.target.value)}
                       required
                     />
-                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
                   </div>
                 </FormItem>
 
@@ -348,7 +364,7 @@ export default function OnboardingPage() {
                       value={orgWebsite}
                       onChange={(e) => setOrgWebsite(e.target.value)}
                     />
-                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
                   </div>
                 </FormItem>
 
@@ -371,9 +387,9 @@ export default function OnboardingPage() {
             <Button
               type="submit"
               isLoading={isSubmitting}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2 font-medium"
+              className="mt-2 w-full gap-2 bg-gradient-to-r from-[#66879b] to-[#506c83] font-semibold text-white shadow-md shadow-[#506c83]/20 hover:from-[#537c93] hover:to-[#405a6d]"
             >
-              Simpan & Masuk ke Dashboard
+              {isProfilePage ? "Simpan Profil" : "Simpan & Masuk ke Dashboard"}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>

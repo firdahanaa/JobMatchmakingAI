@@ -90,23 +90,23 @@ export function ReviewApplicantDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4a3728]/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-[#e8d5d0] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-purple-50 via-indigo-50/50 to-white">
+        <div className="flex items-center justify-between p-5 border-b border-[#F7ECEA] bg-gradient-to-r from-[#F7ECEA] via-[#F9F5DC]/50 to-white">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700">
               <Award className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">
+              <h3 className="font-bold text-[#4a3728] text-base">
                 {isReadOnly ? "Detail Penilaian Proyek" : "Beri Penilaian Talenta"}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#8a7668]">
                 {talentName} • {projectTitle}
               </p>
             </div>
@@ -114,7 +114,7 @@ export function ReviewApplicantDialog({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-[#a89080] hover:text-[#7a6559] rounded-lg hover:bg-[#F7ECEA] transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -139,7 +139,7 @@ export function ReviewApplicantDialog({
           {/* 1. Rating Keseluruhan (Wajib) */}
           <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+              <Label className="text-xs font-bold text-[#4a3728] flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                 <span>Rating Keseluruhan</span>
                 <span className="text-rose-500">*</span>
@@ -157,22 +157,22 @@ export function ReviewApplicantDialog({
                 readOnly={isReadOnly}
               />
             </div>
-            <p className="text-2xs text-center text-slate-500">
+            <p className="text-2xs text-center text-[#8a7668]">
               Evaluasi performa umum talenta dalam menyelesaikan deliverable proyek ini.
             </p>
           </div>
 
           {/* 2. Aspek Penilaian Opsional (Kualitas, Ketepatan Waktu, Komunikasi) */}
           <div className="space-y-3.5 pt-1">
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[#5c4639] uppercase tracking-wider">
               Aspek Detail (Opsional)
             </h4>
 
             {/* Kualitas */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
               <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-slate-800">Kualitas Hasil Kerja</p>
-                <p className="text-3xs text-slate-500">Kerapihan dan akurasi tugas</p>
+                <p className="text-xs font-semibold text-[#5c4639]">Kualitas Hasil Kerja</p>
+                <p className="text-3xs text-[#8a7668]">Kerapihan dan akurasi tugas</p>
               </div>
               <StarRating
                 value={quality}
@@ -184,10 +184,10 @@ export function ReviewApplicantDialog({
             </div>
 
             {/* Ketepatan Waktu */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
               <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-slate-800">Ketepatan Waktu</p>
-                <p className="text-3xs text-slate-500">Kepatuhan pada deadline</p>
+                <p className="text-xs font-semibold text-[#5c4639]">Ketepatan Waktu</p>
+                <p className="text-3xs text-[#8a7668]">Kepatuhan pada deadline</p>
               </div>
               <StarRating
                 value={timeliness}
@@ -199,10 +199,10 @@ export function ReviewApplicantDialog({
             </div>
 
             {/* Komunikasi */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
               <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-slate-800">Komunikasi & Kolaborasi</p>
-                <p className="text-3xs text-slate-500">Responsivitas dan profesionalisme</p>
+                <p className="text-xs font-semibold text-[#5c4639]">Komunikasi & Kolaborasi</p>
+                <p className="text-3xs text-[#8a7668]">Responsivitas dan profesionalisme</p>
               </div>
               <StarRating
                 value={communication}
@@ -217,15 +217,15 @@ export function ReviewApplicantDialog({
           {/* 3. Komentar & Ulasan Teks (Opsional) */}
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
-              <Label htmlFor="review-comment" className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-purple-600" />
+              <Label htmlFor="review-comment" className="text-xs font-semibold text-[#5c4639] flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 text-[#C98B75]" />
                 <span>Komentar / Ulasan Tertulis</span>
-                <span className="text-2xs text-slate-400 font-normal">(Opsional)</span>
+                <span className="text-2xs text-[#a89080] font-normal">(Opsional)</span>
               </Label>
-              <span className="text-3xs text-slate-400">{comment.length}/1000</span>
+              <span className="text-3xs text-[#a89080]">{comment.length}/1000</span>
             </div>
             {isReadOnly ? (
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed italic">
+              <div className="p-3.5 rounded-xl bg-[#F7ECEA] border border-[#e8d5d0] text-xs text-[#695449] leading-relaxed italic">
                 {comment ? `“${comment}”` : "Tidak ada komentar tertulis."}
               </div>
             ) : (
@@ -242,7 +242,7 @@ export function ReviewApplicantDialog({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#F7ECEA]">
             <Button
               type="button"
               variant="outline"
@@ -257,7 +257,7 @@ export function ReviewApplicantDialog({
                 type="submit"
                 size="sm"
                 disabled={isPending || rating < 1}
-                className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold gap-1.5 shadow-xs"
+                className="bg-[#C98B75] hover:bg-[#b87a65] text-white text-xs font-bold gap-1.5 shadow-xs"
               >
                 {isPending ? (
                   <>

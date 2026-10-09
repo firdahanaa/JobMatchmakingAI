@@ -121,7 +121,7 @@ export function SkillSelector({
               onFocus={() => setIsDropdownOpen(true)}
               className="pl-9 pr-4 text-sm"
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#93C5FD] pointer-events-none" />
           </div>
 
           {/* Category Filter Pills */}
@@ -136,8 +136,8 @@ export function SkillSelector({
                 }}
                 className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                   selectedCategory === cat
-                    ? "bg-purple-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white shadow-sm"
+                    : "bg-[#EFF6FF] text-[#4A7AAF] hover:bg-[#DBEAFE] hover:text-[#1D4ED8]"
                 }`}
               >
                 {cat}
@@ -148,16 +148,16 @@ export function SkillSelector({
 
         {/* Suggestion Dropdown Panel with Category Grouping */}
         {isDropdownOpen && (
-          <div className="absolute z-30 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl space-y-3">
+          <div className="absolute z-30 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-xl border border-[#BFDBFE] bg-white p-3 shadow-xl space-y-3">
             {availableSkills.length > 0 ? (
               Object.entries(groupedAvailableSkills).map(([cat, skills]) => (
                 <div key={cat} className="space-y-1.5">
-                  <div className="flex items-center justify-between px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50/60 rounded">
+                  <div className="flex items-center justify-between px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#1D4ED8] bg-[#EFF6FF] rounded">
                     <span className="flex items-center gap-1.5">
                       <Layers className="h-3 w-3" />
                       {cat}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
+                    <span className="text-[10px] text-[#4A7AAF] font-normal">
                       {skills.length} keahlian tersedia
                     </span>
                   </div>
@@ -167,10 +167,10 @@ export function SkillSelector({
                         key={skill.id}
                         type="button"
                         onClick={() => handleAddSkill(skill)}
-                        className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-purple-50 text-slate-800 hover:text-purple-900 cursor-pointer border border-slate-100 hover:border-purple-200"
+                        className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-[#EFF6FF] text-[#0F2A5E] hover:text-[#1D4ED8] cursor-pointer border border-[#DBEAFE] hover:border-[#93C5FD]"
                       >
                         <span className="font-semibold truncate">{skill.name}</span>
-                        <span className="text-[10px] text-purple-600 font-medium ml-2 shrink-0">
+                        <span className="text-[10px] text-[#2563EB] font-medium ml-2 shrink-0">
                           + Tambah
                         </span>
                       </button>
@@ -179,13 +179,13 @@ export function SkillSelector({
                 </div>
               ))
             ) : (
-              <div className="py-6 text-center text-xs text-slate-500">
+              <div className="py-6 text-center text-xs text-[#4A7AAF]">
                 {masterSkills.length === 0 ? (
                   <p>Memuat master list keahlian...</p>
                 ) : (
                   <p>
                     Tidak ada keahlian yang cocok dalam master list untuk kategori ini.{" "}
-                    <span className="block text-slate-400 mt-1">
+                    <span className="block text-[#93C5FD] mt-1">
                       Keahlian harus dipilih dari master list terstandar dan tidak boleh dibuat manual.
                     </span>
                   </p>
@@ -200,7 +200,7 @@ export function SkillSelector({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Keahlian Terpilih</h3>
+            <h3 className="text-sm font-semibold text-[#0F2A5E]">Keahlian Terpilih</h3>
             <Badge
               variant={selectedSkills.length >= 3 ? "success" : "secondary"}
               className="text-xs"
@@ -214,7 +214,7 @@ export function SkillSelector({
             onClick={onSave}
             isLoading={isSaving}
             size="sm"
-            className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5"
+            className="bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white hover:from-[#1E40AF] hover:to-[#1D4ED8] gap-1.5"
           >
             <Check className="h-4 w-4" />
             Simpan Keahlian
@@ -226,20 +226,20 @@ export function SkillSelector({
             {selectedSkills.map((item) => (
               <div
                 key={item.skillId}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs hover:border-purple-200 transition-colors"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[#BFDBFE] bg-white p-3 shadow-xs hover:border-[#93C5FD] hover:bg-[#F0F9FF] transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-900 text-sm truncate">
+                    <span className="font-semibold text-[#0F2A5E] text-sm truncate">
                       {item.skillName}
                     </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#BFDBFE] text-[#2563EB]">
                       {item.category}
                     </Badge>
                   </div>
 
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-slate-500 shrink-0">Tingkat:</span>
+                    <span className="text-xs text-[#4A7AAF] shrink-0">Tingkat:</span>
                     <Select
                       value={item.level}
                       onChange={(e) =>
@@ -257,7 +257,7 @@ export function SkillSelector({
                 <button
                   type="button"
                   onClick={() => handleRemoveSkill(item.skillId)}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                  className="rounded-lg p-2 text-[#93C5FD] hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
                   title={`Hapus ${item.skillName}`}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -266,12 +266,12 @@ export function SkillSelector({
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-600 mb-2">
+          <div className="rounded-xl border border-dashed border-[#BFDBFE] bg-[#F0F9FF] p-8 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#DBEAFE] text-[#2563EB] mb-2">
               <Sparkles className="h-5 w-5" />
             </div>
-            <h4 className="font-semibold text-slate-900 text-sm">Belum Ada Keahlian Ditambahkan</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+            <h4 className="font-semibold text-[#0F2A5E] text-sm">Belum Ada Keahlian Ditambahkan</h4>
+            <p className="text-xs text-[#4A7AAF] max-w-sm mx-auto mt-1">
               Cari dan pilih minimal 3 keahlian dari master list di atas untuk mengoptimalkan kecocokan proyekmu.
             </p>
           </div>

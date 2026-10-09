@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  PlusCircle,
   Search,
   Calendar,
   Users,
@@ -105,47 +104,41 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Search, Filter Pills & Post Project Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5 rounded-[1.75rem] border border-[#e8d5d0] bg-white/80 p-4 shadow-sm shadow-[#695449]/5 sm:p-6">
+      {/* Search and filter controls */}
+      <div className="flex flex-col gap-3">
         {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative w-full">
           <Input
             placeholder="Cari berdasarkan judul, deskripsi, atau skill..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 text-sm"
+            aria-label="Cari proyek berdasarkan judul, deskripsi, atau skill"
+            className="h-12 rounded-2xl border-[#e8d5d0] bg-[#fbf8f6] pl-11 pr-4 text-sm shadow-none placeholder:text-[#a89080] focus-visible:bg-white"
           />
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a89080]" />
         </div>
-
-        <Link href="/vendor/projects/new">
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-xs shrink-0 w-full sm:w-auto">
-            <PlusCircle className="h-4 w-4" />
-            Posting Proyek Baru
-          </Button>
-        </Link>
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+      <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             type="button"
             onClick={() => setStatusFilter(tab.value)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all ${
               statusFilter === tab.value
-                ? "bg-purple-600 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+                ? "bg-[#b87a65] text-white shadow-md shadow-[#b87a65]/20"
+                : "text-[#7a6559] hover:bg-[#F7ECEA]"
             }`}
           >
             <span>{tab.label}</span>
             <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                 statusFilter === tab.value
                   ? "bg-white/20 text-white"
-                  : "bg-slate-200 text-slate-700"
+                  : "bg-white text-[#695449]"
               }`}
             >
               {tab.count}
@@ -156,13 +149,13 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
 
       {/* Projects List */}
       {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 gap-4">
           {filteredProjects.map((project) => {
             const isUpdating = isUpdatingStatus === project.id;
             return (
               <div
                 key={project.id}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs hover:border-purple-200 transition-all space-y-4"
+                className="space-y-4 rounded-2xl border border-[#eadfd9] bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#d4b0a5] hover:shadow-md sm:p-5"
               >
                 {/* Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -175,40 +168,42 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                       <Badge variant="secondary" className="text-xs capitalize font-medium">
                         {project.difficulty}
                       </Badge>
-                      <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="flex items-center gap-1 text-xs text-[#8a7668] font-medium">
+                        <MapPin className="h-3.5 w-3.5 text-[#a89080]" />
                         <span className="capitalize">{project.mode}</span>
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-slate-900 leading-snug">
+                    <h3 className="text-lg font-bold leading-snug text-[#4a3728] sm:text-xl">
                       {project.title}
                     </h3>
                   </div>
 
                   {/* Applicants Count Badge / Link */}
-                  <Link href={`/vendor/projects/${project.id}/applicants`}>
-                    <div className="inline-flex items-center gap-2 rounded-xl bg-purple-50 hover:bg-purple-100 px-3.5 py-2 border border-purple-200 transition-colors cursor-pointer shrink-0">
-                      <Users className="h-4 w-4 text-purple-700" />
-                      <div className="text-left">
-                        <span className="block text-xs font-bold text-purple-900 leading-none">
-                          {project.applicantCount} Pelamar
-                        </span>
-                        <span className="text-[10px] text-purple-600">Klik untuk melihat</span>
-                      </div>
+                  <Link
+                    href={`/vendor/projects/${project.id}/applicants`}
+                    aria-label={`Lihat ${project.applicantCount} pelamar untuk ${project.title}`}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#eadfd9] bg-[#fbf8f6] px-3.5 py-2.5 transition-colors hover:border-[#d4b0a5] hover:bg-[#F7ECEA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b87a65] focus-visible:ring-offset-2"
+                  >
+                    <Users className="h-4 w-4 text-[#b87a65]" />
+                    <div className="text-left">
+                      <span className="block text-xs font-bold leading-none text-[#7a4f3f]">
+                        {project.applicantCount} Pelamar
+                      </span>
+                      <span className="text-[10px] text-[#8a7668]">Lihat kandidat</span>
                     </div>
                   </Link>
                 </div>
 
                 {/* Description snippet */}
-                <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                <p className="line-clamp-2 text-sm leading-relaxed text-[#7a6559]">
                   {project.description}
                 </p>
 
                 {/* Required Skills Badges */}
                 {project.skills && project.skills.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] font-semibold text-slate-400 mr-1">
+                  <div className="flex flex-wrap items-center gap-2 border-t border-[#f2eae6] pt-3">
+                    <span className="mr-1 text-[11px] font-semibold text-[#8a7668]">
                       Skill Dibutuhkan:
                     </span>
                     {project.skills.map((s) => (
@@ -216,14 +211,14 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                         key={s.skill_id}
                         className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium border ${
                           s.is_required
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200"
+                            ? "bg-[#F7ECEA] text-[#b87a65] border-[#e0c4bc]"
+                            : "bg-[#F7ECEA] text-[#7a6559] border-[#e8d5d0]"
                         }`}
                       >
                         <span>{s.skill?.name || `Skill #${s.skill_id}`}</span>
                         <span className="text-[9px] opacity-70">({s.min_level})</span>
                         {s.is_required && (
-                          <span className="text-[9px] text-purple-700 font-bold" title="Wajib">
+                          <span className="text-[9px] text-[#b87a65] font-bold" title="Wajib">
                             *
                           </span>
                         )}
@@ -234,16 +229,16 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
 
                 {/* Top Applicant Highlight (Requirement: Pelamar teratas nama + match %) */}
                 {project.topApplicant ? (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-purple-50/70 border border-purple-100 text-xs mt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#F7ECEA]/70 border border-[#F7ECEA] text-xs mt-1">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="h-7 w-7 rounded-full bg-purple-200 text-purple-800 flex items-center justify-center font-bold text-xs shrink-0">
+                      <div className="h-7 w-7 rounded-full bg-[#e0c4bc] text-[#a66d5a] flex items-center justify-center font-bold text-xs shrink-0">
                         {project.topApplicant.talentName.charAt(0).toUpperCase()}
                       </div>
                       <div className="truncate">
-                        <span className="text-[10px] text-purple-700 font-semibold block leading-tight">
+                        <span className="text-[10px] text-[#b87a65] font-semibold block leading-tight">
                           Pelamar Teratas (Skor Tertinggi)
                         </span>
-                        <span className="font-bold text-slate-900 text-xs truncate">
+                        <span className="font-bold text-[#4a3728] text-xs truncate">
                           {project.topApplicant.talentName}
                         </span>
                       </div>
@@ -257,39 +252,39 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                               ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                               : project.topApplicant.matchScore >= 70
                               ? "bg-amber-100 text-amber-800 border border-amber-300"
-                              : "bg-slate-100 text-slate-700 border border-slate-300"
+                              : "bg-[#F7ECEA] text-[#695449] border border-[#d4b0a5]"
                           }`}
                         >
                           Match {Math.round(project.topApplicant.matchScore)}%
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-400">Belum ada skor</span>
+                        <span className="text-[11px] text-[#a89080]">Belum ada skor</span>
                       )}
                       <Link href={`/vendor/projects/${project.id}/applicants`}>
-                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs text-purple-700 hover:text-purple-900 font-bold">
+                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs text-[#b87a65] hover:text-[#7a4f3f] font-bold">
                           Lihat Pelamar
                         </Button>
                       </Link>
                     </div>
                   </div>
                 ) : project.applicantCount > 0 ? (
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 flex items-center justify-between mt-1">
+                  <div className="p-2.5 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA] text-xs text-[#8a7668] flex items-center justify-between mt-1">
                     <span>{project.applicantCount} pelamar terdaftar</span>
                     <Link href={`/vendor/projects/${project.id}/applicants`}>
-                      <span className="text-purple-700 font-semibold hover:underline">Evaluasi Pelamar &rarr;</span>
+                      <span className="text-[#b87a65] font-semibold hover:underline">Evaluasi Pelamar &rarr;</span>
                     </Link>
                   </div>
                 ) : null}
 
                 {/* Bottom Meta & Action Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-slate-100 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-[#F7ECEA] text-xs">
                   {/* Left: Deadline & Reward & Duration */}
-                  <div className="flex flex-wrap items-center gap-4 text-slate-500">
+                  <div className="flex flex-wrap items-center gap-4 text-[#8a7668]">
                     <div className="flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 text-slate-400" />
+                      <Calendar className="h-4 w-4 text-[#a89080]" />
                       <span>
                         Deadline:{" "}
-                        <strong className="text-slate-700">
+                        <strong className="text-[#695449]">
                           {project.deadline
                             ? new Date(project.deadline).toLocaleDateString("id-ID", {
                                 day: "numeric",
@@ -310,7 +305,7 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
 
                     {project.hours_per_week && (
                       <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <Clock className="h-3.5 w-3.5 text-[#a89080]" />
                         <span>{project.hours_per_week} jam/minggu</span>
                       </div>
                     )}
@@ -320,7 +315,7 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                   <div className="flex items-center flex-wrap gap-2">
                     {/* Status Changer Quick Select */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                      <span className="text-[11px] text-[#a89080] font-medium hidden sm:inline">
                         Status:
                       </span>
                       <Select
@@ -382,7 +377,7 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                       variant="ghost"
                       size="sm"
                       onClick={() => setProjectToDelete(project)}
-                      className="h-8 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                      className="h-8 text-xs text-[#a89080] hover:text-rose-600 hover:bg-rose-50"
                       title="Hapus proyek"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -394,29 +389,21 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+        <div className="rounded-2xl border border-dashed border-[#d4b0a5] bg-white p-12 text-center space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#F7ECEA] text-[#C98B75]">
             <FolderOpen className="h-7 w-7" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-base">
+            <h3 className="font-bold text-[#4a3728] text-base">
               {searchQuery || statusFilter !== "all"
                 ? "Tidak Ada Proyek yang Cocok"
                 : "Belum Ada Proyek yang Diposting"}
             </h3>
-            <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+            <p className="mt-1 text-xs text-[#8a7668] max-w-sm mx-auto">
               {searchQuery || statusFilter !== "all"
                 ? "Coba ubah kata kunci pencarian atau ganti filter status proyek."
                 : "Mulai posting kebutuhan proyek freelance atau volunteer pertama Anda untuk menarik talenta muda potensial."}
             </p>
-          </div>
-          <div>
-            <Link href="/vendor/projects/new">
-              <Button className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-xs">
-                <PlusCircle className="h-4 w-4" />
-                Posting Proyek Pertama
-              </Button>
-            </Link>
           </div>
         </div>
       )}

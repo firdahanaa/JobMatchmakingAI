@@ -3,15 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Sparkles, User, Briefcase, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { User, Briefcase, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { registerSchema, type RegisterInput } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormItem, FormMessage } from "@/components/ui/form";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { toast } from "sonner";
 
 function RegisterForm() {
@@ -25,10 +26,10 @@ function RegisterForm() {
   const [successInfo, setSuccessInfo] = React.useState<string | null>(null);
 
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -36,7 +37,9 @@ function RegisterForm() {
       fullName: "",
       email: "",
       password: "",
+      confirmPassword: "",
       role: defaultRole,
+      acceptTerms: false,
     },
   });
 
@@ -46,7 +49,7 @@ function RegisterForm() {
     }
   }, [roleParam, setValue]);
 
-  const selectedRole = watch("role");
+  const selectedRole = useWatch({ control, name: "role" });
 
   const onSubmit = async (values: RegisterInput) => {
     setIsLoading(true);
@@ -113,29 +116,11 @@ function RegisterForm() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-4 font-bold text-2xl text-slate-900">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-200">
-            <Sparkles className="h-6 w-6" />
-          </div>
-          <span>
-            MatchWork<span className="text-purple-600">AI</span>
-          </span>
-        </Link>
-        <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900">
-          Buat Akun Baru
-        </h2>
-        <p className="mt-1 text-center text-sm text-slate-600">
-          Sudah memiliki akun?{" "}
-          <Link href="/login" className="font-semibold text-purple-600 hover:text-purple-700">
-            Masuk di sini
-          </Link>
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-white py-8 px-6 shadow-md shadow-slate-200/60 rounded-2xl border border-slate-200 sm:px-10">
+    <AuthLayout
+      heading="Ayo mulai perjalananmu!"
+      description="Buat akun Pathfolio dan temukan peluang baru untuk mengembangkan pengalamanmu."
+    >
+        <section className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl shadow-slate-400/10 backdrop-blur-sm sm:p-7">
           {errorMessage && (
             <div className="mb-6 flex items-start gap-2.5 rounded-xl bg-rose-50 p-4 border border-rose-200 text-sm text-rose-800">
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
@@ -149,105 +134,132 @@ function RegisterForm() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">Periksa Email Kamu</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">{successInfo}</p>
+              <p className="text-sm leading-relaxed text-slate-500">{successInfo}</p>
               <Link href="/login" className="inline-block pt-2">
                 <Button variant="outline">Menuju Halaman Masuk</Button>
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              {/* Role Selection Tabs */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormItem>
+                  <Label htmlFor="fullName" className="text-sm font-semibold text-slate-700">Nama</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Nama lengkap"
+                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    {...register("fullName")}
+                  />
+                  {errors.fullName && <FormMessage>{errors.fullName.message}</FormMessage>}
+                </FormItem>
+
+                <FormItem>
+                  <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Alamat email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="nama@email.com"
+                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    {...register("email")}
+                  />
+                  {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
+                </FormItem>
+
+                <FormItem>
+                  <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Minimal 8 karakter"
+                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    {...register("password")}
+                  />
+                  {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
+                </FormItem>
+
+                <FormItem>
+                  <Label htmlFor="confirmPassword" className="text-sm font-semibold text-slate-700">Konfirmasi password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Ulangi password"
+                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    {...register("confirmPassword")}
+                  />
+                  {errors.confirmPassword && <FormMessage>{errors.confirmPassword.message}</FormMessage>}
+                </FormItem>
+              </div>
+
               <div>
-                <Label className="block mb-2 font-medium">Saya mendaftar sebagai:</Label>
+                <Label className="mb-2 block text-sm font-semibold text-slate-700">Daftar sebagai</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setValue("role", "talent")}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    aria-pressed={selectedRole === "talent"}
+                    className={`flex items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
                       selectedRole === "talent"
-                        ? "border-purple-600 bg-purple-50/80 text-purple-900 ring-2 ring-purple-600/20"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-sky-700 bg-sky-800 text-white"
+                        : "border-white/80 bg-white/60 text-slate-700 hover:bg-white"
                     }`}
                   >
-                    <User className={`h-5 w-5 mb-1 ${selectedRole === "talent" ? "text-purple-600" : "text-slate-400"}`} />
-                    <span className="text-sm font-semibold">Talent</span>
-                    <span className="text-[11px] text-slate-500 mt-0.5">Mahasiswa & Freelancer</span>
+                    <User className="h-4 w-4" />
+                    Talent
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setValue("role", "vendor")}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    aria-pressed={selectedRole === "vendor"}
+                    className={`flex items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
                       selectedRole === "vendor"
-                        ? "border-purple-600 bg-purple-50/80 text-purple-900 ring-2 ring-purple-600/20"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-sky-700 bg-sky-800 text-white"
+                        : "border-white/80 bg-white/60 text-slate-700 hover:bg-white"
                     }`}
                   >
-                    <Briefcase className={`h-5 w-5 mb-1 ${selectedRole === "vendor" ? "text-purple-600" : "text-slate-400"}`} />
-                    <span className="text-sm font-semibold">Vendor</span>
-                    <span className="text-[11px] text-slate-500 mt-0.5">UMKM & Startup</span>
+                    <Briefcase className="h-4 w-4" />
+                    Vendor
                   </button>
                 </div>
                 {errors.role && <FormMessage>{errors.role.message}</FormMessage>}
               </div>
 
-              {/* Full Name */}
-              <FormItem>
-                <Label htmlFor="fullName">Nama Lengkap</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder={selectedRole === "talent" ? "mis. Kevin Sanjaya" : "mis. Rahmat Hidayat (Pemilik UMKM)"}
-                  {...register("fullName")}
-                />
-                {errors.fullName && <FormMessage>{errors.fullName.message}</FormMessage>}
-              </FormItem>
-
-              {/* Email */}
-              <FormItem>
-                <Label htmlFor="email">Alamat Email</Label>
-                <div className="relative">
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="nama@email.com"
-                    className="pl-9"
-                    {...register("email")}
+              <div>
+                <label htmlFor="acceptTerms" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-slate-700">
+                  <input
+                    id="acceptTerms"
+                    type="checkbox"
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-400 accent-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+                    {...register("acceptTerms")}
                   />
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
-                {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
-              </FormItem>
-
-              {/* Password */}
-              <FormItem>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Minimal 8 karakter"
-                    className="pl-9"
-                    {...register("password")}
-                  />
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
-                {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
-              </FormItem>
+                  <span>Saya setuju dengan syarat penggunaan dan kebijakan privasi Pathfolio.</span>
+                </label>
+                {errors.acceptTerms && <FormMessage>{errors.acceptTerms.message}</FormMessage>}
+              </div>
 
               <Button
                 type="submit"
                 isLoading={isLoading}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2 font-medium"
+                className="h-12 w-full gap-2 rounded-full bg-[#f5f0ec] font-semibold text-slate-800 shadow-sm transition-colors hover:bg-white"
               >
-                Daftar Sekarang
+                Daftar
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
           )}
-        </div>
-      </div>
-    </div>
+        </section>
+
+        <p className="mt-5 text-center text-sm text-slate-700">
+          Sudah punya akun?{" "}
+          <Link href="/login" className="font-bold text-sky-800 underline-offset-4 hover:underline">
+            Masuk
+          </Link>
+        </p>
+    </AuthLayout>
   );
 }
 
@@ -255,8 +267,8 @@ export default function RegisterPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-slate-50">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
+        <div className="flex min-h-screen items-center justify-center bg-[#c9dce7]">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-700 border-t-transparent" />
         </div>
       }
     >

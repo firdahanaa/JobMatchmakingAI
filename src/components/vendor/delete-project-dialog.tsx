@@ -34,12 +34,12 @@ export function DeleteProjectDialog({
           <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 mb-2">
             <AlertTriangle className="h-6 w-6" />
           </div>
-          <DialogTitle className="text-left text-slate-900">
+          <DialogTitle className="text-left text-[#4a3728]">
             Hapus Proyek Ini?
           </DialogTitle>
-          <DialogDescription className="text-left text-slate-600">
+          <DialogDescription className="text-left text-[#7a6559]">
             Apakah Anda yakin ingin menghapus proyek{" "}
-            <span className="font-semibold text-slate-900">&ldquo;{projectTitle}&rdquo;</span>?
+            <span className="font-semibold text-[#4a3728]">&ldquo;{projectTitle}&rdquo;</span>?
             Tindakan ini tidak dapat dibatalkan dan akan menghapus seluruh data lamaran terkait.
           </DialogDescription>
         </DialogHeader>

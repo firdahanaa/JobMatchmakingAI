@@ -42,16 +42,16 @@ export function ApplicantDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded-2xl p-6 space-y-5">
-        <DialogHeader className="pb-3 border-b border-slate-100">
+        <DialogHeader className="pb-3 border-b border-[#F7ECEA]">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <Avatar
                 fallback={applicant.talentName}
-                className="h-14 w-14 text-lg font-bold bg-purple-100 text-purple-700 shrink-0"
+                className="h-14 w-14 text-lg font-bold bg-[#F7ECEA] text-[#b87a65] shrink-0"
               />
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <DialogTitle className="text-xl font-bold text-slate-900">
+                  <DialogTitle className="text-xl font-bold text-[#4a3728]">
                     {applicant.talentName}
                   </DialogTitle>
                   <Badge
@@ -73,13 +73,13 @@ export function ApplicantDetailModal({
                 </div>
 
                 {applicant.headline && (
-                  <p className="text-xs font-medium text-slate-600">
+                  <p className="text-xs font-medium text-[#7a6559]">
                     {applicant.headline}
                   </p>
                 )}
 
                 {/* Privasi: Email talent hanya terlihat oleh vendor setelah melamar */}
-                <div className="flex items-center gap-1.5 text-xs text-purple-700 font-semibold pt-0.5">
+                <div className="flex items-center gap-1.5 text-xs text-[#b87a65] font-semibold pt-0.5">
                   <Mail className="h-3.5 w-3.5" />
                   <span>
                     {applicant.contactEmail
@@ -91,7 +91,7 @@ export function ApplicantDetailModal({
             </div>
 
             <div className="shrink-0 space-y-1 sm:text-right">
-              <div className="text-3xs text-slate-400 font-semibold uppercase">
+              <div className="text-3xs text-[#a89080] font-semibold uppercase">
                 Skor Kecocokan (Real-time)
               </div>
               <MatchScoreBadge score={applicant.latestMatchScore} size="md" />
@@ -101,48 +101,48 @@ export function ApplicantDetailModal({
 
         {/* Quick Info Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-3xs text-slate-400 block font-semibold uppercase">
+          <div className="p-2.5 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
+            <span className="text-3xs text-[#a89080] block font-semibold uppercase">
               Pendidikan
             </span>
-            <div className="flex items-center gap-1 font-semibold text-slate-800 mt-0.5 truncate">
-              <GraduationCap className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1 font-semibold text-[#5c4639] mt-0.5 truncate">
+              <GraduationCap className="h-3.5 w-3.5 text-[#a89080] shrink-0" />
               <span className="truncate">{applicant.education || "-"}</span>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-3xs text-slate-400 block font-semibold uppercase">
+          <div className="p-2.5 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
+            <span className="text-3xs text-[#a89080] block font-semibold uppercase">
               Lokasi
             </span>
-            <div className="flex items-center gap-1 font-semibold text-slate-800 mt-0.5 truncate">
-              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1 font-semibold text-[#5c4639] mt-0.5 truncate">
+              <MapPin className="h-3.5 w-3.5 text-[#a89080] shrink-0" />
               <span className="truncate">{applicant.location || "-"}</span>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-3xs text-slate-400 block font-semibold uppercase">
+          <div className="p-2.5 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
+            <span className="text-3xs text-[#a89080] block font-semibold uppercase">
               Ketersediaan Jam
             </span>
-            <div className="flex items-center gap-1 font-semibold text-slate-800 mt-0.5 truncate">
-              <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1 font-semibold text-[#5c4639] mt-0.5 truncate">
+              <Clock className="h-3.5 w-3.5 text-[#a89080] shrink-0" />
               <span className="truncate">
                 {applicant.hoursPerWeek ? `${applicant.hoursPerWeek} jam/mgg` : "Fleksibel"}
               </span>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-3xs text-slate-400 block font-semibold uppercase">
+          <div className="p-2.5 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA]">
+            <span className="text-3xs text-[#a89080] block font-semibold uppercase">
               Rating & Selesai
             </span>
-            <div className="flex items-center gap-1 font-semibold text-slate-800 mt-0.5 truncate">
+            <div className="flex items-center gap-1 font-semibold text-[#5c4639] mt-0.5 truncate">
               <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
               <span>
                 {applicant.avgRating !== null ? applicant.avgRating.toFixed(1) : "3.0"}
               </span>
-              <span className="text-slate-400">({applicant.completedProjectsCount} selesai)</span>
+              <span className="text-[#a89080]">({applicant.completedProjectsCount} selesai)</span>
             </div>
           </div>
         </div>
@@ -150,8 +150,8 @@ export function ApplicantDetailModal({
         {/* Bio */}
         {applicant.bio && (
           <div className="space-y-1 text-xs">
-            <h4 className="font-bold text-slate-800">Tentang Talenta</h4>
-            <p className="text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 whitespace-pre-wrap">
+            <h4 className="font-bold text-[#5c4639]">Tentang Talenta</h4>
+            <p className="text-[#7a6559] leading-relaxed bg-[#F7ECEA] p-3 rounded-xl border border-[#F7ECEA] whitespace-pre-wrap">
               {applicant.bio}
             </p>
           </div>
@@ -160,11 +160,11 @@ export function ApplicantDetailModal({
         {/* Message from talent */}
         {applicant.message && (
           <div className="space-y-1 text-xs">
-            <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5 text-purple-600" />
+            <h4 className="font-bold text-[#5c4639] flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5 text-[#C98B75]" />
               <span>Pesan Lamaran</span>
             </h4>
-            <p className="text-slate-700 bg-purple-50/50 border border-purple-100 p-3 rounded-xl leading-relaxed whitespace-pre-wrap">
+            <p className="text-[#695449] bg-[#F7ECEA]/50 border border-[#F7ECEA] p-3 rounded-xl leading-relaxed whitespace-pre-wrap">
               {applicant.message}
             </p>
           </div>
@@ -172,8 +172,8 @@ export function ApplicantDetailModal({
 
         {/* Skills section */}
         <div className="space-y-2 text-xs">
-          <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-            <Award className="h-3.5 w-3.5 text-purple-600" />
+          <h4 className="font-bold text-[#5c4639] flex items-center gap-1.5">
+            <Award className="h-3.5 w-3.5 text-[#C98B75]" />
             <span>Keahlian & Level Penguasaan ({applicant.allTalentSkills.length})</span>
           </h4>
           {applicant.allTalentSkills.length > 0 ? (
@@ -181,9 +181,9 @@ export function ApplicantDetailModal({
               {applicant.allTalentSkills.map((s) => (
                 <div
                   key={s.skillId}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F7ECEA] border border-[#e8d5d0] text-xs"
                 >
-                  <span className="font-medium text-slate-800">{s.name}</span>
+                  <span className="font-medium text-[#5c4639]">{s.name}</span>
                   <Badge variant="secondary" className="text-3xs capitalize px-1.5 py-0 h-4">
                     {s.level}
                   </Badge>
@@ -191,14 +191,14 @@ export function ApplicantDetailModal({
               ))}
             </div>
           ) : (
-            <p className="text-slate-400 italic">Talenta belum mendaftarkan keahlian spesifik.</p>
+            <p className="text-[#a89080] italic">Talenta belum mendaftarkan keahlian spesifik.</p>
           )}
         </div>
 
         {/* Portfolio URLs */}
         {applicant.portfolioUrls && applicant.portfolioUrls.length > 0 && (
           <div className="space-y-1.5 text-xs">
-            <h4 className="font-bold text-slate-800">Portofolio & Tautan Karya</h4>
+            <h4 className="font-bold text-[#5c4639]">Portofolio & Tautan Karya</h4>
             <div className="flex flex-wrap gap-2">
               {applicant.portfolioUrls.map((url, idx) => (
                 <a
@@ -206,7 +206,7 @@ export function ApplicantDetailModal({
                   href={url.startsWith("http") ? url : `https://${url}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-medium transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#F9F5DC] border border-[#f0e8c0] text-[#b89e5e] hover:bg-[#F9F5DC] text-xs font-medium transition-colors"
                 >
                   <span className="truncate max-w-[220px]">{url}</span>
                   <ExternalLink className="h-3 w-3 shrink-0" />
@@ -252,7 +252,7 @@ export function ApplicantDetailModal({
                     size="sm"
                     showValue
                   />
-                  <span className="text-2xs text-slate-500">
+                  <span className="text-2xs text-[#8a7668]">
                     diberikan pada{" "}
                     {new Date(applicant.review.createdAt).toLocaleDateString(
                       "id-ID"
@@ -260,7 +260,7 @@ export function ApplicantDetailModal({
                   </span>
                 </div>
                 {applicant.review.comment && (
-                  <p className="text-xs text-slate-700 italic bg-white/70 p-2.5 rounded-lg border border-amber-100">
+                  <p className="text-xs text-[#695449] italic bg-white/70 p-2.5 rounded-lg border border-amber-100">
                     &ldquo;{applicant.review.comment}&rdquo;
                   </p>
                 )}
@@ -274,8 +274,8 @@ export function ApplicantDetailModal({
         )}
 
         {/* Reviews History */}
-        <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
-          <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
+        <div className="space-y-2 text-xs pt-2 border-t border-[#F7ECEA]">
+          <h4 className="font-bold text-[#5c4639] flex items-center gap-1.5">
             <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
             <span>Riwayat Ulasan Vendor ({applicant.reviews.length})</span>
           </h4>
@@ -285,10 +285,10 @@ export function ApplicantDetailModal({
               {applicant.reviews.map((rev) => (
                 <div
                   key={rev.id}
-                  className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs"
+                  className="p-3 rounded-xl bg-[#F7ECEA] border border-[#F7ECEA] space-y-1 text-xs"
                 >
                   <div className="flex items-center justify-between text-2xs">
-                    <span className="font-semibold text-slate-700">
+                    <span className="font-semibold text-[#695449]">
                       {rev.vendorName}
                     </span>
                     <StarRating
@@ -299,7 +299,7 @@ export function ApplicantDetailModal({
                     />
                   </div>
                   {rev.comment && (
-                    <p className="text-slate-600 text-2xs italic leading-relaxed">
+                    <p className="text-[#7a6559] text-2xs italic leading-relaxed">
                       &ldquo;{rev.comment}&rdquo;
                     </p>
                   )}
@@ -307,7 +307,7 @@ export function ApplicantDetailModal({
               ))}
             </div>
           ) : (
-            <p className="text-slate-400 italic">Belum ada riwayat ulasan dari proyek sebelumnya.</p>
+            <p className="text-[#a89080] italic">Belum ada riwayat ulasan dari proyek sebelumnya.</p>
           )}
         </div>
       </DialogContent>

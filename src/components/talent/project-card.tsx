@@ -7,7 +7,6 @@ import {
   MapPin,
   Check,
   Building2,
-  ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,7 +49,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
     icon: "📌",
   };
 
-  // Format currency
   const formattedReward =
     project.rewardAmount && project.rewardAmount > 0
       ? new Intl.NumberFormat("id-ID", {
@@ -62,7 +60,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
       ? "Sukarela (Volunteer)"
       : "Sesuai Kesepakatan";
 
-  // Format deadline
   const formattedDeadline = project.deadline
     ? new Date(project.deadline).toLocaleDateString("id-ID", {
         day: "numeric",
@@ -71,7 +68,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
       })
     : "Fleksibel";
 
-  // Hitung berapa hari tersisa jika ada deadline
   const daysLeft = project.deadline
     ? Math.ceil(
         (new Date(project.deadline).getTime() - new Date().getTime()) /
@@ -80,20 +76,29 @@ export function ProjectCard({ project }: ProjectCardProps) {
     : null;
 
   return (
-    <Card className="flex flex-col justify-between border-slate-200/90 hover:border-purple-300 hover:shadow-md transition-all duration-200 group bg-[#f8fafc] dark:bg-[#f8fafc]">
-      <CardHeader className="p-5 pb-3 space-y-3">
+    <Card
+      className="group relative overflow-hidden flex flex-col justify-between transition-all duration-300 rounded-3xl"
+      style={{
+        background: "rgba(255, 255, 255, 0.75)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(186, 230, 253, 0.7)",
+        boxShadow: "0 10px 30px -10px rgba(2, 136, 209, 0.06)",
+      }}
+    >
+      <CardHeader className="p-5 sm:p-6 pb-3 space-y-3 relative z-10">
         {/* Header row: Organization & Match Score Badge */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium truncate">
-            <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold truncate">
+            <Building2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+            <span className="truncate text-slate-700">
               {project.vendor?.organizationName || "Organisasi Vendor"}
             </span>
             {project.vendor?.location && (
               <>
                 <span className="text-slate-300">•</span>
-                <span className="truncate flex items-center gap-0.5">
-                  <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                <span className="truncate flex items-center gap-0.5 text-slate-500">
+                  <MapPin className="h-3 w-3 text-sky-500 shrink-0" />
                   {project.vendor.location}
                 </span>
               </>
@@ -106,25 +111,25 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Project Title */}
         <Link href={`/talent/projects/${project.id}`}>
-          <h3 className="text-lg font-bold text-slate-900 group-hover:text-purple-700 transition-colors line-clamp-2 leading-snug">
+          <h3 className="text-lg font-black text-[#0F172A] group-hover:text-sky-600 transition-colors line-clamp-2 leading-snug">
             {project.title}
           </h3>
         </Link>
 
         {/* Badges: Difficulty, Type, Mode */}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <Badge variant={diffInfo.variant} className="text-2xs font-medium">
+          <Badge variant={diffInfo.variant} className="text-2xs font-bold px-2.5 py-0.5">
             {diffInfo.label}
           </Badge>
-          <Badge variant={typeInfo.variant} className="text-2xs font-medium">
+          <Badge variant={typeInfo.variant} className="text-2xs font-bold px-2.5 py-0.5">
             {typeInfo.label}
           </Badge>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-sky-50 text-sky-800 border border-sky-100">
             <span>{modeInfo.icon}</span>
             <span>{modeInfo.label}</span>
           </span>
           {project.hoursPerWeek && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-blue-50 text-blue-800 border border-blue-100">
               <Clock className="h-3 w-3" />
               <span>{project.hoursPerWeek} jam/mgg</span>
             </span>
@@ -132,17 +137,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="px-5 py-2 space-y-4">
+      <CardContent className="px-5 sm:px-6 py-2 space-y-4 relative z-10">
         {/* Project short excerpt */}
-        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium">
           {project.description}
         </p>
 
-        {/* Required Skills list with talent possession checkmark */}
+        {/* Required Skills list */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-2xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-2xs font-bold text-slate-500 uppercase tracking-wider">
             <span>Keahlian Yang Dibutuhkan</span>
-            <span>
+            <span className="text-sky-700 font-extrabold">
               {project.skills.filter((s) => s.talentStatus.isAdequate).length} /{" "}
               {project.skills.length} cocok
             </span>
@@ -156,19 +161,19 @@ export function ProjectCard({ project }: ProjectCardProps) {
               return (
                 <span
                   key={skill.skillId}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                     isAdequate
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold"
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                       : possessed
                       ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "bg-slate-100 text-slate-600 border border-slate-200"
+                      : "bg-slate-50 text-slate-600 border border-slate-200"
                   }`}
                   title={
                     isAdequate
-                      ? `Kamu menguasai ${skill.name} (${skill.talentStatus.talentLevel}) sesuai standar min. ${skill.minLevel}`
+                      ? `Kamu menguasai ${skill.name} (${skill.talentStatus.talentLevel})`
                       : possessed
-                      ? `Kamu memiliki ${skill.name} (${skill.talentStatus.talentLevel}), tetapi proyek butuh min. ${skill.minLevel}`
-                      : `Kamu belum menambahkan ${skill.name} di profilmu`
+                      ? `Levelmu: ${skill.talentStatus.talentLevel}, butuh: ${skill.minLevel}`
+                      : `Belum ditambahkan`
                   }
                 >
                   {isAdequate && (
@@ -179,9 +184,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                   )}
                   <span>{skill.name}</span>
                   {skill.isRequired && (
-                    <span className="text-rose-500 text-2xs font-bold leading-none" title="Wajib">
-                      *
-                    </span>
+                    <span className="text-rose-500 text-2xs font-black" title="Wajib">*</span>
                   )}
                 </span>
               );
@@ -190,22 +193,22 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
 
         {/* Key Info: Duration & Reward */}
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-sky-100 text-xs">
           <div className="space-y-0.5">
-            <span className="text-2xs text-slate-400 block font-medium">Estimasi Imbalan</span>
-            <div className="flex items-center gap-1 font-semibold text-slate-900 truncate">
-              <Coins className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+            <span className="text-2xs text-slate-400 block font-semibold">Estimasi Imbalan</span>
+            <div className="flex items-center gap-1 font-extrabold text-[#0F172A] truncate">
+              <Coins className="h-3.5 w-3.5 text-sky-600 shrink-0" />
               <span className="truncate">{formattedReward}</span>
             </div>
           </div>
 
           <div className="space-y-0.5">
-            <span className="text-2xs text-slate-400 block font-medium">Batas Waktu (Deadline)</span>
-            <div className="flex items-center gap-1 font-medium text-slate-700 truncate">
-              <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span className="text-2xs text-slate-400 block font-semibold">Batas Waktu</span>
+            <div className="flex items-center gap-1 font-bold text-slate-700 truncate">
+              <Calendar className="h-3.5 w-3.5 text-sky-500 shrink-0" />
               <span className="truncate">{formattedDeadline}</span>
               {daysLeft !== null && daysLeft <= 5 && daysLeft >= 0 && (
-                <span className="text-2xs font-bold text-amber-600 bg-amber-50 px-1 rounded">
+                <span className="text-2xs font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 rounded-md">
                   {daysLeft === 0 ? "Hari ini" : `${daysLeft}h lagi`}
                 </span>
               )}
@@ -214,8 +217,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="p-5 pt-3 border-t border-slate-200/80 flex items-center justify-between gap-3 bg-slate-100/70 dark:bg-slate-100/70 rounded-b-xl">
-        <div className="text-2xs text-slate-500 truncate">
+      <CardFooter className="p-5 sm:px-6 pt-3 border-t border-sky-100 flex items-center justify-between gap-3 bg-sky-50/40 rounded-b-3xl relative z-10">
+        <div className="text-2xs text-slate-500 font-semibold truncate">
           {project.durationWeeks
             ? `Durasi: ${project.durationWeeks} minggu`
             : "Durasi fleksibel"}
@@ -224,10 +227,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <Link href={`/talent/projects/${project.id}`}>
           <Button
             size="sm"
-            className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-medium shadow-none h-8 text-xs"
+            className="gap-1.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-extrabold shadow-sm shadow-sky-500/25 h-8.5 text-xs rounded-xl"
           >
             <span>Lihat Detail</span>
-            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </Link>
       </CardFooter>

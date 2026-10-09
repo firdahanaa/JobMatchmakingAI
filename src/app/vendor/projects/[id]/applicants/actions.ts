@@ -409,7 +409,7 @@ export async function getProjectApplicantsRecalculated(
           rating: r.rating,
           comment: r.comment,
           createdAt: r.created_at,
-          vendorName: vObj?.organization_name || "Vendor MatchWork AI",
+          vendorName: vObj?.organization_name || "Vendor Pathfolio",
         };
       });
 

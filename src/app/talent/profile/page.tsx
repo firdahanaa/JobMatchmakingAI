@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FormItem } from "@/components/ui/form";
 import { PortfolioInput } from "@/components/talent/portfolio-input";
 import { SkillSelector, type SelectedSkillItem } from "@/components/talent/skill-selector";
+import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import {
   getTalentProfileData,
   updateTalentProfile,
@@ -206,55 +206,73 @@ export default function TalentProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
-        <Navbar />
+      <div className="min-h-screen flex flex-col bg-[#F0F9FF] text-[#0F2A5E]">
         <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
-          <p className="mt-3 text-sm font-medium text-slate-600">Memuat profil talent...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#3B82F6] border-t-transparent" />
+          <p className="mt-3 text-sm font-medium text-[#4A7AAF]">Memuat profil talent...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Navbar />
-
+    <div className="min-h-screen flex flex-col bg-[#F0F9FF] text-[#0F172A]">
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-                  Profil & Keahlian Saya
-                </h1>
-                <Badge variant="default" className="bg-purple-100 text-purple-700">
-                  Talent
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-600 mt-1">
-                Kelola informasi pribadi, ketersediaan proyek, dan keahlian untuk memaksimalkan Match Score.
-              </p>
-            </div>
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="relative mb-8 overflow-hidden rounded-[2.5rem] border border-sky-100 bg-white p-6 shadow-xl sm:p-10">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gradient-to-br from-sky-400/20 to-blue-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-gradient-to-tr from-sky-300/20 to-indigo-400/20 blur-3xl" />
 
-            <div className="flex items-center gap-3">
-              {pageData?.user && (
-                <div className="hidden sm:block text-right">
-                  <p className="text-xs text-slate-500">Terdaftar sebagai:</p>
-                  <p className="font-semibold text-slate-900 text-sm">{pageData.user.fullName}</p>
+            <div className="relative z-10 flex flex-col gap-6">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/60 bg-sky-50/50 px-3 py-1.5 shadow-sm">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-md">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-sky-800">
+                    Profil Talenta
+                  </span>
                 </div>
-              )}
 
-              <Button
-                type="button"
-                onClick={handleSaveAll}
-                isLoading={isSavingAll}
-                className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-xs"
-              >
-                <Save className="h-4 w-4" />
-                Simpan Semua
-              </Button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-black leading-tight tracking-tight text-[#0F172A] sm:text-4xl md:text-5xl">
+                    Profil &amp; Keahlian Saya
+                  </h1>
+                  <Badge
+                    variant="default"
+                    className="border-0 bg-sky-100 px-2.5 py-0.5 text-2xs font-extrabold text-sky-800"
+                  >
+                    Talent
+                  </Badge>
+                </div>
+
+                <p className="max-w-xl text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
+                  Kelola informasi pribadi, ketersediaan proyek, dan keahlian untuk memaksimalkan Match Score.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-sky-100 pt-5">
+                <TalentPageNavigation activePage="profile" />
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {pageData?.user && (
+                    <div className="hidden text-right sm:block">
+                      <p className="text-xs font-medium text-slate-500">Terdaftar sebagai:</p>
+                      <p className="text-sm font-bold text-[#0F172A]">{pageData.user.fullName}</p>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={handleSaveAll}
+                    isLoading={isSavingAll}
+                    className="gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 px-5 font-bold text-white shadow-lg shadow-sky-500/20 transition-all hover:-translate-y-0.5 hover:from-sky-700 hover:to-blue-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    Simpan Semua
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -276,20 +294,31 @@ export default function TalentProfilePage() {
           )}
 
           {/* Completeness Card */}
-          <div className="rounded-2xl border border-purple-100 bg-gradient-to-r from-purple-50/80 via-white to-indigo-50/80 p-5 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div
+            className="rounded-3xl p-5 sm:p-6 shadow-xl transition-all"
+            style={{
+              background: "rgba(255, 255, 255, 0.75)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(186, 230, 253, 0.7)",
+              boxShadow: "0 10px 30px -10px rgba(2, 136, 209, 0.08)",
+            }}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                <h2 className="font-bold text-slate-900 text-base">Kelengkapan Profil</h2>
+                <div className="p-2 rounded-xl bg-sky-50 text-sky-600 border border-sky-100">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <h2 className="font-black text-[#0F172A] text-base uppercase tracking-tight">Kelengkapan Profil</h2>
                 <Badge
                   variant={completeness >= 85 ? "success" : "default"}
-                  className="text-xs font-semibold"
+                  className="text-2xs font-extrabold px-2 py-0.5 ml-1"
                 >
                   {completeness}% Lengkap
                 </Badge>
               </div>
 
-              <span className="text-xs text-slate-500 font-medium">
+              <span className="text-xs text-slate-500 font-medium bg-white/50 px-3 py-1 rounded-full border border-sky-100/50">
                 {completeness >= 100
                   ? "Profil kamu sudah terisi sempurna!"
                   : "Lengkapi seluruh bagian untuk meningkatkan daya tarik di mata vendor."}
@@ -298,42 +327,42 @@ export default function TalentProfilePage() {
 
             <Progress
               value={completeness}
-              className="h-2.5 bg-slate-200"
-              indicatorClassName={completeness >= 85 ? "bg-emerald-600" : "bg-purple-600"}
+              className="h-3 bg-sky-100/50 rounded-full"
+              indicatorClassName={completeness >= 85 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-sky-400 to-blue-500"}
             />
 
             {/* Checklist items */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600">
-              <div className="flex items-center gap-1.5">
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold text-slate-500">
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
                 <CheckCircle2
-                  className={`h-3.5 w-3.5 ${
+                  className={`h-4 w-4 shrink-0 ${
                     headline.trim() && education.trim() && location.trim()
-                      ? "text-emerald-600"
-                      : "text-slate-300"
+                      ? "text-emerald-500"
+                      : "text-sky-300"
                   }`}
                 />
                 <span>Data Dasar</span>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
                 <CheckCircle2
-                  className={`h-3.5 w-3.5 ${
-                    hoursPerWeek > 0 && preferredMode ? "text-emerald-600" : "text-slate-300"
+                  className={`h-4 w-4 shrink-0 ${
+                    hoursPerWeek > 0 && preferredMode ? "text-emerald-500" : "text-sky-300"
                   }`}
                 />
                 <span>Ketersediaan</span>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
                 <CheckCircle2
-                  className={`h-3.5 w-3.5 ${portfolioUrls.length > 0 ? "text-emerald-600" : "text-slate-300"}`}
+                  className={`h-4 w-4 shrink-0 ${portfolioUrls.length > 0 ? "text-emerald-500" : "text-sky-300"}`}
                 />
                 <span>Portofolio ({portfolioUrls.length})</span>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
                 <CheckCircle2
-                  className={`h-3.5 w-3.5 ${selectedSkills.length >= 3 ? "text-emerald-600" : "text-slate-300"}`}
+                  className={`h-4 w-4 shrink-0 ${selectedSkills.length >= 3 ? "text-emerald-500" : "text-sky-300"}`}
                 />
                 <span>Skill ({selectedSkills.length}/3 min.)</span>
               </div>
@@ -341,18 +370,27 @@ export default function TalentProfilePage() {
           </div>
 
           {/* Main Tabs Container */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
+          <div
+            className="rounded-3xl p-6 sm:p-8 shadow-2xl transition-all text-[#0F172A]"
+            style={{
+              background: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              border: "1px solid rgba(186, 230, 253, 0.9)",
+              boxShadow: "0 25px 50px -12px rgba(2, 136, 209, 0.1)",
+            }}
+          >
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3 max-w-lg">
-                <TabsTrigger value="info" className="gap-2">
+              <TabsList className="grid w-full grid-cols-3 max-w-lg bg-sky-50/80 rounded-2xl p-1 border border-sky-100">
+                <TabsTrigger value="info" className="gap-2 font-bold text-xs rounded-xl data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow-sm">
                   <User className="h-4 w-4" />
                   <span>Informasi</span>
                 </TabsTrigger>
-                <TabsTrigger value="skills" className="gap-2">
+                <TabsTrigger value="skills" className="gap-2 font-bold text-xs rounded-xl data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow-sm">
                   <Sparkles className="h-4 w-4" />
                   <span>Skill ({selectedSkills.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="reviews" className="gap-2">
+                <TabsTrigger value="reviews" className="gap-2 font-bold text-xs rounded-xl data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow-sm">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                   <span>Ulasan ({pageData?.reviews.length ?? 0})</span>
                 </TabsTrigger>
@@ -373,7 +411,7 @@ export default function TalentProfilePage() {
                       onChange={(e) => setHeadline(e.target.value)}
                       required
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-[#4A7AAF]">
                       Rangkum peran dan fokus keahlian kamu dalam satu kalimat singkat.
                     </p>
                   </FormItem>
@@ -406,7 +444,7 @@ export default function TalentProfilePage() {
                           onChange={(e) => setLocation(e.target.value)}
                           required
                         />
-                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-[#93C5FD] pointer-events-none" />
                       </div>
                     </FormItem>
                   </div>
@@ -428,9 +466,9 @@ export default function TalentProfilePage() {
                           onChange={(e) => setHoursPerWeek(Number(e.target.value))}
                           required
                         />
-                        <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <Clock className="absolute left-3 top-2.5 h-4 w-4 text-[#93C5FD] pointer-events-none" />
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-[#4A7AAF]">
                         Dipakai sistem untuk menghitung skor ketersediaan waktu.
                       </p>
                     </FormItem>
@@ -452,13 +490,13 @@ export default function TalentProfilePage() {
                   </div>
 
                   {/* Availability Toggle */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] p-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label htmlFor="availabilityToggle" className="font-semibold text-slate-900 cursor-pointer">
+                        <Label htmlFor="availabilityToggle" className="font-semibold text-[#0F2A5E] cursor-pointer">
                           Status Ketersediaan Menerima Proyek
                         </Label>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-[#4A7AAF]">
                           Jika dimatikan, profilmu akan ditandai sedang tidak membuka tawaran baru.
                         </p>
                       </div>
@@ -469,8 +507,8 @@ export default function TalentProfilePage() {
                         role="switch"
                         aria-checked={isAvailable}
                         onClick={() => setIsAvailable(!isAvailable)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 ${
-                          isAvailable ? "bg-purple-600" : "bg-slate-300"
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2 ${
+                          isAvailable ? "bg-gradient-to-r from-[#2563EB] to-[#60A5FA]" : "bg-[#BFDBFE]"
                         }`}
                       >
                         <span
@@ -484,7 +522,7 @@ export default function TalentProfilePage() {
 
                   {/* Bio */}
                   <FormItem>
-                    <Label htmlFor="bio">Bio & Ringkasan Diri</Label>
+                    <Label htmlFor="bio">Bio &amp; Ringkasan Diri</Label>
                     <Textarea
                       id="bio"
                       placeholder="Ceritakan latar belakangmu, ketertarikan proyek yang ingin kamu kerjakan, dan hal yang sedang kamu pelajari..."
@@ -495,7 +533,7 @@ export default function TalentProfilePage() {
                   </FormItem>
 
                   {/* Portfolio Input Component */}
-                  <div className="pt-2 border-t border-slate-100">
+                  <div className="pt-2 border-t border-[#DBEAFE]">
                     <PortfolioInput
                       urls={portfolioUrls}
                       onChange={(updated) => setPortfolioUrls(updated)}
@@ -507,16 +545,18 @@ export default function TalentProfilePage() {
                       type="button"
                       variant="outline"
                       onClick={() => setActiveTab("skills")}
-                      className="gap-2 text-slate-600 hover:text-purple-600 w-full sm:w-auto"
+                      className="gap-2 text-[#2563EB] border-[#BFDBFE] hover:bg-[#EFF6FF] w-full sm:w-auto"
                     >
                       Lanjut ke Skill Saya
-                      <ArrowRight className="h-4 w-4" />
+                      <span aria-hidden="true" className="text-lg font-semibold leading-none">
+                        &gt;
+                      </span>
                     </Button>
 
                     <Button
                       type="submit"
                       isLoading={isSavingProfile}
-                      className="bg-purple-600 hover:bg-purple-700 text-white gap-2 w-full sm:w-auto"
+                      className="bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white hover:from-[#1E40AF] hover:to-[#1D4ED8] gap-2 w-full sm:w-auto"
                     >
                       <Save className="h-4 w-4" />
                       Simpan Informasi Profil
@@ -527,8 +567,8 @@ export default function TalentProfilePage() {
 
               {/* Tab 2: Skills Management */}
               <TabsContent value="skills" className="space-y-4">
-                <div className="rounded-xl bg-purple-50/70 p-4 border border-purple-100 flex items-start gap-3 text-xs text-purple-900 leading-relaxed">
-                  <HelpCircle className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                <div className="rounded-xl bg-[#EFF6FF] p-4 border border-[#BFDBFE] flex items-start gap-3 text-xs text-[#1D4ED8] leading-relaxed">
+                  <HelpCircle className="h-4 w-4 text-[#2563EB] shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold">Aturan Keahlian Terstandar:</span> Keahlian harus dipilih dari
                     master list terstandar agar algoritma AI dapat mencocokkan profilmu dengan proyek vendor secara
@@ -550,9 +590,9 @@ export default function TalentProfilePage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setActiveTab("info")}
-                    className="gap-1.5 text-xs text-slate-500 hover:text-slate-900"
+                    className="gap-1.5 text-xs text-[#4A7AAF] hover:text-[#0F2A5E] hover:bg-[#EFF6FF]"
                   >
-                    ← Kembali ke Informasi & Ketersediaan
+                    ← Kembali ke Informasi &amp; Ketersediaan
                   </Button>
                 </div>
               </TabsContent>
@@ -562,16 +602,16 @@ export default function TalentProfilePage() {
                 {/* Stats Header */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Rating Average */}
-                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1.5">
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
                     <p className="text-xs font-semibold text-amber-900">Rating Rata-rata</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-slate-900">
+                      <span className="text-2xl font-bold text-amber-800">
                         {pageData?.ratingStats.avgRating != null
                           ? pageData.ratingStats.avgRating.toFixed(1)
                           : "Belum Ada"}
                       </span>
                       {pageData?.ratingStats.avgRating != null && (
-                        <span className="text-xs text-slate-500">/ 5.0</span>
+                        <span className="text-xs text-amber-600">/ 5.0</span>
                       )}
                     </div>
                     <StarRating
@@ -582,32 +622,32 @@ export default function TalentProfilePage() {
                   </div>
 
                   {/* Completed Projects */}
-                  <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1.5">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1.5">
                     <p className="text-xs font-semibold text-emerald-900">Proyek Selesai</p>
-                    <p className="text-2xl font-bold text-slate-900">
+                    <p className="text-2xl font-bold text-emerald-800">
                       {pageData?.ratingStats.completedProjectsCount ?? 0}
                     </p>
-                    <p className="text-2xs text-slate-500">Terselesaikan secara sukses</p>
+                    <p className="text-2xs text-emerald-600">Terselesaikan secara sukses</p>
                   </div>
 
                   {/* Total Reviews */}
-                  <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200 space-y-1.5">
-                    <p className="text-xs font-semibold text-purple-900">Total Ulasan</p>
-                    <p className="text-2xl font-bold text-slate-900">
+                  <div className="p-4 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] space-y-1.5">
+                    <p className="text-xs font-semibold text-[#1D4ED8]">Total Ulasan</p>
+                    <p className="text-2xl font-bold text-[#0F2A5E]">
                       {pageData?.ratingStats.reviewCount ?? 0}
                     </p>
-                    <p className="text-2xs text-slate-500">Ulasan resmi dari vendor</p>
+                    <p className="text-2xs text-[#4A7AAF]">Ulasan resmi dari vendor</p>
                   </div>
                 </div>
 
                 {/* Reviews List */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-purple-600" />
+                  <div className="flex items-center justify-between border-b border-[#DBEAFE] pb-2">
+                    <h3 className="text-sm font-bold text-[#0F2A5E] flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-[#2563EB]" />
                       <span>Ulasan yang Diterima</span>
                     </h3>
-                    <Badge variant="outline" className="text-2xs font-semibold">
+                    <Badge variant="outline" className="text-2xs font-semibold text-[#1D4ED8] border-[#BFDBFE]">
                       {pageData?.reviews.length ?? 0} Ulasan
                     </Badge>
                   </div>
@@ -617,22 +657,22 @@ export default function TalentProfilePage() {
                       {pageData.reviews.map((rev) => (
                         <div
                           key={rev.id}
-                          className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-3"
+                          className="p-4 rounded-2xl border border-[#BFDBFE] bg-white hover:bg-[#F0F9FF] transition-colors space-y-3"
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200/60 pb-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#DBEAFE] pb-2.5">
                             <div>
-                              <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <Building2 className="h-3.5 w-3.5 text-purple-600" />
+                              <p className="text-xs font-bold text-[#0F2A5E] flex items-center gap-1.5">
+                                <Building2 className="h-3.5 w-3.5 text-[#2563EB]" />
                                 <span>{rev.vendorName}</span>
                               </p>
-                              <p className="text-2xs text-slate-500 mt-0.5">
+                              <p className="text-2xs text-[#4A7AAF] mt-0.5">
                                 Proyek: &ldquo;{rev.projectTitle}&rdquo;
                               </p>
                             </div>
 
                             <div className="flex items-center gap-2">
                               <StarRating value={rev.rating} readOnly size="sm" showValue />
-                              <span className="text-2xs text-slate-400">
+                              <span className="text-2xs text-[#4A7AAF]">
                                 • {new Date(rev.createdAt).toLocaleDateString("id-ID", {
                                   day: "numeric",
                                   month: "short",
@@ -644,21 +684,21 @@ export default function TalentProfilePage() {
 
                           {/* Specific criteria ratings (Quality, Timeliness, Communication) */}
                           {(rev.quality || rev.timeliness || rev.communication) && (
-                            <div className="flex flex-wrap gap-3 text-2xs text-slate-600 py-1">
+                            <div className="flex flex-wrap gap-3 text-2xs text-[#4A7AAF] py-1">
                               {rev.quality && (
-                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
                                   <span>Kualitas:</span>
                                   <StarRating value={rev.quality} readOnly size="sm" />
                                 </div>
                               )}
                               {rev.timeliness && (
-                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
                                   <span>Ketepatan Waktu:</span>
                                   <StarRating value={rev.timeliness} readOnly size="sm" />
                                 </div>
                               )}
                               {rev.communication && (
-                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
                                   <span>Komunikasi:</span>
                                   <StarRating value={rev.communication} readOnly size="sm" />
                                 </div>
@@ -668,7 +708,7 @@ export default function TalentProfilePage() {
 
                           {/* Written Comment */}
                           {rev.comment && (
-                            <div className="p-3 rounded-xl bg-white border border-slate-100 text-xs text-slate-700 italic leading-relaxed">
+                            <div className="p-3 rounded-xl bg-[#F0F9FF] border border-[#DBEAFE] text-xs text-[#4A7AAF] italic leading-relaxed">
                               &ldquo;{rev.comment}&rdquo;
                             </div>
                           )}
@@ -676,14 +716,14 @@ export default function TalentProfilePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-10 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-2">
+                    <div className="text-center py-10 rounded-2xl border border-dashed border-[#BFDBFE] bg-[#F0F9FF] space-y-2">
                       <div className="mx-auto h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
                         <Star className="h-5 w-5" />
                       </div>
-                      <p className="text-xs font-semibold text-slate-800">
+                      <p className="text-xs font-semibold text-[#0F2A5E]">
                         Belum Ada Ulasan Diterima
                       </p>
-                      <p className="text-2xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      <p className="text-2xs text-[#4A7AAF] max-w-sm mx-auto leading-relaxed">
                         Selesaikan proyek pertamamu untuk mulai mengumpulkan bintang dan testimoni profesional dari vendor!
                       </p>
                     </div>

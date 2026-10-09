@@ -22,7 +22,7 @@ export function ProjectStatusBadge({ status, className }: ProjectStatusBadgeProp
       return (
         <Badge
           variant="outline"
-          className={`bg-slate-100 text-slate-700 border-slate-300 ${className || ""}`}
+          className={`bg-[#F7ECEA] text-[#695449] border-[#d4b0a5] ${className || ""}`}
         >
           Draft
         </Badge>
@@ -40,7 +40,7 @@ export function ProjectStatusBadge({ status, className }: ProjectStatusBadgeProp
       return (
         <Badge
           variant="default"
-          className={`bg-purple-100 text-purple-800 border-purple-200 ${className || ""}`}
+          className={`bg-[#F7ECEA] text-[#a66d5a] border-[#e0c4bc] ${className || ""}`}
         >
           Selesai (Completed)
         </Badge>

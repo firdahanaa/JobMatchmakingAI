@@ -37,15 +37,15 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
+      <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
         <Navbar />
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-2xl border border-rose-200 bg-white p-8 text-center space-y-4 shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
               <AlertCircle className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Gagal Memuat Pelamar</h2>
-            <p className="text-sm text-slate-600">{error || "Proyek tidak ditemukan."}</p>
+            <h2 className="text-lg font-bold text-[#4a3728]">Gagal Memuat Pelamar</h2>
+            <p className="text-sm text-[#7a6559]">{error || "Proyek tidak ditemukan."}</p>
             <div className="pt-2">
               <Link href="/vendor/dashboard">
                 <Button className="gap-2">
@@ -63,7 +63,7 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
   const { project, applicants } = data;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
       <Navbar />
 
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
@@ -73,13 +73,13 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
             <div>
               <Link
                 href="/vendor/dashboard"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors mb-2"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8a7668] hover:text-[#5c4639] transition-colors mb-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Kembali ke Dashboard Vendor
               </Link>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#4a3728]">
                   Daftar Pelamar Proyek
                 </h1>
                 <Badge variant="secondary" className="text-xs font-bold">
@@ -98,7 +98,7 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
                   {project.status}
                 </Badge>
               </div>
-              <p className="text-sm font-semibold text-purple-700 mt-1">
+              <p className="text-sm font-semibold text-[#b87a65] mt-1">
                 &ldquo;{project.title}&rdquo;
               </p>
             </div>

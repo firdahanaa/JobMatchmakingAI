@@ -8,7 +8,7 @@ export function FormItem({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 export function FormLabel({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("text-sm font-medium text-slate-700 dark:text-slate-300", className)}
+      className={cn("text-sm font-medium text-[#695449] dark:text-[#d4b0a5]", className)}
       {...props}
     />
   );
@@ -17,7 +17,7 @@ export function FormLabel({ className, ...props }: React.LabelHTMLAttributes<HTM
 export function FormDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={cn("text-xs text-slate-500 dark:text-slate-400", className)}
+      className={cn("text-xs text-[#8a7668] dark:text-[#a89080]", className)}
       {...props}
     />
   );

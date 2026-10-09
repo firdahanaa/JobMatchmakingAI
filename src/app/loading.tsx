@@ -2,9 +2,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RootLoading() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
       {/* Navbar Skeleton */}
-      <div className="border-b border-slate-200 bg-white/80 py-3.5 px-4 sm:px-8">
+      <div className="border-b border-[#e8d5d0] bg-white/80 py-3.5 px-4 sm:px-8">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
           <Skeleton className="h-8 w-36 rounded-lg" />
           <div className="flex items-center gap-3">

@@ -19,6 +19,11 @@ Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan 
   - Menghitung persentase kesiapan (*readiness %*).
   - Menampilkan daftar skill yang cocok (*matched skills*), skill yang belum dimiliki (*missing skills*), serta skill yang perlu dinaikkan levelnya (*under-level skills*).
   - Menyajikan saran konstruktif yang menyemangati (bukan pesan penolakan).
+- **Rekomendasi teks TF-IDF + Cosine Similarity**:
+  - Teks talent berasal dari headline, bio, dan nama skill; teks proyek berasal dari judul, deskripsi, dan nama skill proyek. Data dibaca dari Supabase melalui query rekomendasi yang sudah ada.
+  - Token dinormalisasi dengan NFKC, huruf kecil, lalu tokenisasi huruf/angka Unicode. `TF = frekuensi token / jumlah token`; `IDF = ln((N + 1) / (df + 1)) + 1`; vektor TF-IDF dibandingkan dengan cosine similarity dan skor dibatasi ke 0–1.
+  - Skor cosine ditampilkan terpisah sebagai persentase. Urutan rekomendasi memakai `0.80 × skor composite lama + 0.20 × (cosine × 100)`. Komponen composite tetap berbobot skill 50%, level fit 20%, availability 15%, dan rating 15%; skor snapshot lamaran juga tetap memakai rumus lama.
+  - IDF dihitung pada satu korpus bersama yang berisi dokumen query dan seluruh kandidat untuk daftar rekomendasi tersebut, sehingga nilai kandidat bisa dibandingkan secara konsisten.
 
 ### 2. Sisi Talenta (Talent Experience)
 - **Profil Lengkap & Portofolio**:
@@ -26,7 +31,7 @@ Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan 
   - Indikator kelengkapan profil (*progress bar* interaktif).
   - Master list skill dengan penetapan tingkat keahlian (*Beginner / Intermediate / Advanced*).
 - **Dashboard Talenta (`/talent/dashboard`)**:
-  - Rekomendasi Top 5 Proyek dengan Match % tertinggi.
+  - Rekomendasi Top 5 Proyek berdasarkan skor gabungan composite dan similarity teks.
   - **Skill Progress Bar**: Visualisasi kemahiran tiap keahlian (Beginner 33%, Intermediate 66%, Advanced 100%).
   - **Skill Gap Teratas**: Agregasi 3 skill yang paling sering kurang dari seluruh proyek terbuka yang relevan beserta saran belajar terarah.
   - Ringkasan metrik: Jumlah lamaran, proyek selesai, dan skor rata-rata rating dengan visualisasi bintang.
@@ -46,7 +51,7 @@ Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan 
   - Dialog konfirmasi aman sebelum menghapus proyek.
   - Highlight pelamar teratas (*nama + match score*) langsung pada kartu proyek.
 - **Evaluasi & Komparasi Pelamar (`/vendor/projects/[id]/applicants`)**:
-  - Daftar pelamar terurut secara real-time berdasarkan skor kecocokan terbaru.
+  - Daftar pelamar terurut secara real-time berdasarkan skor gabungan composite dan similarity teks.
   - Fitur **Bandingkan Pelamar**: Memilih 2–3 kandidat untuk ditampilkan berdampingan dalam tabel komparasi detail (skill, level fit, ketersediaan, rating, dan pengalaman).
   - Modal detail pelamar dengan riwayat ulasan masa lalu dan info kontak terlindungi (hanya tampil setelah diterima).
 - **Rating & Review Pasca Selesai**:
@@ -102,7 +107,9 @@ JobMatchmakingAI/
 │   │   │   ├── types.ts         # Tipe data konteks & hasil match
 │   │   │   ├── skillGap.ts      # Kalkulasi kesenjangan skill
 │   │   │   ├── score.ts         # Algoritma pembobotan 4-komponen
-│   │   │   └── matching.test.ts # Unit test Vitest (44 tests)
+│   │   │   ├── tfidf.ts         # TF-IDF, cosine similarity, dan ranking rekomendasi
+│   │   │   ├── matching.test.ts # Unit test skor match & skill gap
+│   │   │   └── tfidf.test.ts    # Unit test TF-IDF, cosine, dan ranking
 │   │   ├── supabase/            # Client Supabase (browser, server, middleware)
 │   │   ├── validators/          # Skema validasi Zod (auth, talent, project, application)
 │   │   └── utils.ts             # Utility classnames (clsx, tailwind-merge)

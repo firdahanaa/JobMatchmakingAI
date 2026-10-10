@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { calculateMatch } from "@/lib/matching";
+import {
+  buildProjectTextDocument,
+  buildTalentTextDocument,
+  combineRecommendationScores,
+  rankDocumentsBySimilarity,
+} from "@/lib/matching";
 import { SKILL_LEVEL_NUMERIC } from "@/lib/matching/types";
 import { uuidSchema } from "@/lib/validators/project";
 import type {
@@ -53,6 +59,8 @@ export interface ProjectWithMatch {
     };
   }[];
   matchResult: MatchResult;
+  textSimilarityScore?: number;
+  recommendationScore?: number;
 }
 
 export interface TalentProjectsFilter {
@@ -135,7 +143,7 @@ export async function getTalentMatchingContext(): Promise<{
     const [profileRes, skillsRes, ratingRes] = await Promise.all([
       supabase
         .from("talent_profiles")
-        .select("hours_per_week, preferred_mode, is_available")
+        .select("headline, bio, hours_per_week, preferred_mode, is_available")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -171,6 +179,8 @@ export async function getTalentMatchingContext(): Promise<{
 
     const talentContext: TalentContext = {
       skills: matchingSkills,
+      headline: talentProfile?.headline ?? null,
+      bio: talentProfile?.bio ?? null,
       hoursPerWeek: talentProfile?.hours_per_week ?? null,
       preferredMode: (talentProfile?.preferred_mode as WorkMode) ?? null,
       isAvailable: talentProfile?.is_available ?? true,
@@ -276,6 +286,23 @@ export async function getTalentProjects(
 
     const projectsList = (rawProjects || []) as unknown as RawProject[];
     const totalOpenProjects = projectsList.length;
+    const talentDocument = buildTalentTextDocument(talentContext);
+    const similarityByProjectId = new Map(
+      rankDocumentsBySimilarity(
+        talentDocument,
+        projectsList.map((project) => ({
+          id: project.id,
+          text: buildProjectTextDocument({
+            title: project.title,
+            description: project.description,
+            skills: (project.project_skills || []).map((skill) => {
+              const skillObject = Array.isArray(skill.skills) ? skill.skills[0] : skill.skills;
+              return { name: skillObject?.name || `Skill #${skill.skill_id}` };
+            }),
+          }),
+        }))
+      ).map(({ id, similarity }) => [id, similarity])
+    );
 
     // Hitung calculateMatch untuk tiap proyek
     const mappedProjects: ProjectWithMatch[] = projectsList.map((p) => {
@@ -302,6 +329,7 @@ export async function getTalentProjects(
       };
 
       const matchResult = calculateMatch(talentContext, projectContext);
+      const textSimilarity = similarityByProjectId.get(p.id) ?? 0;
 
       // Detail skill proyek dengan indikator kepemilikan talent
       const enrichedSkills = pSkills.map((ps) => {
@@ -356,6 +384,8 @@ export async function getTalentProjects(
           : null,
         skills: enrichedSkills,
         matchResult,
+        textSimilarityScore: Math.round(textSimilarity * 100),
+        recommendationScore: combineRecommendationScores(matchResult.score, textSimilarity),
       };
     });
 
@@ -400,8 +430,11 @@ export async function getTalentProjects(
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       }
       // default: "match" (Match Score Tertinggi)
-      if (b.matchResult.score !== a.matchResult.score) {
-        return b.matchResult.score - a.matchResult.score;
+      const scoreDifference =
+        (b.recommendationScore ?? b.matchResult.score) -
+        (a.recommendationScore ?? a.matchResult.score);
+      if (scoreDifference !== 0) {
+        return scoreDifference;
       }
       // Jika skor sama, dahulukan yang lebih baru dibuat
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();

@@ -106,6 +106,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
           <div className="shrink-0">
             <MatchScoreBadge score={project.matchResult.score} size="md" />
+            {project.textSimilarityScore !== undefined && (
+              <p className="mt-1 text-right text-[10px] font-semibold text-sky-700">
+                Similarity teks {project.textSimilarityScore}%
+              </p>
+            )}
           </div>
         </div>
 

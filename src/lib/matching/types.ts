@@ -23,6 +23,8 @@ export interface ProjectSkill {
 
 export interface TalentContext {
   skills: TalentSkill[];
+  headline?: string | null;
+  bio?: string | null;
   hoursPerWeek: number | null;
   preferredMode: WorkMode | null;
   isAvailable: boolean;

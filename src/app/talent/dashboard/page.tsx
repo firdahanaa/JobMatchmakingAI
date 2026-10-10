@@ -453,7 +453,14 @@ export default async function TalentDashboardPage() {
 
                                 {/* Match score + arrow */}
                                 <div className="flex items-center justify-between md:flex-col md:items-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#F7ECEA] shrink-0">
-                                  <MatchScoreBadge score={project.matchResult.score} size="lg" />
+                                  <div className="flex flex-col items-end gap-1">
+                                    <MatchScoreBadge score={project.matchResult.score} size="lg" />
+                                    {project.textSimilarityScore !== undefined && (
+                                      <span className="text-[10px] font-semibold text-sky-700">
+                                        Similarity teks {project.textSimilarityScore}%
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 group-hover:bg-sky-700 text-sky-800 group-hover:text-white shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:rotate-45">
                                     <ArrowRight className="h-5 w-5" />
                                   </div>

@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { calculateMatch, calculateSkillGap } from "@/lib/matching";
+import {
+  buildProjectTextDocument,
+  buildTalentTextDocument,
+  combineRecommendationScores,
+  rankDocumentsBySimilarity,
+} from "@/lib/matching";
 import { updateApplicationStatusSchema, uuidSchema } from "@/lib/validators/application";
 import { reviewSchema, type ReviewInput } from "@/lib/validators/review";
 import type {
@@ -43,6 +49,8 @@ export interface DetailedApplicantItem {
 
   // Recalculated matching with latest data
   latestMatchScore: number;
+  textSimilarityScore: number;
+  recommendationScore: number;
   snapshotMatchScore: number | null;
   matchBreakdown: {
     skill: number;
@@ -149,6 +157,7 @@ export async function getProjectApplicantsRecalculated(
         id,
         vendor_id,
         title,
+        description,
         status,
         difficulty,
         type,
@@ -347,7 +356,10 @@ export async function getProjectApplicantsRecalculated(
     }
 
     // 4. Hitung ulang kecocokan (Real-time Recalculated Match Score) untuk setiap pelamar
-    const applicantsList: DetailedApplicantItem[] = apps.map((app) => {
+    const applicantsWithoutRecommendation: Omit<
+      DetailedApplicantItem,
+      "textSimilarityScore" | "recommendationScore"
+    >[] = apps.map((app) => {
       const prof = profilesMap.get(app.talent_id);
       const tProf = talentProfilesMap.get(app.talent_id);
       const tSkills = skillsMap.get(app.talent_id) || [];
@@ -459,10 +471,43 @@ export async function getProjectApplicantsRecalculated(
       };
     });
 
-    // Urutkan pelamar berdasarkan skor terbaru secara descending
+    const projectDocument = buildProjectTextDocument({
+      title: rawProject.title,
+      description: rawProject.description,
+      skills: matchingProjectSkills,
+    });
+    const similarityByApplicationId = new Map(
+      rankDocumentsBySimilarity(
+        projectDocument,
+        applicantsWithoutRecommendation.map((applicant) => ({
+          id: applicant.id,
+          text: buildTalentTextDocument({
+            headline: applicant.headline,
+            bio: applicant.bio,
+            skills: applicant.allTalentSkills,
+          }),
+        }))
+      ).map(({ id, similarity }) => [id, similarity])
+    );
+
+    const applicantsList: DetailedApplicantItem[] = applicantsWithoutRecommendation.map(
+      (applicant) => {
+        const textSimilarity = similarityByApplicationId.get(applicant.id) ?? 0;
+        return {
+          ...applicant,
+          textSimilarityScore: Math.round(textSimilarity * 100),
+          recommendationScore: combineRecommendationScores(
+            applicant.latestMatchScore,
+            textSimilarity
+          ),
+        };
+      }
+    );
+
+    // The legacy composite score remains visible; the combined score only determines ranking.
     applicantsList.sort((a, b) => {
-      if (b.latestMatchScore !== a.latestMatchScore) {
-        return b.latestMatchScore - a.latestMatchScore;
+      if (b.recommendationScore !== a.recommendationScore) {
+        return b.recommendationScore - a.recommendationScore;
       }
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });

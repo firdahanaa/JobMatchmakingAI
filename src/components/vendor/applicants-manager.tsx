@@ -119,7 +119,7 @@ export function ApplicantsManager({
           <span>Total {initialApplicants.length} Pelamar Masuk</span>
           <span className="text-[#d4b0a5]">•</span>
           <span className="text-2xs font-normal text-[#8a7668]">
-            Terurut real-time skor kecocokan tertinggi
+            Terurut real-time skor kecocokan gabungan tertinggi
           </span>
         </div>
 
@@ -232,6 +232,9 @@ export function ApplicantsManager({
                       Match Score (Terbaru)
                     </div>
                     <MatchScoreBadge score={app.latestMatchScore} size="md" />
+                    <div className="text-3xs text-[#8a7668] font-semibold">
+                      Similarity teks {app.textSimilarityScore}%
+                    </div>
                   </div>
                 </div>
 

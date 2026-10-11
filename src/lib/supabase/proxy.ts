@@ -39,8 +39,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthRoute = pathname === '/login' || pathname === '/register';
-  const isTalentRoute = pathname.startsWith('/talent');
-  const isVendorRoute = pathname.startsWith('/vendor');
+  const isTalentRoute = pathname.startsWith('/talent/');
+  const isVendorRoute = pathname.startsWith('/vendor/');
   const isOnboardingRoute = pathname.startsWith('/onboarding');
   const isProtectedRoute = isTalentRoute || isVendorRoute || isOnboardingRoute;
 

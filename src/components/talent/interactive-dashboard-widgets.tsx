@@ -32,7 +32,7 @@ export function AILiveTicker() {
             <span className="text-[#d4b0a5]">•</span>
             <span className="inline-flex items-center gap-1.5">
               <Flame className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-[#9c824a]">Match Score Puncak:</span> 95% Cocok untuk Profilmu
+              <span className="text-[#9c824a]">Rekomendasi:</span> proyek relevan dengan keahlianmu
             </span>
             <span className="text-[#d4b0a5]">•</span>
             <span className="inline-flex items-center gap-1.5">
@@ -67,7 +67,7 @@ export function ProjectFilterBar({
 }) {
   const filters = [
     { id: "all", label: "Semua Proyek", icon: Sparkles },
-    { id: "high_match", label: "Match > 80%", icon: Target },
+    { id: "high_match", label: "Paling relevan", icon: Target },
     { id: "remote", label: "Remote Only", icon: Zap },
     { id: "freelance", label: "Paid Freelance", icon: Flame },
   ];

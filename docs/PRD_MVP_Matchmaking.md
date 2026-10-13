@@ -127,12 +127,12 @@ supabase/
 8. **Dashboard** talent & vendor (kartu rekomendasi 92% / 88% seperti mockup, progress skill).
 9. Polishing: empty state, loading, error handling, responsif.
 
-## 12. Kriteria Selesai MVP
+## 12. Kriteria Selesai MVP 
 
 - Talent baru bisa daftar, mengisi profil, melihat project dengan match score dan skill gap yang benar.
 - Vendor bisa posting project dan melihat pelamar terurut skor.
 - Rating tersimpan dan memengaruhi `rating_score` talent.
-- Talent tidak bisa mengakses data privat talent lain, dan vendor hanya bisa mengelola project miliknya (diverifikasi lewat RLS).
+- Talent tidak bisa mengakses data privat talent lain, dan vendor hanya bisa mengelola project miliknya (diverifikasi lewat RLS). 
 
 ## 13. Risiko & Catatan
 
@@ -140,3 +140,56 @@ supabase/
 - **Kualitas skill:** master list skill harus terstandar agar matching akurat; batasi input skill bebas.
 - **Bias algoritma:** dokumentasikan bobot dan tampilkan penjelasan skor.
 - **Privasi data:** tampilkan data kontak talent ke vendor hanya setelah talent apply.
+
+## Change Log: Revisi Pembayaran & Penyelesaian
+
+Pembaruan arsitektur dan alur kerja end-to-end (9 Bagian):
+
+### 1. Alur Status & Transisi Workflow (Bagian 1)
+- **Application Status**: Diperluas menjadi 7 status:
+  - `pending`: Menunggu Review
+  - `accepted`: Diterima (Talent mulai pengerjaan)
+  - `rejected`: Ditolak
+  - `withdrawn`: Dibatalkan oleh talent
+  - `submitted`: Hasil Terkirim (Talent menyerahkan dokumentasi/tautan hasil pengerjaan)
+  - `approved`: Hasil Disetujui (Vendor menyetujui hasil pengerjaan)
+  - `completed`: Selesai (Proyek selesai seluruhnya)
+- **Payment Status**: Enum baru dengan 4 status:
+  - `none`: Tidak ada pembayaran (untuk proyek gratis / volunteer / tanpa fee)
+  - `not_requested`: Belum ada pengajuan pembayaran (saat accepted untuk proyek berbayar)
+  - `awaiting_payment`: Menunggu pembayaran (setelah vendor menyetujui hasil pengerjaan)
+  - `paid`: Pembayaran selesai (dikonfirmasi melalui webhook gateway pembayaran)
+- **Fungsi Murni Transisi**: `canTransition(from, to, actor, context)` di `src/lib/workflow/transitions.ts` menjamin kepatuhan seluruh aturan bisnis di sisi server dan klien.
+- **Aturan Transisi Kunci**:
+  - Talent: `pending` -> `withdrawn`, `accepted` -> `submitted`.
+  - Vendor: `pending` -> `accepted` | `rejected`, `submitted` -> `approved` | `accepted` (minta revisi).
+  - Jika proyek tidak memiliki fee: vendor menyetujui hasil (`submitted` -> `approved`) lalu sistem menyelesaikan proyek (`completed`).
+  - Jika proyek memiliki fee: approval membuat catatan pembayaran dan charge gateway, lalu status pembayaran menjadi `awaiting_payment`. Transisi ke `completed` hanya sah melalui webhook terverifikasi setelah status pembayaran `paid`.
+- **Status Implementasi**: Aksi server untuk accept, submit hasil, approval/revisi, dan webhook settlement menggunakan fungsi transisi. Penyelesaian pembayaran disimpan atomik melalui RPC pada migrasi `20261010_payment_webhook.sql`.
+
+### 2. Lampiran Lamaran (Bagian 2 - Skema & Akses Unduhan)
+- Migrasi menambahkan path CV/portofolio per lamaran dan bucket privat PDF maksimal 5 MB. Policy mengikat path file ke pemilik lamaran serta memberi vendor pemilik proyek akses baca.
+- Server Action membuat signed URL unduhan selama 5 menit setelah memverifikasi talent/vendor pemilik. UI unggah lampiran saat apply masih perlu dikerjakan.
+
+### 3. Pengiriman Hasil Pengerjaan & Revisi (Bagian 3 - Mendatang)
+- Formulir penyerahan tautan hasil pengerjaan & catatan dari talent ke vendor.
+- Fitur penolakan hasil dengan catatan revisi dari vendor agar talent dapat memperbaiki hasil.
+
+### 4. Pembayaran via Payment Gateway & Webhook (Bagian 4 - Implementasi Dasar)
+- Provider Midtrans/Mock, payment record, validasi nominal, verifikasi webhook, dan penyelesaian status atomik telah tersedia. Penggunaan Midtrans memerlukan konfigurasi kredensial dan pengujian integrasi di lingkungan gateway.
+
+### 5. Rating & Review Wajib (Bagian 5 - Mendatang)
+- Vendor wajib mengisi rating sebelum proyek ditutup dan sertifikat diterbitkan.
+
+### 6. Sertifikat Digital Talenta (Bagian 6 - Mendatang)
+- Penerbitan sertifikat digital otomatis pasca-penyelesaian proyek.
+
+### 7. Help Desk & Layanan Pengaduan (Bagian 7 - Mendatang)
+- Sistem tiket pengaduan / sengketa antara talent dan vendor.
+
+### 8. Visibilitas & Breakdown Match Score (Bagian 8 - Mendatang)
+- Transparansi rincian bobot kecocokan untuk talent dan vendor.
+
+### 9. Integrasi Menyeluruh & Testing (Bagian 9 - Mendatang)
+- Unit test transisi dan validator tersedia; pengujian integrasi end-to-end masih perlu dijalankan.
+

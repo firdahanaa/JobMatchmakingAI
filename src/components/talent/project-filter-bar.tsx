@@ -102,9 +102,9 @@ export function ProjectFilterBar() {
               border: "1px solid rgba(186, 230, 253, 0.8)",
             }}
           >
-            <option value="match">Match Score (AI)</option>
+            <option value="match">Paling relevan</option>
             <option value="newest">Proyek Terbaru</option>
-            <option value="deadline">Batas Waktu Terdekat</option>
+            <option value="deadline">Deadline terdekat</option>
           </select>
         </div>
       </div>

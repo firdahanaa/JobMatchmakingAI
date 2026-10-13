@@ -5,17 +5,15 @@ import {
   Clock,
   Coins,
   MapPin,
-  Check,
   Building2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { MatchScoreBadge } from "./match-score-badge";
-import type { ProjectWithMatch } from "@/app/talent/projects/actions";
+import type { ProjectForTalent } from "@/app/talent/projects/actions";
 
 interface ProjectCardProps {
-  project: ProjectWithMatch;
+  project: ProjectForTalent;
 }
 
 const difficultyLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "success" | "warning" }> = {
@@ -59,6 +57,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
       : project.type === "volunteer"
       ? "Sukarela (Volunteer)"
       : "Sesuai Kesepakatan";
+  const feeBadgeLabel = project.paymentEnabled
+    ? `Berbayar ${new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0,
+      }).format(project.rewardAmount ?? 0)}`
+    : "Tanpa fee";
 
   const formattedDeadline = project.deadline
     ? new Date(project.deadline).toLocaleDateString("id-ID", {
@@ -87,32 +92,23 @@ export function ProjectCard({ project }: ProjectCardProps) {
       }}
     >
       <CardHeader className="p-5 sm:p-6 pb-3 space-y-3 relative z-10">
-        {/* Header row: Organization & Match Score Badge */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold truncate">
-            <Building2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
-            <span className="truncate text-slate-700">
-              {project.vendor?.organizationName || "Organisasi Vendor"}
-            </span>
-            {project.vendor?.location && (
-              <>
-                <span className="text-slate-300">•</span>
-                <span className="truncate flex items-center gap-0.5 text-slate-500">
-                  <MapPin className="h-3 w-3 text-sky-500 shrink-0" />
-                  {project.vendor.location}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="shrink-0">
-            <MatchScoreBadge score={project.matchResult.score} size="md" />
-            {project.textSimilarityScore !== undefined && (
-              <p className="mt-1 text-right text-[10px] font-semibold text-sky-700">
-                Similarity teks {project.textSimilarityScore}%
-              </p>
-            )}
-          </div>
+        {/* Organization */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold truncate">
+          <Building2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+          <span className="truncate text-slate-700">
+            {project.vendor?.organizationName || "Organisasi Vendor"}
+          </span>
+          {project.vendor?.location && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="truncate flex items-center gap-0.5 text-slate-500">
+                <MapPin className="h-3 w-3 text-sky-500 shrink-0" />
+                {project.vendor.location}
+              </span>
+            </>
+          )}
         </div>
+
 
         {/* Project Title */}
         <Link href={`/talent/projects/${project.id}`}>
@@ -128,6 +124,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </Badge>
           <Badge variant={typeInfo.variant} className="text-2xs font-bold px-2.5 py-0.5">
             {typeInfo.label}
+          </Badge>
+          <Badge variant={project.paymentEnabled ? "success" : "outline"} className="text-2xs font-bold px-2.5 py-0.5">
+            {feeBadgeLabel}
           </Badge>
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-sky-50 text-sky-800 border border-sky-100">
             <span>{modeInfo.icon}</span>
@@ -152,41 +151,16 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-2xs font-bold text-slate-500 uppercase tracking-wider">
             <span>Keahlian Yang Dibutuhkan</span>
-            <span className="text-sky-700 font-extrabold">
-              {project.skills.filter((s) => s.talentStatus.isAdequate).length} /{" "}
-              {project.skills.length} cocok
-            </span>
+            <span>{project.skills.length} skill</span>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
             {project.skills.map((skill) => {
-              const isAdequate = skill.talentStatus.isAdequate;
-              const possessed = skill.talentStatus.possessed;
-
               return (
                 <span
                   key={skill.skillId}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                    isAdequate
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                      : possessed
-                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "bg-slate-50 text-slate-600 border border-slate-200"
-                  }`}
-                  title={
-                    isAdequate
-                      ? `Kamu menguasai ${skill.name} (${skill.talentStatus.talentLevel})`
-                      : possessed
-                      ? `Levelmu: ${skill.talentStatus.talentLevel}, butuh: ${skill.minLevel}`
-                      : `Belum ditambahkan`
-                  }
+                  className="inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-bold text-slate-700"
                 >
-                  {isAdequate && (
-                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
-                  )}
-                  {possessed && !isAdequate && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-                  )}
                   <span>{skill.name}</span>
                   {skill.isRequired && (
                     <span className="text-rose-500 text-2xs font-black" title="Wajib">*</span>

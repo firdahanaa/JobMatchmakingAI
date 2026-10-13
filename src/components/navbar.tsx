@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Sparkles, LogOut, CircleUser, ClipboardList, House, PlusCircle, Search } from "lucide-react";
+import { Sparkles, LogOut, CircleUser, ClipboardList, House, PlusCircle, Search, CircleHelp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -166,6 +166,14 @@ export function Navbar({ initialUser }: NavbarProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
+          <Link
+            href="/help"
+            aria-label="Bantuan - Laporkan Kendala"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-sky-50 hover:text-sky-800 sm:px-3"
+          >
+            <CircleHelp className="h-4 w-4 text-sky-700" />
+            <span className="hidden sm:inline">Bantuan</span>
+          </Link>
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-full p-1 hover:ring-2 hover:ring-sky-300 transition-all focus:outline-none cursor-pointer">

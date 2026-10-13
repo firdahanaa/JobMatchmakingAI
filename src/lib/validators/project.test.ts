@@ -18,6 +18,7 @@ describe("Project Validators", () => {
     mode: "remote" as const,
     durationWeeks: 4,
     hoursPerWeek: 15,
+    paymentEnabled: true,
     rewardAmount: 1500000,
     rewardNote: "Uang saku + Surat Referensi Kerja",
     deadline: futureDateString,
@@ -59,7 +60,7 @@ describe("Project Validators", () => {
         ...validProjectData,
         rewardAmount: -50000,
       })
-    ).toThrow("Nilai reward tidak boleh negatif");
+    ).toThrow("Nominal fee tidak boleh negatif");
   });
 
   it("menolak jika deadline berada di masa lalu", () => {

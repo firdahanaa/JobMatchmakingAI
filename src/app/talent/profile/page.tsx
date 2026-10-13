@@ -22,6 +22,7 @@ import {
 } from "./actions";
 import { toast } from "sonner";
 import { StarRating } from "@/components/ui/star-rating";
+import { RatingDisplay } from "@/components/ui/rating-display";
 import {
   User,
   Sparkles,
@@ -604,19 +605,9 @@ export default function TalentProfilePage() {
                   {/* Rating Average */}
                   <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
                     <p className="text-xs font-semibold text-amber-900">Rating Rata-rata</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-amber-800">
-                        {pageData?.ratingStats.avgRating != null
-                          ? pageData.ratingStats.avgRating.toFixed(1)
-                          : "Belum Ada"}
-                      </span>
-                      {pageData?.ratingStats.avgRating != null && (
-                        <span className="text-xs text-amber-600">/ 5.0</span>
-                      )}
-                    </div>
-                    <StarRating
-                      value={pageData?.ratingStats.avgRating ?? 0}
-                      readOnly
+                    <RatingDisplay
+                      rating={pageData?.ratingStats.avgRating ?? null}
+                      reviewCount={pageData?.ratingStats.reviewCount}
                       size="sm"
                     />
                   </div>

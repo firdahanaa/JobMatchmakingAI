@@ -4,7 +4,16 @@ export type ProjectDifficulty = 'beginner' | 'intermediate' | 'advanced';
 export type ProjectType = 'freelance' | 'volunteer';
 export type WorkMode = 'remote' | 'onsite' | 'hybrid';
 export type ProjectStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'closed';
-export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'completed' | 'withdrawn';
+export type ApplicationStatus =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn'
+  | 'submitted'
+  | 'approved'
+  | 'completed';
+
+export type PaymentStatus = 'none' | 'not_requested' | 'awaiting_payment' | 'paid';
 
 export interface Profile {
   id: string;
@@ -61,6 +70,8 @@ export interface Project {
   hours_per_week: number | null;
   reward_amount: number | null;
   reward_note: string | null;
+  payment_enabled: boolean;
+  portfolio_required: boolean;
   deadline: string | null;
   status: ProjectStatus;
   created_at: string;
@@ -82,9 +93,47 @@ export interface Application {
   message: string | null;
   match_score: number | null;
   status: ApplicationStatus;
+  payment_status: PaymentStatus;
+  cv_path: string | null;
+  portfolio_path: string | null;
+  related_links: string[];
+  submission_links: string[];
+  revision_note: string | null;
+  revision_notes: string | null;
+  submission_url: string | null;
+  submission_notes: string | null;
+  submitted_at: string | null;
+  approved_at: string | null;
+  completed_at: string | null;
   created_at: string;
   project?: Project;
   talent?: TalentProfile & { profile?: Profile };
+}
+
+export type PaymentRecordStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'cancelled';
+
+export interface Payment {
+  id: string;
+  application_id: string;
+  amount: number;
+  currency: string;
+  provider: string | null;
+  provider_order_id: string | null;
+  provider_ref: string | null;
+  redirect_url: string | null;
+  status: PaymentRecordStatus;
+  paid_at: string | null;
+  raw_payload: Record<string, unknown> | null;
+  created_at: string;
+  application?: Application;
+}
+
+export interface Certificate {
+  id: string;
+  application_id: string;
+  certificate_no: string;
+  issued_at: string;
+  application?: Application;
 }
 
 export interface Review {

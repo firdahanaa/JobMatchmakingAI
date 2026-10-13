@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,12 +14,19 @@ import {
   XCircle,
   CheckCircle2,
   Briefcase,
+  Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MatchScoreBadge } from "./match-score-badge";
-import { withdrawApplication, type TalentApplicationItem } from "@/app/talent/applications/actions";
-import type { ApplicationStatus } from "@/types/database";
+import {
+  createApplicationDocumentSignedUrl,
+  withdrawApplication,
+  type ApplicationDocumentKind,
+  type TalentApplicationItem,
+} from "@/app/talent/applications/actions";
+import { SubmitWorkDialog } from "./submit-work-dialog";
+import type { ApplicationStatus, PaymentStatus } from "@/types/database";
+import { getPaymentStatusBadge, PAYMENT_STATUSES } from "@/lib/workflow/transitions";
 
 interface ApplicationsListProps {
   initialApplications: TalentApplicationItem[];
@@ -54,11 +61,25 @@ const statusConfig: Record<
     variant: "secondary",
     desc: "Lamaran telah kamu batalkan secara mandiri.",
   },
+  submitted: {
+    label: "Hasil Terkirim",
+    variant: "outline",
+    desc: "Dokumentasi hasil pengerjaanmu telah terkirim dan sedang ditinjau oleh pihak vendor.",
+  },
+  approved: {
+    label: "Hasil Disetujui",
+    variant: "default",
+    desc: "Vendor telah menyetujui hasil pengerjaanmu. Menunggu penyelesaian akhir proyek/pembayaran.",
+  },
 };
 
 export function ApplicationsList({ initialApplications }: ApplicationsListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | "all">("all");
+  const [submissionApplication, setSubmissionApplication] = useState<TalentApplicationItem | null>(null);
+  const [revisionApplicationId, setRevisionApplicationId] = useState<string | null>(null);
 
   const handleWithdraw = (applicationId: string, projectTitle: string) => {
     if (!confirm(`Apakah kamu yakin ingin membatalkan lamaran untuk "${projectTitle}"?`)) {
@@ -75,6 +96,21 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
       }
     });
   };
+
+  const handleDownloadDocument = async (applicationId: string, kind: ApplicationDocumentKind) => {
+    const result = await createApplicationDocumentSignedUrl(applicationId, kind);
+    if (!result.signedUrl) {
+      toast.error(result.error || "Gagal membuat tautan dokumen.");
+      return;
+    }
+    window.location.assign(result.signedUrl);
+  };
+
+  const filteredApplications = initialApplications.filter(
+    (application) =>
+      (statusFilter === "all" || application.status === statusFilter) &&
+      (paymentFilter === "all" || application.paymentStatus === paymentFilter)
+  );
 
   if (initialApplications.length === 0) {
     return (
@@ -110,7 +146,41 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
 
   return (
     <div className="space-y-4">
-      {initialApplications.map((app) => {
+      <div className="flex flex-col gap-3 rounded-xl border border-sky-100 bg-white p-4 sm:flex-row sm:items-end">
+        <label className="flex flex-1 flex-col gap-1.5 text-xs font-semibold text-slate-600">
+          Status lamaran
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as ApplicationStatus | "all")}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800"
+          >
+            <option value="all">Semua status</option>
+            {Object.entries(statusConfig).map(([status, config]) => (
+              <option key={status} value={status}>{config.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-1 flex-col gap-1.5 text-xs font-semibold text-slate-600">
+          Status pembayaran
+          <select
+            value={paymentFilter}
+            onChange={(event) => setPaymentFilter(event.target.value as PaymentStatus | "all")}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800"
+          >
+            <option value="all">Semua pembayaran</option>
+            {PAYMENT_STATUSES.map((status) => (
+              <option key={status} value={status}>{getPaymentStatusBadge(status).label}</option>
+            ))}
+          </select>
+        </label>
+        <span className="text-xs text-slate-500">{filteredApplications.length} lamaran</span>
+      </div>
+
+      {filteredApplications.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-sky-200 bg-white p-8 text-center text-sm text-slate-500">
+          Tidak ada lamaran yang sesuai dengan filter ini.
+        </div>
+      ) : filteredApplications.map((app) => {
         const conf = statusConfig[app.status] || {
           label: app.status,
           variant: "secondary" as const,
@@ -144,7 +214,7 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
               boxShadow: "0 10px 30px -10px rgba(2, 136, 209, 0.08)",
             }}
           >
-            {/* Top Row: Organization, Status Badge, & Match Score */}
+            {/* Top Row: Organization and Status */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
@@ -167,6 +237,9 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                   <Badge variant={conf.variant} className="text-2xs font-extrabold px-2.5 py-0.5 capitalize">
                     {conf.label}
                   </Badge>
+                  <Badge variant={getPaymentStatusBadge(app.paymentStatus).variant} className="text-2xs font-semibold px-2.5 py-0.5">
+                    {getPaymentStatusBadge(app.paymentStatus).label}
+                  </Badge>
                   <Badge variant="outline" className="text-2xs capitalize border-sky-200 text-slate-600">
                     {app.difficulty}
                   </Badge>
@@ -182,16 +255,38 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                 </div>
               </div>
 
-              {/* Snapshot Score Badge */}
-              <div className="flex items-center gap-2 shrink-0 sm:flex-col sm:items-end">
-                {app.matchScore !== null && (
-                  <div className="space-y-0.5 sm:text-right">
-                    <span className="text-3xs text-slate-400 block font-bold uppercase tracking-wider">Snapshot AI</span>
-                    <MatchScoreBadge score={app.matchScore} size="sm" />
-                  </div>
+            </div>
+
+            {app.revisionNotes && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRevisionApplicationId((current) => current === app.id ? null : app.id)}
+                  className="h-auto px-0 text-xs font-bold text-amber-800 hover:bg-transparent"
+                >
+                  {revisionApplicationId === app.id ? "Tutup catatan revisi" : "Lihat catatan revisi"}
+                </Button>
+                {revisionApplicationId === app.id && (
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-amber-950">{app.revisionNotes}</p>
                 )}
               </div>
-            </div>
+            )}
+
+            {app.submissionLinks.length > 0 && (
+              <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 text-xs text-slate-700">
+                <p className="mb-1 font-semibold">Link hasil terkirim:</p>
+                <ul className="space-y-1">
+                  {app.submissionLinks.filter((link) => /^https?:\/\//i.test(link)).map((link, index) => (
+                    <li key={`${app.id}-result-${index}`}>
+                      <a href={link} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-sky-700 underline">Buka link hasil {index + 1}</a>
+                    </li>
+                  ))}
+                </ul>
+                {app.submissionNotes && <p className="mt-1 whitespace-pre-wrap">{app.submissionNotes}</p>}
+              </div>
+            )}
 
             {/* Status description notice */}
             <div className={`p-3.5 rounded-2xl text-xs flex items-start gap-2.5 ${
@@ -227,6 +322,22 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
               </div>
             )}
 
+            {(app.cvPath || app.portfolioPath) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-xs font-semibold text-slate-600">Lampiranmu:</span>
+                {app.cvPath && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleDownloadDocument(app.id, "cv")} className="h-8 gap-1.5 text-xs">
+                    <Download className="h-3.5 w-3.5" /> CV
+                  </Button>
+                )}
+                {app.portfolioPath && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleDownloadDocument(app.id, "portfolio")} className="h-8 gap-1.5 text-xs">
+                    <Download className="h-3.5 w-3.5" /> Portofolio
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Bottom Actions Row */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-sky-100">
               <Link href={`/talent/projects/${app.projectId}`}>
@@ -247,10 +358,37 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                   <span>Batalkan Lamaran</span>
                 </Button>
               )}
+              {app.status === "accepted" && (
+                <Button size="sm" onClick={() => setSubmissionApplication(app)} disabled={isPending} className="gap-1.5 text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Kirim hasil
+                </Button>
+              )}
+              {app.status === "completed" && app.hasReview && (
+                <a href={`/talent/applications/${encodeURIComponent(app.id)}/certificate`}>
+                  <Button size="sm" type="button" className="gap-1.5 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    Unduh sertifikat
+                  </Button>
+                </a>
+              )}
+              {app.status === "completed" && !app.hasReview && (
+                <span className="text-xs text-slate-500">Sertifikat tersedia setelah vendor memberi rating.</span>
+              )}
             </div>
           </div>
         );
       })}
+
+      {submissionApplication && (
+        <SubmitWorkDialog
+          applicationId={submissionApplication.id}
+          projectTitle={submissionApplication.projectTitle}
+          isOpen={true}
+          onClose={() => setSubmissionApplication(null)}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </div>
   );
 }

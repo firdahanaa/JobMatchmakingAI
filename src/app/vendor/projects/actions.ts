@@ -13,6 +13,7 @@ import type {
   ProjectSkill,
   Skill,
 } from "@/types/database";
+import { getPendingVendorReviews, type PendingVendorReview } from "@/lib/workflow/vendor-review-gate";
 
 export interface VendorProjectWithStats extends Project {
   applicantCount: number;
@@ -75,6 +76,7 @@ export async function getMasterSkills(): Promise<{
  */
 export async function getVendorProjects(): Promise<{
   data: VendorProjectWithStats[];
+  pendingReviews: PendingVendorReview[];
   user: { id: string; email: string; organizationName: string } | null;
   error: string | null;
 }> {
@@ -88,6 +90,7 @@ export async function getVendorProjects(): Promise<{
     if (authError || !user) {
       return {
         data: [],
+        pendingReviews: [],
         user: null,
         error: "Sesi telah berakhir. Silakan login kembali.",
       };
@@ -103,6 +106,7 @@ export async function getVendorProjects(): Promise<{
     if (!profile || profile.role !== "vendor") {
       return {
         data: [],
+        pendingReviews: [],
         user: null,
         error: "Akses ditolak. Fitur ini hanya untuk pengguna Vendor.",
       };
@@ -127,6 +131,7 @@ export async function getVendorProjects(): Promise<{
     if (!projectsData || projectsData.length === 0) {
       return {
         data: [],
+        pendingReviews: [],
         user: {
           id: user.id,
           email: user.email || "",
@@ -135,6 +140,9 @@ export async function getVendorProjects(): Promise<{
         error: null,
       };
     }
+
+    const reviewGate = await getPendingVendorReviews(supabase, user.id);
+    if (reviewGate.error) throw new Error(reviewGate.error);
 
     const projectIds = projectsData.map((p) => p.id);
 
@@ -218,6 +226,7 @@ export async function getVendorProjects(): Promise<{
 
     return {
       data: result,
+      pendingReviews: reviewGate.data,
       user: {
         id: user.id,
         email: user.email || "",
@@ -229,6 +238,7 @@ export async function getVendorProjects(): Promise<{
     console.error("Error fetching vendor projects:", err);
     return {
       data: [],
+      pendingReviews: [],
       user: null,
       error: err instanceof Error ? err.message : "Gagal memuat daftar proyek vendor.",
     };
@@ -376,6 +386,17 @@ export async function createProject(
       };
     }
 
+    const reviewGate = await getPendingVendorReviews(supabase, user.id);
+    if (reviewGate.error) {
+      return { success: false, error: "Rating tertunda tidak dapat diverifikasi. Coba lagi." };
+    }
+    if (reviewGate.data.length > 0) {
+      return {
+        success: false,
+        error: "Selesaikan rating project yang tertunda sebelum membuat project baru.",
+      };
+    }
+
     // Ensure vendor profile exists
     const { data: existingVendor } = await supabase
       .from("vendor_profiles")
@@ -416,8 +437,10 @@ export async function createProject(
         mode: validated.mode,
         duration_weeks: validated.durationWeeks || null,
         hours_per_week: validated.hoursPerWeek || null,
+        payment_enabled: validated.paymentEnabled,
         reward_amount: validated.rewardAmount ?? 0,
         reward_note: validated.rewardNote || null,
+        portfolio_required: validated.portfolioRequired,
         deadline: validated.deadline || null,
         status: validated.status || "open",
       })
@@ -520,7 +543,7 @@ export async function updateProject(
     // Verify ownership (Double check RLS + server action authorization)
     const { data: existingProject, error: checkError } = await supabase
       .from("projects")
-      .select("vendor_id")
+      .select("vendor_id, payment_enabled, reward_amount")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -532,6 +555,26 @@ export async function updateProject(
       return {
         success: false,
         error: "Kamu tidak memiliki hak untuk mengubah proyek ini.",
+      };
+    }
+
+    const { count: acceptedApplicantCount, error: acceptedCheckError } = await supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .in("status", ["accepted", "submitted", "approved", "completed"]);
+
+    if (acceptedCheckError) {
+      return { success: false, error: "Gagal memeriksa status lamaran proyek." };
+    }
+
+    const feeChanged =
+      validated.paymentEnabled !== existingProject.payment_enabled ||
+      Number(validated.rewardAmount ?? 0) !== Number(existingProject.reward_amount ?? 0);
+    if ((acceptedApplicantCount ?? 0) > 0 && feeChanged) {
+      return {
+        success: false,
+        error: "Pengaturan pembayaran dan nominal fee tidak dapat diubah setelah ada lamaran yang diterima.",
       };
     }
 
@@ -557,8 +600,10 @@ export async function updateProject(
         mode: validated.mode,
         duration_weeks: validated.durationWeeks || null,
         hours_per_week: validated.hoursPerWeek || null,
+        payment_enabled: validated.paymentEnabled,
         reward_amount: validated.rewardAmount ?? 0,
         reward_note: validated.rewardNote || null,
+        portfolio_required: validated.portfolioRequired,
         deadline: validated.deadline || null,
         status: validated.status || "open",
       })

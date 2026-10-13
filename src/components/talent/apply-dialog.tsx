@@ -9,6 +9,8 @@ import {
   Sparkles,
   FileText,
   RotateCcw,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -19,9 +21,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { applyToProject, withdrawApplication } from "@/app/talent/applications/actions";
+import {
+  applicationAttachmentsSchema,
+  applyApplicationSchema,
+} from "@/lib/validators/application";
 import type { ApplicationStatus } from "@/types/database";
 
 interface ApplyDialogProps {
@@ -29,11 +36,10 @@ interface ApplyDialogProps {
   projectTitle: string;
   vendorName: string;
   projectStatus: string;
-  currentMatchScore: number;
+  portfolioRequired: boolean;
   existingApplication: {
     id: string;
     status: ApplicationStatus;
-    matchScore: number | null;
   } | null;
 }
 
@@ -42,12 +48,15 @@ export function ApplyDialog({
   projectTitle,
   vendorName,
   projectStatus,
-  currentMatchScore,
+  portfolioRequired,
   existingApplication,
 }: ApplyDialogProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [relatedLinks, setRelatedLinks] = useState<string[]>([""]);
   const [isPending, startTransition] = useTransition();
 
   const isProjectOpen = projectStatus === "open";
@@ -57,19 +66,44 @@ export function ApplyDialog({
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (message.length > 500) {
-      toast.error("Pesan lamaran maksimal 500 karakter.");
+    const links = relatedLinks.map((link) => link.trim()).filter(Boolean);
+    const applicationValidation = applyApplicationSchema.safeParse({ message, relatedLinks: links });
+    if (!applicationValidation.success) {
+      toast.error(applicationValidation.error.issues[0]?.message || "Periksa data lamaran.");
+      return;
+    }
+    const attachmentsValidation = applicationAttachmentsSchema.safeParse({
+      cv: cvFile,
+      portfolio: portfolioFile,
+    });
+    if (!attachmentsValidation.success) {
+      toast.error(attachmentsValidation.error.issues[0]?.message || "Lampiran belum lengkap.");
+      return;
+    }
+    if (portfolioRequired && !portfolioFile) {
+      toast.error("Proyek ini mewajibkan dokumen portofolio PDF.");
       return;
     }
 
+    const formData = new FormData();
+    formData.set("message", applicationValidation.data.message || "");
+    formData.set("relatedLinks", JSON.stringify(applicationValidation.data.relatedLinks));
+    formData.set("cv", attachmentsValidation.data.cv);
+    if (attachmentsValidation.data.portfolio) {
+      formData.set("portfolio", attachmentsValidation.data.portfolio);
+    }
+
     startTransition(async () => {
-      const res = await applyToProject(projectId, message);
+      const res = await applyToProject(projectId, formData);
       if (res.success) {
         toast.success("Lamaran berhasil dikirimkan ke vendor!", {
           description: "Kamu dapat memantau status lamaran di menu 'Lamaran Saya'.",
         });
         setIsOpen(false);
         setMessage("");
+        setCvFile(null);
+        setPortfolioFile(null);
+        setRelatedLinks([""]);
         router.refresh();
       } else {
         toast.error("Gagal mengirimkan lamaran", {
@@ -147,11 +181,6 @@ export function ApplyDialog({
                   ? "Proyek Selesai"
                   : status}
               </Badge>
-              {existingApplication.matchScore !== null && (
-                <span className="text-2xs text-slate-500 font-medium">
-                  (Snapshot: {Math.round(existingApplication.matchScore)}%)
-                </span>
-              )}
             </div>
           </div>
 
@@ -206,7 +235,7 @@ export function ApplyDialog({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-2xl p-6">
+        <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-2xl p-6">
           <form onSubmit={handleApply} className="space-y-4">
           <DialogHeader className="space-y-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-2xs font-semibold w-fit">
@@ -218,24 +247,94 @@ export function ApplyDialog({
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
               Pihak vendor <strong className="text-slate-700">{vendorName}</strong> akan menerima
-              profil keahlianmu, link portofolio, dan snapshot skor kecocokan saat ini.
+              profil, dokumen lamaran, dan link terkait yang kamu sertakan.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Snapshot Info Card */}
-          <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-between text-xs">
-            <div className="space-y-0.5">
-              <span className="text-2xs text-sky-700 font-semibold block uppercase tracking-wider">
-                Snapshot Match Score Saat Ini
-              </span>
-              <span className="text-sm font-extrabold text-[#0F172A]">
-                {currentMatchScore}% Match
-              </span>
+          <section className="space-y-4 rounded-xl border border-sky-100 bg-sky-50/50 p-4" aria-label="Persyaratan lampiran lamaran">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-800">Lampiran Lamaran</h3>
+              <p className="text-xs text-slate-600">File harus PDF dan maksimal 5 MB.</p>
             </div>
-            <span className="text-3xs text-slate-500 max-w-[200px] text-right">
-              Dihitung otomatis di server berdasarkan profil & kebutuhan skill proyek.
-            </span>
-          </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="application-cv" className="text-xs font-semibold text-slate-700">
+                CV / Resume <span className="text-rose-600">Wajib</span>
+              </label>
+              <Input
+                id="application-cv"
+                type="file"
+                accept="application/pdf,.pdf"
+                required
+                onChange={(event) => setCvFile(event.target.files?.[0] ?? null)}
+                className="text-xs file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-sky-800"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="application-portfolio" className="text-xs font-semibold text-slate-700">
+                Dokumen Portofolio {portfolioRequired ? <span className="text-rose-600">Wajib</span> : <span className="text-slate-500">Opsional</span>}
+              </label>
+              <Input
+                id="application-portfolio"
+                type="file"
+                accept="application/pdf,.pdf"
+                required={portfolioRequired}
+                onChange={(event) => setPortfolioFile(event.target.files?.[0] ?? null)}
+                className="text-xs file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-sky-800"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Link terkait</p>
+                  <p className="text-[11px] text-slate-500">Maksimal 5 URL HTTP/HTTPS, opsional.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={relatedLinks.length >= 5}
+                  onClick={() => setRelatedLinks((current) => [...current, ""])}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Tambah link
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {relatedLinks.map((link, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      type="url"
+                      inputMode="url"
+                      value={link}
+                      onChange={(event) =>
+                        setRelatedLinks((current) =>
+                          current.map((value, row) => (row === index ? event.target.value : value))
+                        )
+                      }
+                      placeholder="https://contoh.com/portofolio"
+                      aria-label={`Link terkait ${index + 1}`}
+                      className="h-9 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={relatedLinks.length === 1}
+                      onClick={() => setRelatedLinks((current) => current.filter((_, row) => row !== index))}
+                      aria-label={`Hapus link terkait ${index + 1}`}
+                      className="h-9 w-9 shrink-0 text-slate-500 hover:text-rose-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
           {/* Short Message Input (Optional, max 500 chars) */}
           <div className="space-y-1.5">

@@ -59,6 +59,11 @@ Platform ini dilengkapi mesin pencocokan (*matchmaking engine*) berbasis aturan 
   - Evaluasi multi-kriteria: Rating keseluruhan (1–5 bintang, wajib), kualitas, ketepatan waktu, komunikasi, dan catatan evaluasi.
   - Otomatis memperbarui view `talent_ratings` dan matching score talenta.
 
+### 4. Pembayaran Gateway (MVP)
+- Vendor membayar fee project melalui provider mock untuk development atau Midtrans Snap.
+- Sistem memverifikasi callback gateway dan mencatat status pembayaran; **penerusan dana dari vendor ke talent (payout) belum diotomatisasi** dan memerlukan keputusan bisnis/legal terpisah.
+- Callback sukses hanya diproses setelah verifikasi signature dan kecocokan nominal. Redirect browser bukan bukti pembayaran.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -148,6 +153,10 @@ Isi variabel dengan kredensial dari dashboard Supabase Anda (**Project Settings 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+PAYMENT_PROVIDER=mock
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+MIDTRANS_IS_PRODUCTION=false
 ```
 
 ### 4. Eksekusi Skema Database (`schema.sql`)
@@ -155,6 +164,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 2. Masuk ke menu **SQL Editor** -> klik **New query**.
 3. Buka file [`supabase/schema.sql`](file:///c:/xampp/src/JobMatchmakingAI/supabase/schema.sql), salin seluruh isinya, dan tempel ke SQL Editor.
 4. Klik tombol **Run** (Ctrl + Enter) untuk membuat seluruh tabel, enum, indeks, trigger pembuatan profil otomatis, dan view `talent_ratings`.
+
+### 4a. Eksekusi Migrasi Workflow & Pembayaran
+Setelah schema dasar berhasil dibuat, jalankan SQL berikut satu per satu melalui Supabase SQL Editor:
+1. `supabase/migrations/002_payment_flow.sql`
+2. `supabase/migrations/20261009_workflow_payment.sql`
+3. `supabase/migrations/20261010_payment_webhook.sql`
+4. `supabase/migrations/20261013_certificate_verification.sql`
+
+Sebelum menjalankan migrasi pertama, pastikan setiap proyek `advanced` yang sudah ada memiliki nominal fee valid (`reward_amount > 0`); migrasi akan berhenti daripada membuat nominal pembayaran asumsi.
 
 ### 5. Memasukkan Data Demo Realistis (*Seed Demo Data*)
 Tersedia dataset demo lengkap berisi **10 Talenta** (profil, bio, portfolio, ragam skill), **3 Vendor** (Kopi Nusantara, Edukarya Studio, Kreativa Lab), **12 Proyek** (variasi tingkat kesulitan Beginner/Intermediate/Advanced, freelance/volunteer, remote/onsite/hybrid), **8 Lamaran**, dan **2 Review Rating** untuk menguji algoritma matchmaking dan dashboard secara nyata.
@@ -171,7 +189,7 @@ Pilih salah satu dari 2 cara berikut:
 #### Opsi B: Melalui Skrip Node CLI (`scripts/seed.ts`)
 Skrip ini memanfaatkan Supabase Admin API untuk otomatisasi lokal:
 1. Tambahkan `SUPABASE_SERVICE_ROLE_KEY` ke `.env.local` Anda (didapat dari **Project Settings -> API -> service_role secret**).
-   > ⚠️ **Catatan Keamanan**: Service Role Key **HANYA** digunakan pada skrip lokal `scripts/seed.ts` dan **TIDAK PERNAH** diekspos di kode aplikasi Next.js maupun sisi browser.
+  > **Catatan Keamanan**: Service Role Key hanya digunakan server-side oleh route webhook pembayaran dan skrip lokal `scripts/seed.ts`; jangan pernah mengeksposnya ke browser.
 2. Jalankan perintah:
    ```bash
    npm run seed

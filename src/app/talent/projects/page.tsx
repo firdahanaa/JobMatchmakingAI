@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import { ProjectCard } from "@/components/talent/project-card";
 import { ProjectFilterBar } from "@/components/talent/project-filter-bar";
-import { getTalentProjects, type TalentProjectsFilter } from "./actions";
+import { getTalentProjects, sanitizeProjectForTalent, type TalentProjectsFilter } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
@@ -85,7 +85,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                 </h1>
 
                 <p className="max-w-xl text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
-                  Temukan ratusan proyek freelance dan volunteer terbaik. Semuanya diurutkan secara cerdas oleh AI berdasarkan Match Score keahlian kamu.
+                  Temukan project freelance dan volunteer yang paling relevan dengan keahlian serta preferensimu.
                 </p>
               </div>
 
@@ -108,7 +108,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                       Profil Keahlianmu Belum Dilengkapi
                     </h3>
                     <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                      Tambahkan keahlian dan preferensi jam kerjamu agar AI dapat menghitung Match Score secara akurat dan memberikan rekomendasi proyek terbaik.
+                      Tambahkan keahlian dan preferensi jam kerja agar rekomendasi project semakin relevan.
                     </p>
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
             {filter.sort === "match" && (
               <span className="text-sky-700 font-extrabold flex items-center gap-1">
                 <Sparkles className="h-3.5 w-3.5 text-sky-600" />
-                Terurut Match Score AI tertinggi
+                Urutkan: Paling relevan
               </span>
             )}
           </div>
@@ -154,7 +154,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
           {projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
+                <ProjectCard key={project.id} project={sanitizeProjectForTalent(project)} />
               ))}
             </div>
           ) : (

@@ -322,7 +322,7 @@ begin
   on conflict (talent_id, skill_id) do update set level = excluded.level;
 
   -- ------------------------------------------------------------------
-  -- 4. SEED 12 DIVERSE PROJECTS (4 Beginner, 4 Intermediate, 4 Advanced)
+  -- 4. SEED 12 DIVERSE PROJECTS (4 Beginner, 5 Intermediate, 3 Advanced)
   -- ------------------------------------------------------------------
   
   -- P1: Vendor 1 - Beginner - Open - Freelance
@@ -380,10 +380,10 @@ begin
   values (p11_id, v3_id, 'Desain UI/UX Mobile App Marketplace Kerajinan Lokal', 'Riset pengguna, wireframing, dan desain prototype high-fidelity Figma untuk aplikasi e-commerce kerajinan tangan lokal.', 'intermediate', 'freelance', 'remote', 4, 20, 3000000, 'Diutamakan yang memiliki portofolio e-commerce', current_date + 28, 'open')
   on conflict (id) do update set title = excluded.title, status = excluded.status;
 
-  -- P12: Vendor 3 - Advanced - Open - Volunteer
+  -- P12: Vendor 3 - Intermediate - Open - Volunteer (advanced projects require a paid fee)
   insert into public.projects (id, vendor_id, title, description, difficulty, type, mode, duration_weeks, hours_per_week, reward_amount, reward_note, deadline, status)
-  values (p12_id, v3_id, 'Koordinator Program Kampanye Donasi Pendidikan Daerah 3T', 'Posisi volunteer bagi talenta yang ingin mengasah leadership dan project management dalam mengorganisir program bantuan literasi.', 'advanced', 'volunteer', 'remote', 6, 15, 0, 'Sertifikat resmi kemitraan dan surat rekomendasi kerja', current_date + 35, 'open')
-  on conflict (id) do update set title = excluded.title, status = excluded.status;
+  values (p12_id, v3_id, 'Koordinator Program Kampanye Donasi Pendidikan Daerah 3T', 'Posisi volunteer bagi talenta yang ingin mengasah leadership dan project management dalam mengorganisir program bantuan literasi.', 'intermediate', 'volunteer', 'remote', 6, 15, 0, 'Sertifikat resmi kemitraan dan surat rekomendasi kerja', current_date + 35, 'open')
+  on conflict (id) do update set title = excluded.title, difficulty = excluded.difficulty, status = excluded.status;
 
   -- ------------------------------------------------------------------
   -- 5. SEED PROJECT SKILLS

@@ -296,10 +296,21 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                       </span>
                     </div>
 
-                    {project.reward_amount !== null && project.reward_amount > 0 && (
-                      <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                        <Coins className="h-4 w-4 text-emerald-600" />
-                        <span>Rp {project.reward_amount.toLocaleString("id-ID")}</span>
+                    {/* Fee badge: Berbayar / Tanpa fee */}
+                    {(project as { payment_enabled?: boolean }).payment_enabled ? (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-[11px]">
+                        <Coins className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>
+                          Berbayar{" "}
+                          {project.reward_amount
+                            ? `Rp ${project.reward_amount.toLocaleString("id-ID")}`
+                            : ""}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F7ECEA] border border-[#e8d5d0] text-[#8a7668] text-[11px]">
+                        <Coins className="h-3.5 w-3.5" />
+                        <span>Tanpa fee</span>
                       </div>
                     )}
 

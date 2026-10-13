@@ -12,11 +12,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
+import { RatingDisplay } from "@/components/ui/rating-display";
 import {
   CheckCircle2,
   XCircle,
   TrendingUp,
-  Star,
   ExternalLink,
   Mail,
   Scale,
@@ -214,11 +214,7 @@ export function ApplicantCompareModal({
                 <td className="py-2.5 px-3 font-medium text-[#8a7668]">Rating Rata-rata</td>
                 {applicants.map((app) => (
                   <td key={app.id} className="py-2.5 px-3">
-                    <div className="flex items-center gap-1 font-bold text-[#4a3728]">
-                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                      <span>{app.avgRating !== null ? app.avgRating.toFixed(1) : "3.0"}</span>
-                      <span className="text-[#a89080] font-normal">({app.reviewCount} ulasan)</span>
-                    </div>
+                    <RatingDisplay rating={app.avgRating} reviewCount={app.reviewCount} size="sm" />
                   </td>
                 ))}
               </tr>

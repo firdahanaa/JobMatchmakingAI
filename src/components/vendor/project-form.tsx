@@ -13,6 +13,11 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
+  Lock,
+  FileText,
+  ToggleLeft,
+  ToggleRight,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -59,10 +64,21 @@ interface ProjectFormProps {
     deadline?: string | null;
     status: ProjectStatus;
     skills: SelectedProjectSkillItem[];
+    paymentEnabled?: boolean;
+    portfolioRequired?: boolean;
   };
   masterSkills: Skill[];
   onSubmit: (data: ProjectInput) => Promise<{ success: boolean; error: string | null; projectId?: string }>;
   isEdit?: boolean;
+  /** True jika project sudah punya lamaran yang diterima (fee tidak boleh diubah) */
+  hasAcceptedApplicants?: boolean;
+}
+
+function formatIdrInput(value: string): string {
+  const amount = Number(value);
+  return value && Number.isFinite(amount)
+    ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(amount)
+    : "";
 }
 
 export function ProjectForm({
@@ -70,6 +86,7 @@ export function ProjectForm({
   masterSkills,
   onSubmit,
   isEdit = false,
+  hasAcceptedApplicants = false,
 }: ProjectFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -88,10 +105,17 @@ export function ProjectForm({
   const [hoursPerWeek, setHoursPerWeek] = React.useState<string>(
     initialData?.hoursPerWeek ? String(initialData.hoursPerWeek) : "15"
   );
+  const [paymentEnabled, setPaymentEnabled] = React.useState<boolean>(
+    initialData?.paymentEnabled ?? initialData?.difficulty === "advanced"
+  );
   const [rewardAmount, setRewardAmount] = React.useState<string>(
-    initialData?.rewardAmount !== undefined && initialData?.rewardAmount !== null
+    initialData?.rewardAmount !== undefined && initialData?.rewardAmount !== null && initialData.rewardAmount > 0
       ? String(initialData.rewardAmount)
       : ""
+  );
+  const [isRewardAmountFocused, setIsRewardAmountFocused] = React.useState(false);
+  const [portfolioRequired, setPortfolioRequired] = React.useState<boolean>(
+    initialData?.portfolioRequired ?? false
   );
   const [rewardNote, setRewardNote] = React.useState(initialData?.rewardNote || "");
   const [deadline, setDeadline] = React.useState(initialData?.deadline || "");
@@ -126,6 +150,11 @@ export function ProjectForm({
     const today = new Date();
     return today.toISOString().split("T")[0];
   }, []);
+
+  // Derived: difficulty = advanced → payment wajib
+  const isAdvanced = difficulty === "advanced";
+  // Fee amount field locked setelah ada lamaran diterima
+  const isFeeLocked = isEdit && hasAcceptedApplicants;
 
   // Categories list
   const categories = React.useMemo(() => {
@@ -205,6 +234,11 @@ export function ProjectForm({
       return;
     }
 
+    const resolvedPaymentEnabled = isAdvanced ? true : paymentEnabled;
+    const resolvedRewardAmount = resolvedPaymentEnabled
+      ? Number(rewardAmount) || 0
+      : 0;
+
     const payload: ProjectInput = {
       title: title.trim(),
       description: description.trim(),
@@ -213,8 +247,10 @@ export function ProjectForm({
       mode,
       durationWeeks: durationWeeks ? Number(durationWeeks) : null,
       hoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
-      rewardAmount: rewardAmount ? Number(rewardAmount) : 0,
+      paymentEnabled: resolvedPaymentEnabled,
+      rewardAmount: resolvedRewardAmount,
       rewardNote: rewardNote.trim() || null,
+      portfolioRequired,
       deadline: deadline || null,
       status: status || "open",
       skills: selectedSkills.map((s) => ({
@@ -332,7 +368,11 @@ export function ProjectForm({
             <Select
               id="difficulty"
               value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as ProjectDifficulty)}
+              onChange={(e) => {
+                const nextDifficulty = e.target.value as ProjectDifficulty;
+                setDifficulty(nextDifficulty);
+                if (nextDifficulty === "advanced") setPaymentEnabled(true);
+              }}
             >
               <option value="beginner">Pemula (Beginner)</option>
               <option value="intermediate">Menengah (Intermediate)</option>
@@ -566,12 +606,12 @@ export function ProjectForm({
         </div>
       </div>
 
-      {/* Card 3: Waktu, Reward & Status */}
+      {/* Card 3: Waktu, Fee & Persyaratan */}
       <div className="rounded-2xl border border-[#e8d5d0] bg-white p-6 sm:p-8 shadow-xs space-y-6">
         <div>
-          <h2 className="text-lg font-bold text-[#4a3728]">3. Waktu, Kompensasi & Status Publikasi</h2>
+          <h2 className="text-lg font-bold text-[#4a3728]">3. Waktu, Fee & Persyaratan Lamaran</h2>
           <p className="text-xs text-[#8a7668] mt-0.5">
-            Tentukan durasi kerja, estimasi jam mingguan, imbalan, batas pendaftaran, serta visibilitas proyek.
+            Tentukan durasi kerja, estimasi jam mingguan, apakah project berbayar, dan persyaratan dokumen lamaran.
           </p>
         </div>
 
@@ -616,36 +656,170 @@ export function ProjectForm({
           </FormItem>
         </div>
 
-        {/* Reward Amount & Reward Note */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormItem>
-            <Label htmlFor="rewardAmount">Besaran Reward / Kompensasi (Rp)</Label>
-            <div className="relative">
-              <Input
-                id="rewardAmount"
-                type="number"
-                min={0}
-                placeholder="mis. 1500000 (kosongkan jika tanpa uang tunai)"
-                className="pl-9"
-                value={rewardAmount}
-                onChange={(e) => setRewardAmount(e.target.value)}
-              />
-              <Coins className="absolute left-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
+        {/* ── Payment Toggle ── */}
+        <div className="rounded-xl border border-[#e8d5d0] bg-[#FBF5F3] p-5 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C98B75]/15 text-[#C98B75]">
+                <Coins className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#4a3728]">
+                  Project ini berbayar
+                  {isAdvanced && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                      <Lock className="h-2.5 w-2.5" /> Wajib untuk Advanced
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-[#8a7668] mt-0.5">
+                  {isAdvanced
+                    ? "Project Advanced wajib memiliki fee yang dibayarkan melalui payment gateway."
+                    : "Aktifkan jika talent akan menerima pembayaran melalui platform setelah project selesai."}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-[#a89080]">Nominal reward tunai (tidak boleh negatif).</p>
-          </FormItem>
 
-          <FormItem>
-            <Label htmlFor="rewardNote">Catatan Imbalan / Fasilitas Non-Tunai</Label>
-            <Input
-              id="rewardNote"
-              placeholder="mis. Sertifikat Resmi, Portofolio Nyata, Surat Rekomendasi"
-              value={rewardNote}
-              onChange={(e) => setRewardNote(e.target.value)}
-              maxLength={200}
-            />
-            <p className="text-xs text-[#a89080]">Sangat menarik bagi talenta pencari pengalaman.</p>
-          </FormItem>
+            <button
+              id="payment-toggle"
+              type="button"
+              disabled={isAdvanced || isFeeLocked}
+              onClick={() => {
+                if (!isAdvanced && !isFeeLocked) setPaymentEnabled((v) => !v);
+              }}
+              className={`shrink-0 transition-opacity ${
+                isAdvanced || isFeeLocked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+              aria-pressed={paymentEnabled}
+              aria-label="Toggle pembayaran project"
+            >
+              {paymentEnabled ? (
+                <ToggleRight className="h-9 w-9 text-[#C98B75]" />
+              ) : (
+                <ToggleLeft className="h-9 w-9 text-[#c0a898]" />
+              )}
+            </button>
+          </div>
+
+          {isFeeLocked && (
+            <p className="-mt-2 text-xs text-amber-700 flex items-center gap-1.5">
+              <Lock className="h-3 w-3 shrink-0" />
+              Pengaturan fee dikunci karena sudah ada lamaran yang diterima.
+            </p>
+          )}
+
+          {/* Nominal fee — only shown when paymentEnabled */}
+          {paymentEnabled && (
+            <div className="pt-2 border-t border-[#e8d5d0] space-y-2">
+              <Label htmlFor="rewardAmount">
+                Nominal Fee (IDR) <span className="text-rose-500">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8a7668] pointer-events-none">
+                  Rp
+                </span>
+                <Input
+                  id="rewardAmount"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="mis. 1.500.000"
+                  className="pl-10"
+                  value={isRewardAmountFocused ? rewardAmount : formatIdrInput(rewardAmount)}
+                  onFocus={() => setIsRewardAmountFocused(true)}
+                  onBlur={() => setIsRewardAmountFocused(false)}
+                  onChange={(e) => {
+                    if (!isFeeLocked) setRewardAmount(e.target.value.replace(/\D/g, ""));
+                  }}
+                  disabled={isFeeLocked}
+                  required
+                />
+                {isFeeLocked && (
+                  <Lock className="absolute right-3 top-2.5 h-4 w-4 text-[#a89080] pointer-events-none" />
+                )}
+              </div>
+              {isFeeLocked ? (
+                <p className="text-xs text-amber-700 flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  Nominal fee tidak dapat diubah karena sudah ada lamaran yang diterima.
+                </p>
+              ) : (
+                <p className="text-xs text-[#a89080]">
+                  Masukkan nominal dalam Rupiah (IDR), min. Rp 1. Diformat otomatis saat ditampilkan.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Reward Note */}
+        <FormItem>
+          <Label htmlFor="rewardNote">Catatan Imbalan / Fasilitas Non-Tunai</Label>
+          <Input
+            id="rewardNote"
+            placeholder="mis. Sertifikat Resmi, Portofolio Nyata, Surat Rekomendasi"
+            value={rewardNote}
+            onChange={(e) => setRewardNote(e.target.value)}
+            maxLength={200}
+          />
+          <p className="text-xs text-[#a89080]">Sangat menarik bagi talenta pencari pengalaman. (opsional)</p>
+        </FormItem>
+
+        {/* ── Persyaratan Lamaran ── */}
+        <div className="rounded-xl border border-[#e8d5d0] bg-[#FBF5F3] p-5 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="h-4 w-4 text-[#C98B75]" />
+            <h3 className="text-sm font-bold text-[#4a3728]">Persyaratan Lamaran</h3>
+          </div>
+
+          {/* CV always required */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-white border border-[#e8d5d0]">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-[#4a3728]">CV / Resume</p>
+              <p className="text-xs text-[#8a7668]">Selalu wajib disertakan oleh setiap pelamar.</p>
+            </div>
+            <span className="ml-auto text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              Wajib
+            </span>
+          </div>
+
+          {/* Portfolio toggle */}
+          <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-white border border-[#e8d5d0]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8d5d0] text-[#8a7668]">
+                <Layers className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#4a3728]">Dokumen Portofolio</p>
+                <p className="text-xs text-[#8a7668] mt-0.5">
+                  Aktifkan jika pelamar wajib melampirkan file portofolio (PDF/gambar) saat melamar.
+                </p>
+              </div>
+            </div>
+            <button
+              id="portfolio-toggle"
+              type="button"
+              onClick={() => setPortfolioRequired((v) => !v)}
+              className="shrink-0 cursor-pointer"
+              aria-pressed={portfolioRequired}
+              aria-label="Toggle persyaratan portofolio"
+            >
+              {portfolioRequired ? (
+                <ToggleRight className="h-9 w-9 text-[#C98B75]" />
+              ) : (
+                <ToggleLeft className="h-9 w-9 text-[#c0a898]" />
+              )}
+            </button>
+          </div>
+
+          {portfolioRequired && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                Pelamar yang tidak melampirkan file portofolio tidak dapat menyelesaikan proses lamaran.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Deadline & Status */}

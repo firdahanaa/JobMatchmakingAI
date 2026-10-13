@@ -22,29 +22,43 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RatingDisplay } from "@/components/ui/rating-display";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { ApplicantDetailModal } from "./applicant-detail-modal";
 import { ApplicantCompareModal } from "./applicant-compare-modal";
 import { ReviewApplicantDialog } from "./review-applicant-dialog";
-import { updateApplicantStatus, type DetailedApplicantItem } from "@/app/vendor/projects/[id]/applicants/actions";
+import {
+  createApplicationPaymentCharge,
+  updateApplicantStatus,
+  type DetailedApplicantItem,
+} from "@/app/vendor/projects/[id]/applicants/actions";
+import type { ApplicationStatus } from "@/types/database";
+import {
+  getApplicationStatusBadge,
+  getApplicationStatusLabel,
+} from "@/lib/workflow/transitions";
 
 interface ApplicantsManagerProps {
   projectId: string;
   projectTitle?: string;
   projectStatus?: string;
   initialApplicants: DetailedApplicantItem[];
+  initialReviewApplicationId?: string;
 }
 
 export function ApplicantsManager({
   projectId,
   projectTitle,
   initialApplicants,
+  initialReviewApplicationId,
 }: ApplicantsManagerProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [detailApplicant, setDetailApplicant] = useState<DetailedApplicantItem | null>(null);
-  const [reviewApplicant, setReviewApplicant] = useState<DetailedApplicantItem | null>(null);
+  const [reviewApplicant, setReviewApplicant] = useState<DetailedApplicantItem | null>(() =>
+    initialApplicants.find((applicant) => applicant.id === initialReviewApplicationId) ?? null
+  );
   const [isPending, startTransition] = useTransition();
 
   const handleToggleSelect = (applicantId: string) => {
@@ -62,29 +76,68 @@ export function ApplicantsManager({
 
   const handleStatusChange = (
     applicationId: string,
-    newStatus: "accepted" | "rejected" | "completed"
+    newStatus: ApplicationStatus,
+    revisionNotes?: string
   ) => {
-    const actionLabel =
-      newStatus === "accepted"
-        ? "Menerima pelamar ini? Status proyek akan otomatis menjadi 'In Progress'."
-        : newStatus === "rejected"
-        ? "Menolak lamaran ini?"
-        : "Menandai lamaran ini telah selesai?";
+    let notes = revisionNotes;
+    const currentApp = initialApplicants.find((a) => a.id === applicationId);
 
-    if (!window.confirm(actionLabel)) {
-      return;
+    if (newStatus === "accepted" && currentApp?.status === "submitted") {
+      const inputNotes = window.prompt("Masukkan catatan revisi untuk talenta (minimal 5 karakter):");
+      if (!inputNotes || inputNotes.trim().length < 5) {
+        toast.error("Catatan revisi wajib diisi minimal 5 karakter.");
+        return;
+      }
+      notes = inputNotes.trim();
+    } else {
+      const actionLabel =
+        newStatus === "accepted"
+          ? "Menerima pelamar ini? Status proyek akan otomatis menjadi 'In Progress'."
+          : newStatus === "rejected"
+          ? "Menolak lamaran ini?"
+          : newStatus === "approved"
+          ? "Menyetujui hasil pengerjaan pelamar ini?"
+          : "Menandai lamaran ini telah selesai?";
+
+      if (!window.confirm(actionLabel)) {
+        return;
+      }
     }
 
     startTransition(async () => {
-      const res = await updateApplicantStatus(applicationId, projectId, newStatus);
+      const res = await updateApplicantStatus(applicationId, projectId, newStatus, notes);
       if (res.success) {
-        toast.success(`Status pelamar berhasil diubah menjadi '${newStatus}'!`);
+        if (res.paymentUrl) {
+          toast.success("Hasil disetujui. Tagihan siap dibayar.");
+          router.refresh();
+          return;
+        }
+        toast.success(
+          `Status pelamar berhasil diubah menjadi '${getApplicationStatusLabel(
+            res.applicationStatus ?? newStatus
+          )}'!`
+        );
         router.refresh();
       } else {
         toast.error("Gagal mengubah status pelamar", {
           description: res.error || "Terjadi kesalahan.",
         });
+        if (newStatus === "approved") router.refresh();
       }
+    });
+  };
+
+  const handlePayNow = (applicationId: string) => {
+    startTransition(async () => {
+      const result = await createApplicationPaymentCharge(applicationId, projectId);
+      if (!result.success || !result.paymentUrl) {
+        toast.error("Gagal menyiapkan pembayaran", {
+          description: result.error || "Coba buat ulang tagihan.",
+        });
+        router.refresh();
+        return;
+      }
+      window.location.assign(result.paymentUrl);
     });
   };
 
@@ -193,20 +246,10 @@ export function ApplicantsManager({
                         </h3>
 
                         <Badge
-                          variant={
-                            app.status === "accepted"
-                              ? "success"
-                              : app.status === "rejected"
-                              ? "destructive"
-                              : app.status === "completed"
-                              ? "default"
-                              : "warning"
-                          }
+                          variant={getApplicationStatusBadge(app.status).variant}
                           className="capitalize text-3xs font-semibold px-2"
                         >
-                          {app.status === "pending"
-                            ? "Menunggu Keputusan"
-                            : app.status}
+                          {getApplicationStatusBadge(app.status).label}
                         </Badge>
                       </div>
 
@@ -244,9 +287,7 @@ export function ApplicantsManager({
                     <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
                     <div className="truncate">
                       <span className="text-3xs text-[#a89080] block font-semibold uppercase">Rating</span>
-                      <span className="font-bold text-[#5c4639]">
-                        {app.avgRating !== null ? `${app.avgRating.toFixed(1)} / 5.0` : "Baru (3.0)"}
-                      </span>
+                      <RatingDisplay rating={app.avgRating} reviewCount={app.reviewCount} size="sm" />
                     </div>
                   </div>
 
@@ -331,6 +372,31 @@ export function ApplicantsManager({
                   </div>
                 )}
 
+                {app.submissionLinks.length > 0 && (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 text-xs text-slate-700 space-y-2">
+                    <p className="font-bold text-sky-900">Dokumentasi hasil pengerjaan</p>
+                    <ul className="space-y-1.5">
+                      {app.submissionLinks.filter((link) => /^https?:\/\//i.test(link)).map((link, index) => (
+                        <li key={`${app.id}-submission-${index}`}>
+                          <a href={link} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-sky-700 underline">
+                            Buka link hasil {index + 1}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                    {app.submissionNotes && (
+                      <p className="whitespace-pre-wrap border-t border-sky-200 pt-2">{app.submissionNotes}</p>
+                    )}
+                  </div>
+                )}
+
+                {app.revisionNotes && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950">
+                    <p className="mb-1 font-bold">Catatan revisi terakhir</p>
+                    <p className="whitespace-pre-wrap">{app.revisionNotes}</p>
+                  </div>
+                )}
+
                 {/* Bottom Actions Row: Accept, Reject, Mark Completed, View Detail */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#F7ECEA]">
                   <Button
@@ -370,17 +436,64 @@ export function ApplicantsManager({
                       </>
                     )}
 
-                    {/* Status: Accepted -> Tandai Selesai */}
+                    {/* Status: Accepted -> Menunggu Talent Mengerjakan */}
                     {app.status === "accepted" && (
-                      <Button
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => handleStatusChange(app.id, "completed")}
-                        className="bg-[#D4B980] hover:bg-[#b89e5e] text-white text-xs h-8 px-3 gap-1.5 font-semibold shadow-xs"
-                      >
-                        <FolderCheck className="h-3.5 w-3.5" />
-                        <span>Tandai Selesai</span>
-                      </Button>
+                      <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        Sedang Dikerjakan oleh Talent
+                      </span>
+                    )}
+
+                    {/* Status: Submitted -> Setujui Hasil atau Minta Revisi */}
+                    {app.status === "submitted" && (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handleStatusChange(app.id, "approved")}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3 gap-1.5 font-bold shadow-xs"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Konfirmasi hasil diterima</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handleStatusChange(app.id, "accepted")}
+                          className="text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-300 text-xs h-8 px-3 gap-1.5 font-medium"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Minta Revisi</span>
+                        </Button>
+                      </>
+                    )}
+
+                    {/* Status: Approved -> Menunggu Pembayaran Gateway */}
+                    {app.status === "approved" && (
+                      <div className="flex flex-col items-end gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                        <span className="text-xs font-bold text-amber-800">Menunggu pembayaran</span>
+                        {app.projectRewardAmount !== null && (
+                          <span className="text-sm font-extrabold text-amber-950">
+                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(app.projectRewardAmount)}
+                          </span>
+                        )}
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handlePayNow(app.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3 gap-1.5 font-bold"
+                        >
+                          {app.paymentRecordStatus === "failed" ||
+                          app.paymentRecordStatus === "expired" ||
+                          app.paymentRecordStatus === "cancelled"
+                            ? "Buat ulang tagihan"
+                            : "Bayar sekarang"}
+                        </Button>
+                        <p className="max-w-56 text-right text-[10px] leading-snug text-[#8a7668]">
+                          Pembayaran dicatat melalui gateway; penyaluran dana ke talent belum otomatis.
+                        </p>
+                      </div>
                     )}
 
                     {/* Status: Completed -> Beri Penilaian atau Lihat Penilaian */}

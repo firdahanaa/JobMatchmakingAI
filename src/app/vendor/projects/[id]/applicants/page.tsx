@@ -105,12 +105,19 @@ export default async function ApplicantsPage({ params, searchParams }: Applicant
               </p>
             </div>
 
-            <Link href={`/vendor/projects/${id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                <Edit3 className="h-3.5 w-3.5" />
-                <span>Edit Proyek</span>
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href={`/help?projectId=${encodeURIComponent(id)}`}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  <span>Laporkan Kendala</span>
+                </Button>
+              </Link>
+              <Link href={`/vendor/projects/${id}/edit`}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Edit Proyek</span>
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Interactive Applicants Manager */}

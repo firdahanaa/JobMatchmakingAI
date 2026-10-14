@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -399,15 +400,28 @@ export function ApplicantsManager({
 
                 {/* Bottom Actions Row: Accept, Reject, Mark Completed, View Detail */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#F7ECEA]">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDetailApplicant(app)}
-                    className="text-xs gap-1.5 h-8 font-semibold text-[#695449]"
-                  >
-                    <Eye className="h-3.5 w-3.5 text-[#C98B75]" />
-                    <span>Lihat Profil Lengkap & Portofolio</span>
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDetailApplicant(app)}
+                      className="text-xs gap-1.5 h-8 font-semibold text-[#695449]"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-[#C98B75]" />
+                      <span>Lihat Profil Lengkap</span>
+                    </Button>
+
+                    <Link href={`/vendor/messages?appId=${encodeURIComponent(app.id)}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5 h-8 font-semibold text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-sky-600" />
+                        <span>Buka Percakapan</span>
+                      </Button>
+                    </Link>
+                  </div>
 
                   <div className="flex items-center gap-2">
                     {/* Status: Pending -> Terima atau Tolak */}

@@ -103,7 +103,7 @@ export function ProjectFilterBar() {
             }}
           >
             <option value="match">Paling relevan</option>
-            <option value="newest">Proyek Terbaru</option>
+            <option value="newest">Terbaru</option>
             <option value="deadline">Deadline terdekat</option>
           </select>
         </div>

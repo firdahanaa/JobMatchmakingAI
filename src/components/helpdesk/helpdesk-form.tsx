@@ -38,7 +38,9 @@ export function HelpdeskForm({
   initialProjectId = "",
   initialApplicationId = "",
 }: HelpdeskFormProps) {
-  const [category, setCategory] = useState<(typeof HELPDESK_CATEGORIES)[number]>("Lainnya");
+  const [category, setCategory] = useState<(typeof HELPDESK_CATEGORIES)[number]>(
+    initialApplicationId ? "Lamaran" : initialProjectId ? "Project" : "Lainnya"
+  );
   const [projectId, setProjectId] = useState(initialProjectId);
   const [applicationId, setApplicationId] = useState(initialApplicationId);
   const [description, setDescription] = useState("");

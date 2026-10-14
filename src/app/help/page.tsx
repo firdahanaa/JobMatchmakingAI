@@ -73,6 +73,37 @@ export default async function HelpPage({ searchParams }: HelpPageProps) {
       projectTitles.set(application.projectId, application.projectTitle);
     }
     projects = Array.from(projectTitles, ([id, title]) => ({ id, title }));
+
+    if (query.projectId && !projects.some((project) => project.id === query.projectId)) {
+      const { data: targetProject } = await supabase
+        .from("projects")
+        .select("id, title")
+        .eq("id", query.projectId)
+        .maybeSingle();
+      if (targetProject) {
+        projects.unshift({ id: targetProject.id, title: targetProject.title });
+      }
+    }
+
+    if (query.applicationId && !applications.some((app) => app.id === query.applicationId)) {
+      const { data: targetApp } = await supabase
+        .from("applications")
+        .select("id, project_id, projects(title)")
+        .eq("id", query.applicationId)
+        .maybeSingle();
+      if (targetApp) {
+        const targetProj = Array.isArray(targetApp.projects) ? targetApp.projects[0] : targetApp.projects;
+        const projectTitle = targetProj?.title || "Project";
+        applications.unshift({
+          id: targetApp.id,
+          projectId: targetApp.project_id,
+          projectTitle,
+        });
+        if (!projects.some((project) => project.id === targetApp.project_id)) {
+          projects.unshift({ id: targetApp.project_id, title: projectTitle });
+        }
+      }
+    }
   } else if (userRole === "vendor") {
     const { data: projectRows } = await supabase
       .from("projects")
@@ -95,6 +126,17 @@ export default async function HelpPage({ searchParams }: HelpPageProps) {
           projectTitle: project?.title || "Project",
         };
       });
+    }
+
+    if (query.projectId && !projects.some((project) => project.id === query.projectId)) {
+      const { data: targetProject } = await supabase
+        .from("projects")
+        .select("id, title")
+        .eq("id", query.projectId)
+        .maybeSingle();
+      if (targetProject) {
+        projects.unshift({ id: targetProject.id, title: targetProject.title });
+      }
     }
   }
 

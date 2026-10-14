@@ -231,12 +231,19 @@ export async function updateTalentProfile(
       };
     }
 
+    const newFullName = validated.fullName?.trim();
+
     if (!profile) {
       await supabase.from("profiles").upsert({
         id: user.id,
         role: "talent",
-        full_name: user.user_metadata?.full_name || "Talent",
+        full_name: newFullName || user.user_metadata?.full_name || "Talent",
       });
+    } else if (newFullName) {
+      await supabase
+        .from("profiles")
+        .update({ full_name: newFullName })
+        .eq("id", user.id);
     }
 
     const { error: upsertError } = await supabase.from("talent_profiles").upsert({

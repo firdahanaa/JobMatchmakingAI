@@ -1,19 +1,14 @@
 import Link from "next/link";
 import {
-  Sparkles,
-  ArrowRight,
   Briefcase,
   Users,
   Target,
   Award,
   CheckCircle2,
   TrendingUp,
-  Clock,
   Layers,
 } from "lucide-react";
-import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FuturisticHeroDashboard } from "@/components/futuristic-hero";
 

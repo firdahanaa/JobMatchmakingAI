@@ -193,3 +193,129 @@ Pembaruan arsitektur dan alur kerja end-to-end (9 Bagian):
 ### 9. Integrasi Menyeluruh & Testing (Bagian 9 - Mendatang)
 - Unit test transisi dan validator tersedia; pengujian integrasi end-to-end masih perlu dijalankan.
 
+---
+
+## Change Log: Chat (Bagian 1 — Migrasi Database & Fondasi Komunikasi Talent-Vendor)
+
+Fitur percakapan real-time menghubungkan talent dan vendor (pemilik project) secara langsung setelah talent mengajukan lamaran. Tujuannya memfasilitasi diskusi teknis, klarifikasi revisi pengerjaan, pertukaran kontak, hingga penjadwalan meeting virtual dari dalam aplikasi.
+
+### 1. Skema Database (`supabase/migrations/003_chat.sql`)
+- **Enum `message_kind`**: `'text'`, `'system'`, `'contact'`, `'meeting'`.
+- **Tabel `conversations`**:
+  - `id` (UUID PK default `gen_random_uuid()`).
+  - `application_id` (UUID UNIQUE REFERENCES `applications(id)` ON DELETE CASCADE).
+  - `talent_id` (UUID REFERENCES `talent_profiles(user_id)` ON DELETE CASCADE).
+  - `vendor_id` (UUID REFERENCES `vendor_profiles(user_id)` ON DELETE CASCADE).
+  - `created_at` (TIMESTAMPTZ DEFAULT now()).
+  - `last_message_at` (TIMESTAMPTZ DEFAULT now()).
+  - `last_message_preview` (TEXT max 80 karakter).
+  - Denormalisasi `talent_id` dan `vendor_id` untuk efisiensi kueri dan evaluasi Row-Level Security.
+- **Tabel `messages`**:
+  - `id` (UUID PK default `gen_random_uuid()`).
+  - `conversation_id` (UUID REFERENCES `conversations(id)` ON DELETE CASCADE).
+  - `sender_id` (UUID REFERENCES `profiles(id)` ON DELETE SET NULL, NULL untuk pesan sistem).
+  - `kind` (`message_kind` default `'text'`).
+  - `body` (TEXT NOT NULL CHECK 1-2000 karakter).
+  - `metadata` (JSONB NOT NULL DEFAULT `{}` untuk payload pertukaran kontak atau meeting).
+  - `created_at` (TIMESTAMPTZ DEFAULT now()).
+  - Index pada `(conversation_id, created_at desc)`.
+- **Tabel `conversation_reads`**:
+  - `conversation_id` (UUID REFERENCES `conversations(id)` ON DELETE CASCADE).
+  - `user_id` (UUID REFERENCES `profiles(id)` ON DELETE CASCADE).
+  - `last_read_at` (TIMESTAMPTZ DEFAULT now()).
+  - Primary key komposit `(conversation_id, user_id)`.
+
+### 2. Triggers & Prosedur Otomatis
+- **Trigger `trg_create_application_conversation`**:
+  - Dijalankan otomatis setelah `INSERT` pada tabel `applications` (SECURITY DEFINER).
+  - Mengambil `vendor_id` dari proyek terkait dan membuat entitas percakapan satu pintu.
+  - Dilengkapi migrasi backfill untuk lamaran yang sudah ada dalam database.
+- **Trigger `trg_update_conversation_last_message`**:
+  - Dijalankan setelah `INSERT` pada tabel `messages`.
+  - Memperbarui `conversations.last_message_at` dan memotong 80 karakter pertama isi pesan ke `last_message_preview`.
+
+### 3. Fungsi RPC `get_unread_counts()`
+- Mengembalikan tabel `(conversation_id uuid, unread_count bigint)` untuk `auth.uid()`.
+- Menghitung pesan yang masuk (`sender_id <> auth.uid()` atau NULL) dengan `created_at > last_read_at` milik pengguna.
+
+### 4. Row Level Security (RLS)
+- **`conversations`**:
+  - `SELECT`: Hanya jika `auth.uid() = talent_id` atau `auth.uid() = vendor_id`.
+  - `INSERT/UPDATE/DELETE`: Dilarang dari sisi klien (dikelola server/trigger).
+- **`messages`**:
+  - `SELECT`: Hanya partisipan percakapan (`talent_id` atau `vendor_id`).
+  - `INSERT`: Wajib `sender_id = auth.uid()`, merupakan partisipan percakapan, `kind IN ('text', 'contact', 'meeting')` (pesan `system` ditolak dari klien), dan status lamaran masih aktif (`pending`, `accepted`, `submitted`, `approved`).
+  - `UPDATE/DELETE`: Dilarang dari sisi klien.
+- **`conversation_reads`**:
+  - `SELECT/INSERT/UPDATE`: Hanya baris milik `auth.uid()`.
+
+### 5. Supabase Realtime
+- Tabel `messages` didaftarkan ke publikasi `supabase_realtime` (`ALTER PUBLICATION supabase_realtime ADD TABLE messages;`).
+
+---
+
+## Change Log: Chat (Bagian 2 — Logika Inti & Validasi Teruji)
+- **`src/lib/chat/permissions.ts`**:
+  - `canSendMessage(status)`: `true` untuk `pending`, `accepted`, `submitted`, `approved`; `false` untuk status read-only (`rejected`, `withdrawn`, `completed`).
+  - `getChatNotice(status)`: Banner deskriptif Bahasa Indonesia untuk mode hanya-baca.
+- **`src/lib/chat/contact.ts`**:
+  - `normalizeWhatsAppNumber(input)`: Menerima format `08xx`, `+628xx`, `628xx`, spasi/strip; mengembalikan format `628...` (10-15 digit).
+  - `buildWhatsAppLink(number, prefillText?)`: Membuat tautan aman `https://wa.me/<nomor>?text=...`.
+- **`src/lib/chat/meeting.ts`**:
+  - Skema Zod `meetingProposalSchema`: Memvalidasi judul, waktu mulai (harus di masa depan), durasi (15-240 menit), platform (`google_meet`, `zoom`, `offline`, `other`), lokasi (wajib jika offline), tautan, catatan.
+  - `buildIcs(meeting, organizerName)`: Menghasilkan string kalender RFC 5545 `.ics` valid dengan `DTSTART`, `DTEND`, `SUMMARY`, `LOCATION`.
+- **`src/lib/chat/messages.ts`**:
+  - `sanitizeMessageBody(text)`: Trim, batas 2000 karakter, tolak pesan kosong.
+  - `linkify(text)`: Memecah teks menjadi segmen tautan aman HTTP/HTTPS (`rel="noopener noreferrer nofollow"`, `target="_blank"`), menolak skema bahaya seperti `javascript:` atau `data:`.
+  - `formatSystemMessage(event, ctx)`: Templating pesan sistem tanpa membocorkan data sensitif untuk 9 event siklus hidup proyek.
+
+---
+
+## Change Log: Chat (Bagian 3 — Server Actions & Integrasi Alur)
+- **`src/app/(chat)/actions.ts`**:
+  - `sendTextMessage(conversationId, body)`: Sanitasi teks, validasi partisipan dan permission status lamaran, pembatasan laju 20 pesan/menit.
+  - `shareWhatsApp(conversationId, number, note?)`: Normalisasi nomor WA, simpan pesan kind `contact`.
+  - `proposeMeeting(conversationId, payload)`: Validasi Zod usulan meeting, simpan pesan kind `meeting` dengan status `proposed`.
+  - `respondToMeeting(messageId, 'confirmed' | 'declined')`: Memastikan hanya pihak lawan (bukan pengusul) yang dapat merespons, memicu pesan sistem konfirmasi/penolakan.
+  - `markConversationRead(conversationId)`: Upsert penanda waktu baca di `conversation_reads`.
+- **`src/lib/chat/system-messages.ts`**:
+  - `createChatSystemMessage(applicationId, event, ctx)`: Menjalankan penyisipan pesan sistem via service role Supabase Admin client tanpa ekspos kredensial ke klien.
+- **Integrasi Event Siklus Hidup**:
+  - Apply lamaran (`application_created`).
+  - Penyerahan hasil kerja (`work_submitted`).
+  - Lamaran diterima (`application_accepted`).
+  - Lamaran ditolak (`application_rejected`).
+  - Permintaan revisi berserta catatan (`revision_requested`).
+  - Konfirmasi hasil kerja (`work_approved`).
+  - Tagihan diterbitkan (`payment_awaiting`).
+  - Pembayaran sukses (`payment_paid`).
+  - Proyek selesai (`application_completed`).
+
+---
+
+## Change Log: Chat (Bagian 4 — Antarmuka Pengguna & Real-time)
+- **Rute Chat**:
+  - `/talent/messages` & `/talent/messages/[id]`: Antarmuka inbox talent.
+  - `/vendor/messages` & `/vendor/messages/[id]`: Antarmuka inbox vendor.
+- **Dua Panel Responsif (`src/components/chat/chat-inbox.tsx`)**:
+  - Tampilan desktop: Panel daftar percakapan di sebelah kiri (dengan pencarian, pratinjau pesan terakhir, waktu relatif, status lamaran, dan badge belum dibaca) dan thread aktif di sebelah kanan.
+  - Tampilan mobile: Transisi satu panel dengan tombol kembali dari thread ke daftar percakapan.
+  - Dukungan deep link langsung ke `/[role]/messages/[id]` dan query param `?appId=...`.
+- **Thread Percakapan (`src/components/chat/chat-thread.tsx`)**:
+  - Header: Nama lawan bicara, peran, judul proyek, status lamaran, tautan proyek/pelamar. Khusus vendor menampilkan badge skor kecocokan real-time; sisi talent mematuhi flag `SHOW_MATCH_TO_TALENT` tanpa membocorkan skor kecocokan atau skill gap.
+  - Banner pengingat keamanan permanen dan tombol "Laporkan percakapan" terintegrasi Help Desk.
+  - Gelembung pesan pembeda milik sendiri dan lawan, penanda status "Dibaca", baris pesan sistem netral di tengah, pemisah tanggal ("Hari ini", "Kemarin", tanggal lengkap).
+  - Kartu khusus `contact` (buka WhatsApp) dan `meeting` (konfirmasi/tolak untuk lawan bicara, gabung meeting dan unduh `.ics` kalender setelah dikonfirmasi).
+  - Composer dengan dukungan keyboard shortcut (Enter kirim, Shift+Enter baris baru), batas 2000 karakter, menu aksi tambahan (+), dan auto-disable saat status lamaran read-only.
+- **Real-time & Sinkronisasi**:
+  - Langganan Supabase Realtime pada event `INSERT`/`UPDATE` tabel `messages` dan `conversation_reads`.
+  - Fallback polling setiap 15 detik jika websocket terputus.
+  - Optimistic update saat pengiriman pesan dengan tombol "Coba lagi" jika transmisi gagal.
+  - Auto-scroll ke pesan terbaru dengan tombol pill melayang "Pesan baru" jika posisi scroll pengguna tidak berada di paling bawah.
+  - Integrasi penanda waktu baca otomatis (`markConversationRead`) saat membuka thread.
+- **Navigasi & Titik Masuk**:
+  - Navbar: Menu "Pesan" dengan badge total unread counter dinamis untuk role talent dan vendor.
+  - Tombol "Buka Percakapan" di kartu Lamaran Saya (`applications-list.tsx`), daftar pelamar vendor (`applicants-manager.tsx`), modal detail pelamar (`applicant-detail-modal.tsx`), dan halaman detail proyek talent pasca-melamar (`src/app/talent/projects/[id]/page.tsx`).
+
+
+

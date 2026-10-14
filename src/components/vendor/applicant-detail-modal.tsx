@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +88,19 @@ export function ApplicantDetailModal({
                       ? applicant.contactEmail
                       : "Email kontak tersimpan di akun pelamar"}
                   </span>
+                </div>
+
+                <div className="pt-2">
+                  <Link href={`/vendor/messages?appId=${encodeURIComponent(applicant.id)}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs gap-1.5 h-8 font-semibold text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-sky-600" />
+                      <span>Buka Percakapan Chat</span>
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>

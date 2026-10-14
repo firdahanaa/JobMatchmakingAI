@@ -7,13 +7,17 @@ import {
   MapPin,
   Globe,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { MatchScoreBadge } from "@/components/talent/match-score-badge";
+import { MatchBreakdownPanel } from "@/components/talent/match-breakdown-panel";
 import { ApplyDialog } from "@/components/talent/apply-dialog";
 import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
-import { getTalentProjectDetail } from "../actions";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
+import { getTalentProjectDetail, type ProjectWithMatch } from "../actions";
 import { getApplicationForProject } from "@/app/talent/applications/actions";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
@@ -149,13 +153,19 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                 <span>Kembali</span>
               </span>
             </Link>
-            <div className="flex justify-center rounded-2xl border border-sky-100 bg-sky-50/70 p-1.5">
-              <TalentPageNavigation activePage="projects" />
+            <div className="flex items-center gap-3">
+              <div className="flex justify-center rounded-2xl border border-sky-100 bg-sky-50/70 p-1.5">
+                <TalentPageNavigation activePage="projects" />
+              </div>
+              {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
+                <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+              )}
             </div>
           </div>
 
-          {/* Main Content: full-width project details */}
-          <div className="space-y-6">
+          {/* Main Content: full-width or 2-column if match visible */}
+          <div className={SHOW_MATCH_TO_TALENT && "matchResult" in project ? "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" : "space-y-6"}>
+            <div className={SHOW_MATCH_TO_TALENT && "matchResult" in project ? "lg:col-span-7 space-y-6" : "space-y-6"}>
             {/* Project Header Card */}
             <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
               <CardHeader className="p-6 space-y-4">
@@ -266,17 +276,52 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               </CardHeader>
               <CardContent className="px-6 pb-6 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {project.skills.map((skill) => (
-                    <div key={skill.skillId} className="rounded-xl border border-sky-100 bg-sky-50/60 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-sm text-slate-800">{skill.name}</span>
-                        <span className="text-xs text-slate-600">{skill.isRequired ? "Wajib" : "Opsional"}</span>
+                  {project.skills.map((skill) => {
+                    const skillWithStatus = skill as {
+                      talentStatus?: {
+                        isAdequate?: boolean;
+                        possessed?: boolean;
+                        talentLevel?: string;
+                      };
+                    };
+                    const talentStatus =
+                      SHOW_MATCH_TO_TALENT && "talentStatus" in skill
+                        ? skillWithStatus.talentStatus
+                        : null;
+                    return (
+                      <div
+                        key={skill.skillId}
+                        className={`p-3 rounded-xl border transition-all ${
+                          talentStatus?.isAdequate
+                            ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+                            : talentStatus?.possessed
+                            ? "bg-amber-50/70 border-amber-200 text-amber-950"
+                            : "border-sky-100 bg-sky-50/60"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-slate-800">{skill.name}</span>
+                          <span className="text-xs text-slate-600">{skill.isRequired ? "Wajib" : "Opsional"}</span>
+                        </div>
+                        <p className="mt-1 text-2xs text-slate-500">
+                          Level minimum: <span className="font-semibold capitalize">{skill.minLevel}</span>
+                        </p>
+                        {talentStatus && (
+                          <div className="mt-2 pt-2 border-t border-sky-100 text-2xs">
+                            {talentStatus.possessed ? (
+                              <span className="text-slate-600">
+                                Levelmu saat ini: <strong className="capitalize">{talentStatus.talentLevel}</strong>
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 italic">
+                                Belum kamu daftarkan di profil talent
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-1 text-2xs text-slate-500">
-                        Level minimum: <span className="font-semibold capitalize">{skill.minLevel}</span>
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -337,7 +382,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                     </p>
                   </div>
 
-                  <div className="shrink-0 w-full sm:w-auto">
+                  <div className="shrink-0 w-full sm:w-auto flex flex-col items-center sm:items-end gap-1.5">
                     <ApplyDialog
                       projectId={project.id}
                       projectTitle={project.title}
@@ -346,9 +391,18 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                       portfolioRequired={project.portfolioRequired}
                       existingApplication={existingApplication}
                     />
+                    {existingApplication && (
+                      <Link
+                        href={`/talent/messages?appId=${encodeURIComponent(existingApplication.id)}`}
+                        className="w-full inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-4 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                      >
+                        <MessageSquare className="h-4 w-4 text-sky-600" />
+                        <span>Buka Percakapan Chat</span>
+                      </Link>
+                    )}
                     <Link
                       href={`/help?projectId=${encodeURIComponent(project.id)}`}
-                      className="mt-2 inline-flex min-h-9 items-center justify-center text-xs font-semibold text-sky-700 underline underline-offset-2 hover:text-sky-900"
+                      className="inline-flex min-h-8 items-center justify-center text-xs font-semibold text-sky-700 underline underline-offset-2 hover:text-sky-900"
                     >
                       Laporkan kendala project
                     </Link>
@@ -356,6 +410,16 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                 </div>
               </CardContent>
             </Card>
+            </div>
+
+            {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
+              <div className="lg:col-span-5 sticky top-6 space-y-4">
+                <MatchBreakdownPanel
+                  matchResult={(project as ProjectWithMatch).matchResult}
+                  hasConfiguredSkills={true}
+                />
+              </div>
+            )}
           </div>
         </div>
       </main>

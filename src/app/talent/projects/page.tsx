@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import { ProjectCard } from "@/components/talent/project-card";
 import { ProjectFilterBar } from "@/components/talent/project-filter-bar";
-import { getTalentProjects, sanitizeProjectForTalent, type TalentProjectsFilter } from "./actions";
+import { getTalentProjects, type TalentProjectsFilter } from "./actions";
+import { sanitizeProjectForTalent } from "@/lib/talent-project-utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
@@ -91,6 +92,9 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
 
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-sky-100 pt-5">
                 <TalentPageNavigation activePage="projects" />
+                <Link href="/help" className="inline-flex min-h-10 items-center rounded-lg border border-sky-200 px-3 text-xs font-semibold text-sky-800 hover:bg-sky-50">
+                  Laporkan kendala
+                </Link>
               </div>
             </div>
           </div>
@@ -146,6 +150,16 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
               <span className="text-sky-700 font-extrabold flex items-center gap-1">
                 <Sparkles className="h-3.5 w-3.5 text-sky-600" />
                 Urutkan: Paling relevan
+              </span>
+            )}
+            {filter.sort === "newest" && (
+              <span className="text-sky-700 font-extrabold flex items-center gap-1">
+                Urutkan: Terbaru
+              </span>
+            )}
+            {filter.sort === "deadline" && (
+              <span className="text-sky-700 font-extrabold flex items-center gap-1">
+                Urutkan: Deadline terdekat
               </span>
             )}
           </div>

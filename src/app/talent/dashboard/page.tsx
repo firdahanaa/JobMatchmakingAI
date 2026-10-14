@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BookOpen,
   Building2,
-  ChevronRight,
   Briefcase,
   FolderCheck,
   Star,
@@ -17,10 +16,7 @@ import {
   CheckCircle2,
   Award,
   Clock,
-  Target,
   Flame,
-  BarChart3,
-  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "@/components/ui/star-rating";
@@ -28,9 +24,7 @@ import { RatingDisplay } from "@/components/ui/rating-display";
 import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
 import { getTalentProjects } from "@/app/talent/projects/actions";
 import { createClient } from "@/lib/supabase/server";
-import { Navbar } from "@/components/navbar";
 import { FuturisticHeroDashboard } from "@/components/futuristic-hero";
-import { AILiveTicker, ProjectFilterBar } from "@/components/talent/interactive-dashboard-widgets";
 
 export const metadata: Metadata = {
   title: "Dashboard Talenta",
@@ -157,13 +151,16 @@ export default async function TalentDashboardPage() {
   // 7. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
   // Menghitung seberapa sering tiap skill yang kurang muncul pada seluruh proyek terbuka
   const missingSkillFrequency: Record<string, { count: number; name: string }> = {};
-  for (const proj of projects) {
-    if (proj.matchResult?.missingSkills) {
-      for (const missingName of proj.matchResult.missingSkills) {
-        if (!missingSkillFrequency[missingName]) {
-          missingSkillFrequency[missingName] = { count: 0, name: missingName };
+  if (SHOW_MATCH_TO_TALENT) {
+    for (const proj of projects) {
+      const matchResult = "matchResult" in proj ? proj.matchResult : undefined;
+      if (matchResult?.missingSkills) {
+        for (const missingName of matchResult.missingSkills) {
+          if (!missingSkillFrequency[missingName]) {
+            missingSkillFrequency[missingName] = { count: 0, name: missingName };
+          }
+          missingSkillFrequency[missingName].count += 1;
         }
-        missingSkillFrequency[missingName].count += 1;
       }
     }
   }
@@ -221,7 +218,7 @@ export default async function TalentDashboardPage() {
                   <span className="text-slate-600">•</span>
                   <span className="inline-flex items-center gap-1.5">
                     <Flame className="h-3.5 w-3.5 text-sky-300" />
-                    Rekomendasi project diperbarui berdasarkan keahlianmu
+                    Rekomendasi untuk {talentName} diperbarui berdasarkan keahlianmu
                   </span>
                   <span className="text-slate-600">•</span>
                   <span className="hidden sm:inline-flex items-center gap-1.5">
@@ -332,7 +329,7 @@ export default async function TalentDashboardPage() {
                     <div>
                       <h3 className="text-base font-extrabold text-[#0F172A]">Profil Keahlian Belum Diisi</h3>
                       <p className="text-xs text-[#0F172A]/70 mt-1 leading-relaxed max-w-xl">
-                        Lengkapi keahlianmu di halaman profil agar AI dapat memberikan rekomendasi proyek dengan Match Score yang akurat.
+                        Lengkapi keahlianmu di halaman profil agar AI dapat memberikan rekomendasi proyek yang paling relevan.
                       </p>
                     </div>
                   </div>
@@ -364,10 +361,10 @@ export default async function TalentDashboardPage() {
                         <div className="flex items-center gap-2.5">
                           <h2 className="text-lg font-black text-[#0F172A] tracking-tight">Recommended for You</h2>
                           <span className="rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-0.5 text-3xs font-extrabold text-white shadow-sm">
-                            Top 5 Match
+                            Top 5
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">Proyek AI dengan kecocokan tertinggi</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Proyek AI yang paling relevan untukmu</p>
                       </div>
                     </div>
                     <Link href="/talent/projects">

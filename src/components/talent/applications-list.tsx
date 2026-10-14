@@ -340,11 +340,26 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
 
             {/* Bottom Actions Row */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-sky-100">
-              <Link href={`/talent/projects/${app.projectId}`}>
-                <span className="group inline-flex min-h-11 items-center rounded-full bg-gradient-to-r from-sky-600 to-blue-600 px-5 text-xs font-bold text-white shadow-md shadow-blue-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2">
-                  <span>Lihat Detail Proyek</span>
-                </span>
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={`/talent/projects/${app.projectId}`}>
+                  <span className="group inline-flex min-h-11 items-center rounded-full bg-gradient-to-r from-sky-600 to-blue-600 px-5 text-xs font-bold text-white shadow-md shadow-blue-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2">
+                    <span>Lihat Detail Proyek</span>
+                  </span>
+                </Link>
+                <Link
+                  href={`/talent/messages?appId=${encodeURIComponent(app.id)}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200/90 px-4 text-xs font-bold text-sky-800 hover:bg-sky-100/80 transition-colors"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-sky-600" />
+                  <span>Buka Percakapan</span>
+                </Link>
+                <Link
+                  href={`/help?applicationId=${encodeURIComponent(app.id)}&projectId=${encodeURIComponent(app.projectId)}`}
+                  className="inline-flex min-h-11 items-center rounded-full border border-sky-200 px-4 text-xs font-bold text-sky-800 hover:bg-sky-50 transition-colors"
+                >
+                  Laporkan kendala
+                </Link>
+              </div>
 
               {app.status === "pending" && (
                 <Button

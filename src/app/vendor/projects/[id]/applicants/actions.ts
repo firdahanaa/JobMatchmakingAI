@@ -23,6 +23,7 @@ import {
   getApplicationStatusLabel,
 } from "@/lib/workflow/transitions";
 import { getPendingVendorReviews } from "@/lib/workflow/vendor-review-gate";
+import { createChatSystemMessage } from "@/lib/chat/system-messages";
 import { reviewSchema, type ReviewInput } from "@/lib/validators/review";
 import type {
   TalentContext,
@@ -477,7 +478,18 @@ export async function getProjectApplicantsRecalculated(
         message: cleanMsg || null,
         contactEmail,
         createdAt: app.created_at,
-        talentName: prof?.full_name || "Talenta",
+        talentName: (() => {
+          const name = prof?.full_name?.trim();
+          const isGeneric = !name || ["talenta", "talent", "pengguna"].includes(name.toLowerCase());
+          if (name && !isGeneric) return name;
+          if (contactEmail) {
+            const rawPrefix = contactEmail.split("@")[0].replace(/[._+-]/g, " ");
+            if (rawPrefix) {
+              return rawPrefix.replace(/\b\w/g, (c) => c.toUpperCase());
+            }
+          }
+          return name || tProf?.headline || "Pelamar Proyek";
+        })(),
         talentAvatar: prof?.avatar_url || null,
         headline: tProf?.headline || null,
         education: tProf?.education || null,
@@ -657,12 +669,28 @@ export async function updateApplicantStatus(
     }
 
     // 2. Cek status lamaran saat ini
-    const { data: existingApp, error: appCheckError } = await supabase
+    let { data: existingApp, error: appCheckError } = await supabase
       .from("applications")
       .select("id, status, payment_status")
       .eq("id", applicationId)
       .eq("project_id", projectId)
       .maybeSingle();
+
+    if (
+      appCheckError &&
+      (appCheckError.code === "42703" || appCheckError.message?.includes("payment_status"))
+    ) {
+      const fb = await supabase
+        .from("applications")
+        .select("id, status")
+        .eq("id", applicationId)
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (fb.data) {
+        existingApp = { ...fb.data, payment_status: "none" };
+        appCheckError = null;
+      }
+    }
 
     if (appCheckError || !existingApp) {
       return { success: false, error: "Lamaran tidak ditemukan pada proyek ini." };
@@ -780,7 +808,7 @@ export async function updateApplicantStatus(
     }
 
     // 5. Update data lamaran
-    const updateAppError =
+    let updateAppError =
       newStatus === "approved" && hasFee
         ? null
         : await supabase
@@ -790,9 +818,46 @@ export async function updateApplicantStatus(
             .eq("project_id", projectId)
             .then(({ error }) => error);
 
+    if (
+      updateAppError &&
+      (updateAppError.code === "42703" || updateAppError.message?.includes("payment_status"))
+    ) {
+      delete updatePayload.payment_status;
+      delete updatePayload.approved_at;
+      delete updatePayload.completed_at;
+      delete updatePayload.revision_notes;
+      updateAppError = await supabase
+        .from("applications")
+        .update(updatePayload)
+        .eq("id", applicationId)
+        .eq("project_id", projectId)
+        .then(({ error }) => error);
+    }
+
     if (updateAppError) {
       console.error("Error updating application status:", updateAppError);
       return { success: false, error: updateAppError.message || "Gagal mengubah status pelamar." };
+    }
+
+    // 5.5 Buat pesan sistem otomatis untuk alur percakapan chat
+    if (newStatus === "accepted" && currentStatus === "pending") {
+      await createChatSystemMessage(applicationId, "application_accepted");
+    } else if (newStatus === "rejected") {
+      await createChatSystemMessage(applicationId, "application_rejected");
+    } else if (newStatus === "accepted" && currentStatus === "submitted") {
+      await createChatSystemMessage(applicationId, "revision_requested", {
+        revisionNotes: revisionNotes?.trim(),
+      });
+    } else if (newStatus === "approved") {
+      await createChatSystemMessage(applicationId, "work_approved");
+      if (hasFee) {
+        await createChatSystemMessage(applicationId, "payment_awaiting");
+      }
+      if (completesWithoutFee) {
+        await createChatSystemMessage(applicationId, "application_completed");
+      }
+    } else if (newStatus === "completed" || updatePayload.status === "completed") {
+      await createChatSystemMessage(applicationId, "application_completed");
     }
 
     // 6. Sinkronisasi status proyek
@@ -900,6 +965,9 @@ export async function createApplicationPaymentCharge(
     description: `Pembayaran proyek ${project.title}`,
   });
   if (!charge.success) return { success: false, error: charge.error };
+
+  // Buat pesan sistem otomatis untuk tagihan pembayaran
+  await createChatSystemMessage(applicationId, "payment_awaiting");
 
   revalidatePath(`/vendor/projects/${projectId}/applicants`);
   return { success: true, error: null, paymentUrl: charge.paymentUrl };

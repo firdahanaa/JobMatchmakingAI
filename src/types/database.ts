@@ -154,3 +154,59 @@ export interface TalentRatingView {
   avg_rating: number;
   review_count: number;
 }
+
+// ---------- CHAT & MESSAGING ----------
+
+export type MessageKind = 'text' | 'system' | 'contact' | 'meeting';
+
+export interface ContactMetadata {
+  contact_type: 'whatsapp' | 'telegram' | 'email' | 'phone' | 'linkedin' | 'other';
+  value: string;
+  note?: string;
+}
+
+export interface MeetingMetadata {
+  title: string;
+  start_time: string;
+  duration_minutes: number;
+  platform: 'google_meet' | 'zoom' | 'teams' | 'other';
+  meeting_url?: string;
+  notes?: string;
+}
+
+export type MessageMetadata = ContactMetadata | MeetingMetadata | Record<string, unknown>;
+
+export interface Conversation {
+  id: string;
+  application_id: string;
+  talent_id: string;
+  vendor_id: string;
+  created_at: string;
+  last_message_at: string;
+  last_message_preview: string | null;
+  application?: Application;
+  talent?: TalentProfile & { profile?: Profile };
+  vendor?: VendorProfile & { profile?: Profile };
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string | null;
+  kind: MessageKind;
+  body: string;
+  metadata: MessageMetadata;
+  created_at: string;
+  sender?: Profile;
+}
+
+export interface ConversationRead {
+  conversation_id: string;
+  user_id: string;
+  last_read_at: string;
+}
+
+export interface UnreadCount {
+  conversation_id: string;
+  unread_count: number;
+}

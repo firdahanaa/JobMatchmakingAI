@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Sparkles, LogOut, CircleUser, ClipboardList, House, PlusCircle, Search, CircleHelp } from "lucide-react";
+import { Sparkles, LogOut, CircleUser, ClipboardList, House, PlusCircle, Search, CircleHelp, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -32,6 +32,54 @@ export function Navbar({ initialUser }: NavbarProps) {
   const router = useRouter();
   const [user, setUser] = React.useState(initialUser ?? null);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const supabase = createClient();
+      const fetchUnread = async () => {
+        try {
+          const { data } = await supabase.rpc("get_unread_counts");
+          if (data && Array.isArray(data)) {
+            const total = data.reduce(
+              (acc, row) => acc + Number(row.unread_count || 0),
+              0
+            );
+            setUnreadCount(total);
+          }
+        } catch {
+          // ignore
+        }
+      };
+
+      fetchUnread();
+
+      const channel = supabase
+        .channel("navbar-unread-channel")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "messages" },
+          () => {
+            fetchUnread();
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "conversation_reads" },
+          () => {
+            fetchUnread();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch {
+      // ignore
+    }
+  }, [user?.id]);
 
   React.useEffect(() => {
     if (initialUser !== undefined) return;
@@ -136,6 +184,22 @@ export function Navbar({ initialUser }: NavbarProps) {
                 Lamaran Saya
               </Link>
               <Link
+                href="/talent/messages"
+                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
+                  pathname.startsWith("/talent/messages")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 text-sky-600" />
+                <span>Pesan</span>
+                {unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-3xs font-black text-white shadow-xs">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <Link
                 href="/talent/profile"
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
                   pathname.startsWith("/talent/profile")
@@ -149,23 +213,57 @@ export function Navbar({ initialUser }: NavbarProps) {
             </>
           )}
 
-          {user && isVendor && !pathname.startsWith("/vendor/dashboard") && (
-            <Link
-              href="/vendor/projects/new"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                pathname.startsWith("/vendor/projects/new")
-                  ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
-                  : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-              }`}
-            >
-              <PlusCircle className="h-4 w-4 text-sky-600" />
-              Posting Proyek
-            </Link>
+          {user && isVendor && (
+            <>
+              {!pathname.startsWith("/vendor/dashboard") && (
+                <Link
+                  href="/vendor/projects/new"
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
+                    pathname.startsWith("/vendor/projects/new")
+                      ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                      : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                  }`}
+                >
+                  <PlusCircle className="h-4 w-4 text-sky-600" />
+                  Posting Proyek
+                </Link>
+              )}
+              <Link
+                href="/vendor/messages"
+                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
+                  pathname.startsWith("/vendor/messages")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 text-sky-600" />
+                <span>Pesan</span>
+                {unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-3xs font-black text-white shadow-xs">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            </>
           )}
         </nav>
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
+          {user && (
+            <Link
+              href={isTalent ? "/talent/messages" : "/vendor/messages"}
+              aria-label="Pesan & Diskusi"
+              className="relative inline-flex min-h-9 items-center justify-center rounded-lg p-2 text-slate-600 hover:bg-sky-50 hover:text-sky-800 md:hidden"
+            >
+              <MessageSquare className="h-5 w-5 text-sky-700" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-xs">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
+          )}
           <Link
             href="/help"
             aria-label="Bantuan - Laporkan Kendala"

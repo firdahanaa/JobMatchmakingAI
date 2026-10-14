@@ -13,6 +13,7 @@ import {
   canTransition,
   getApplicationStatusLabel,
 } from "@/lib/workflow/transitions";
+import { createChatSystemMessage } from "@/lib/chat/system-messages";
 import { calculateMatch } from "@/lib/matching";
 import { getTalentMatchingContext } from "@/app/talent/projects/actions";
 import type { ProjectContext, ProjectSkill, SkillLevel } from "@/lib/matching/types";
@@ -193,11 +194,26 @@ export async function applyToProject(
     }
 
     // 2. Periksa status proyek (harus 'open')
-    const { data: project, error: projectError } = await supabase
+    let { data: project, error: projectError } = await supabase
       .from("projects")
       .select("id, title, status, hours_per_week, mode, vendor_id, portfolio_required")
       .eq("id", projectId)
       .maybeSingle();
+
+    if (
+      projectError &&
+      (projectError.code === "42703" || projectError.message?.includes("portfolio_required"))
+    ) {
+      const fb = await supabase
+        .from("projects")
+        .select("id, title, status, hours_per_week, mode, vendor_id")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (fb.data) {
+        project = { ...fb.data, portfolio_required: false };
+        projectError = null;
+      }
+    }
 
     if (projectError || !project) {
       return { success: false, error: "Proyek tidak ditemukan." };
@@ -222,23 +238,88 @@ export async function applyToProject(
       };
     }
 
+    // Pastikan profiles.full_name tersinkronisasi jika masih bernilai kosong atau default
+    const metaFullName = (user.user_metadata?.full_name || "").trim();
+    if (metaFullName && metaFullName.toLowerCase() !== "talenta" && metaFullName.toLowerCase() !== "talent") {
+      const { data: curProf } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        !curProf?.full_name ||
+        curProf.full_name.trim() === "" ||
+        ["talenta", "talent", "pengguna"].includes(curProf.full_name.trim().toLowerCase())
+      ) {
+        await supabase
+          .from("profiles")
+          .update({ full_name: metaFullName })
+          .eq("id", user.id);
+      }
+    }
+
     // 3. Periksa apakah sudah pernah melamar (cegah apply ganda)
-    const { data: existingApp, error: existingAppError } = await supabase
+    let { data: existingApp, error: existingAppError } = await supabase
       .from("applications")
       .select("id, status, message, match_score, related_links, created_at, cv_path, portfolio_path")
       .eq("project_id", projectId)
       .eq("talent_id", user.id)
       .maybeSingle();
 
+    if (
+      existingAppError &&
+      (existingAppError.code === "42703" ||
+        existingAppError.message?.includes("related_links") ||
+        existingAppError.message?.includes("cv_path"))
+    ) {
+      const fb = await supabase
+        .from("applications")
+        .select("id, status, message, match_score, created_at")
+        .eq("project_id", projectId)
+        .eq("talent_id", user.id)
+        .maybeSingle();
+      if (!fb.error) {
+        existingApp = fb.data
+          ? ({
+              ...fb.data,
+              related_links: [],
+              cv_path: null,
+              portfolio_path: null,
+            } as unknown as typeof existingApp)
+          : null;
+        existingAppError = null;
+      }
+    }
+
     if (existingAppError && existingAppError.code !== "PGRST116") {
       console.error("Error checking existing application:", existingAppError);
     }
 
     if (existingApp && existingApp.status !== "withdrawn") {
-      return {
-        success: false,
-        error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
-      };
+      // Jika lamaran sebelumnya berstatus pending tapi belum memiliki lampiran berkas (misal upload gagal)
+      // Otomatis ubah status ke 'withdrawn' agar talent dapat mencoba melamar kembali tanpa terblokir
+      if (!existingApp.cv_path) {
+        const { error: autoWithdrawError } = await supabase
+          .from("applications")
+          .update({ status: "withdrawn" })
+          .eq("id", existingApp.id)
+          .eq("talent_id", user.id);
+
+        if (!autoWithdrawError) {
+          existingApp.status = "withdrawn";
+        } else {
+          return {
+            success: false,
+            error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
+        };
+      }
     }
 
     // 4. Hitung Match Score di server (bukan dari client)
@@ -296,38 +377,71 @@ export async function applyToProject(
 
     if (existingApp && existingApp.status === "withdrawn") {
       // Re-apply: update existing withdrawn record to pending
-      const { data: updatedApp, error: updateError } = await supabase
+      const updatePayload: Record<string, unknown> = {
+        message: finalStoredMessage,
+        match_score: serverMatchScore,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        related_links: parseResult.data.relatedLinks,
+      };
+
+      let { data: updatedApp, error: updateError } = await supabase
         .from("applications")
-        .update({
-          message: finalStoredMessage,
-          match_score: serverMatchScore,
-          status: "pending",
-          created_at: new Date().toISOString(),
-          related_links: parseResult.data.relatedLinks,
-        })
+        .update(updatePayload)
         .eq("id", existingApp.id)
         .select("id")
         .single();
+
+      if (
+        updateError &&
+        (updateError.code === "42703" || updateError.message?.includes("related_links"))
+      ) {
+        delete updatePayload.related_links;
+        const fb = await supabase
+          .from("applications")
+          .update(updatePayload)
+          .eq("id", existingApp.id)
+          .select("id")
+          .single();
+        updatedApp = fb.data;
+        updateError = fb.error;
+      }
 
       if (updateError) {
         console.error("Re-apply error:", updateError);
         return { success: false, error: updateError.message || "Gagal memperbarui lamaran." };
       }
-      createdAppId = updatedApp.id;
+      createdAppId = updatedApp?.id;
     } else {
       // Insert new application
-      const { data: newApp, error: insertError } = await supabase
+      const insertPayload: Record<string, unknown> = {
+        project_id: projectId,
+        talent_id: user.id,
+        message: finalStoredMessage,
+        match_score: serverMatchScore,
+        status: "pending",
+        related_links: parseResult.data.relatedLinks,
+      };
+
+      let { data: newApp, error: insertError } = await supabase
         .from("applications")
-        .insert({
-          project_id: projectId,
-          talent_id: user.id,
-          message: finalStoredMessage,
-          match_score: serverMatchScore,
-          status: "pending",
-          related_links: parseResult.data.relatedLinks,
-        })
+        .insert(insertPayload)
         .select("id")
         .single();
+
+      if (
+        insertError &&
+        (insertError.code === "42703" || insertError.message?.includes("related_links"))
+      ) {
+        delete insertPayload.related_links;
+        const fb = await supabase
+          .from("applications")
+          .insert(insertPayload)
+          .select("id")
+          .single();
+        newApp = fb.data;
+        insertError = fb.error;
+      }
 
       if (insertError) {
         console.error("Insert application error:", insertError);
@@ -339,7 +453,7 @@ export async function applyToProject(
         }
         return { success: false, error: insertError.message || "Gagal mengirimkan lamaran." };
       }
-      createdAppId = newApp.id;
+      createdAppId = newApp?.id;
     }
 
     if (!createdAppId) {
@@ -373,9 +487,11 @@ export async function applyToProject(
           .eq("id", createdAppId)
           .eq("talent_id", user.id);
       } else {
+        // PERHATIKAN: delete() pada applications ditolak oleh RLS untuk talent.
+        // Update ke 'withdrawn' agar tidak terkunci dan diizinkan oleh policy "applications: talent ubah (withdraw)"
         await supabase
           .from("applications")
-          .delete()
+          .update({ status: "withdrawn" })
           .eq("id", createdAppId)
           .eq("talent_id", user.id);
       }
@@ -392,7 +508,23 @@ export async function applyToProject(
         .from("application-docs")
         .upload(path, file, { contentType: "application/pdf", upsert: true });
       if (uploadError) {
+        console.error("Storage upload error:", uploadError);
         await rollbackApplication();
+
+        const errMsg = uploadError.message || "";
+        const isBucketNotFound =
+          errMsg.toLowerCase().includes("bucket not found") ||
+          errMsg.toLowerCase().includes("not found") ||
+          (uploadError as { statusCode?: string }).statusCode === "404";
+
+        if (isBucketNotFound) {
+          return {
+            success: false,
+            error:
+              "Bucket storage 'application-docs' belum dibuat di Supabase. Silakan jalankan migrasi 002_payment_flow.sql di Supabase SQL Editor atau buat bucket 'application-docs' di menu Storage.",
+          };
+        }
+
         return { success: false, error: "Gagal mengunggah lampiran. Coba kirim lamaran lagi." };
       }
       uploadedPaths.push(path);
@@ -405,13 +537,28 @@ export async function applyToProject(
       .eq("talent_id", user.id);
 
     if (pathUpdateError) {
-      await rollbackApplication();
-      return { success: false, error: "Lampiran tersimpan, tetapi gagal menghubungkan file ke lamaran." };
+      if (
+        pathUpdateError.code === "42703" ||
+        pathUpdateError.message?.includes("cv_path") ||
+        pathUpdateError.message?.includes("portfolio_path")
+      ) {
+        console.warn(
+          "Kolom cv_path/portfolio_path belum ada di applications (migrasi 002 belum diaplikasikan)."
+        );
+      } else {
+        await rollbackApplication();
+        return { success: false, error: "Lampiran tersimpan, tetapi gagal menghubungkan file ke lamaran." };
+      }
     }
 
     if (existingApp?.portfolio_path && !portfolioPath) {
       await supabase.storage.from("application-docs").remove([existingApp.portfolio_path]);
     }
+
+    // Buat pesan sistem otomatis untuk pembukaan percakapan chat
+    await createChatSystemMessage(createdAppId, "application_created", {
+      projectTitle: project.title,
+    });
 
     revalidatePath("/talent/projects");
     revalidatePath(`/talent/projects/${projectId}`);
@@ -609,6 +756,9 @@ export async function submitWorkDocumentation(
       };
     }
 
+    // Buat pesan sistem otomatis untuk penyerahan hasil pengerjaan
+    await createChatSystemMessage(applicationId, "work_submitted");
+
     revalidatePath("/talent/applications");
     revalidatePath(`/talent/projects/${app.project_id}`);
     revalidatePath(`/vendor/projects/${app.project_id}/applicants`);
@@ -689,9 +839,66 @@ export async function getMyApplications(): Promise<{
       .eq("talent_id", user.id)
       .order("created_at", { ascending: false });
 
+    let rawApplicationsData: unknown = applicationsData;
+
     if (appsError) {
-      console.error("Error fetching my applications:", appsError);
-      return { data: [], error: "Gagal memuat riwayat lamaran." };
+      const isMissingCol =
+        appsError.code === "42703" ||
+        appsError.message?.includes("column") ||
+        appsError.message?.includes("payment_status") ||
+        appsError.message?.includes("cv_path") ||
+        appsError.message?.includes("related_links");
+
+      if (isMissingCol) {
+        const fallbackRes = await supabase
+          .from("applications")
+          .select(`
+            id,
+            project_id,
+            talent_id,
+            status,
+            message,
+            created_at,
+            reviews (id),
+            projects (
+              id,
+              title,
+              difficulty,
+              type,
+              mode,
+              reward_amount,
+              reward_note,
+              duration_weeks,
+              status,
+              vendor_profiles:vendor_id (
+                organization_name,
+                location
+              )
+            )
+          `)
+          .eq("talent_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!fallbackRes.error && fallbackRes.data) {
+          rawApplicationsData = fallbackRes.data.map((app) => ({
+            ...app,
+            payment_status: "none" as PaymentStatus,
+            cv_path: null,
+            portfolio_path: null,
+            related_links: [],
+            submission_url: null,
+            submission_links: [],
+            submission_notes: null,
+            revision_notes: null,
+          }));
+        } else {
+          console.error("Error fetching my applications fallback:", fallbackRes.error || appsError);
+          return { data: [], error: "Gagal memuat riwayat lamaran." };
+        }
+      } else {
+        console.error("Error fetching my applications:", appsError);
+        return { data: [], error: "Gagal memuat riwayat lamaran." };
+      }
     }
 
     type RawApp = {
@@ -734,7 +941,7 @@ export async function getMyApplications(): Promise<{
       }[] | null;
     };
 
-    const rawList = (applicationsData || []) as unknown as RawApp[];
+    const rawList = (rawApplicationsData || []) as unknown as RawApp[];
 
     const items: TalentApplicationItem[] = rawList.map((app) => {
       const p = Array.isArray(app.projects) ? app.projects[0] : app.projects;

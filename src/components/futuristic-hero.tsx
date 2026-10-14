@@ -375,7 +375,7 @@ export function FuturisticHeroDashboard({
                   options={FIELD_OPTIONS}
                   onChange={setField}
                 />
-                {(userRole === "vendor" || SHOW_MATCH_TO_TALENT) && (
+                {SHOW_MATCH_TO_TALENT && (
                   <FilterDropdown
                     icon={TrendingUp}
                     label="Min. Match"
@@ -590,7 +590,7 @@ export function FuturisticHeroDashboard({
                   {sampleProject.title}
                 </h3>
               </div>
-              {(userRole === "vendor" || SHOW_MATCH_TO_TALENT) && sampleProject.matchScore != null && (
+              {SHOW_MATCH_TO_TALENT && sampleProject.matchScore != null && (
                 <div
                   className="shrink-0 h-11 w-11 flex items-center justify-center text-white text-xs font-black shadow-md"
                   style={{
@@ -618,7 +618,7 @@ export function FuturisticHeroDashboard({
               >
                 🖥 {sampleProject.workMode}
               </span>
-              {(userRole === "vendor" || SHOW_MATCH_TO_TALENT) && (
+              {SHOW_MATCH_TO_TALENT && (
                 <span
                   className="text-[10px] font-bold text-emerald-700 px-2.5 py-1"
                   style={{

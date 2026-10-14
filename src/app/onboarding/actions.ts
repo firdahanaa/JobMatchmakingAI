@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { WorkMode } from "@/types/database";
 
 export interface TalentOnboardingData {
+  fullName?: string;
   headline: string;
   education: string;
   location: string;
@@ -48,19 +49,26 @@ export async function saveTalentOnboarding(data: TalentOnboardingData): Promise<
       };
     }
 
-    // 1. Ensure profile exists in profiles table
+    // 1. Ensure profile exists in profiles table and full_name is synchronized
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id, role")
+      .select("id, role, full_name")
       .eq("id", user.id)
       .maybeSingle();
+
+    const userFullName = data.fullName?.trim() || user.user_metadata?.full_name?.trim();
 
     if (!existingProfile) {
       await supabase.from("profiles").upsert({
         id: user.id,
         role: "talent",
-        full_name: user.user_metadata?.full_name || "Talenta",
+        full_name: userFullName || "Talenta",
       });
+    } else if (userFullName) {
+      await supabase
+        .from("profiles")
+        .update({ full_name: userFullName })
+        .eq("id", user.id);
     }
 
     // 2. Check if talent_profiles exists

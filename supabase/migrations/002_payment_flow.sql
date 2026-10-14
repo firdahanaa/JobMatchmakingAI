@@ -52,16 +52,13 @@ UPDATE projects
 SET payment_enabled = true
 WHERE reward_amount > 0;
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM projects
-    WHERE difficulty = 'advanced'
-      AND (reward_amount IS NULL OR reward_amount <= 0)
-  ) THEN
-    RAISE EXCEPTION 'Advanced projects require a real fee. Set reward_amount or change difficulty before applying this migration.';
-  END IF;
-END $$;
+-- Normalisasi proyek: proyek advanced wajib berbayar.
+-- Jika ada proyek tanpa fee (mis. volunteer/unpaid) dengan difficulty 'advanced',
+-- sesuaikan difficulty-nya menjadi 'intermediate' agar memenuhi aturan bisnis platform.
+UPDATE projects
+SET difficulty = 'intermediate'
+WHERE difficulty = 'advanced'
+  AND (reward_amount IS NULL OR reward_amount <= 0);
 
 UPDATE projects
 SET payment_enabled = true

@@ -1,6 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
+import {
+  type ProjectForTalent,
+  sanitizeProjectForTalent,
+} from "@/lib/talent-project-utils";
 import { calculateMatch } from "@/lib/matching";
 import {
   buildProjectTextDocument,
@@ -65,82 +70,7 @@ export interface ProjectWithMatch {
   recommendationScore?: number;
 }
 
-/**
- * Talent-facing project type: match score, breakdown, talentStatus, and
- * recommendation scores are intentionally omitted so they are never
- * serialized across the server→client boundary.
- */
-export interface ProjectForTalent {
-  id: string;
-  vendorId: string;
-  title: string;
-  description: string;
-  difficulty: ProjectDifficulty;
-  type: ProjectType;
-  mode: WorkMode;
-  durationWeeks: number | null;
-  hoursPerWeek: number | null;
-  paymentEnabled: boolean;
-  portfolioRequired: boolean;
-  rewardAmount: number | null;
-  rewardNote: string | null;
-  deadline: string | null;
-  status: string;
-  createdAt: string;
-  vendor: {
-    userId: string;
-    organizationName: string;
-    description: string | null;
-    website: string | null;
-    location: string | null;
-  } | null;
-  /** Skills list without match/gap indicators — safe for talent-facing renders. */
-  skills: {
-    skillId: number;
-    name: string;
-    category: string;
-    minLevel: SkillLevel;
-    isRequired: boolean;
-  }[];
-}
-
-/**
- * Strip all match-score fields from a ProjectWithMatch before any
- * server→client serialization boundary (e.g. when passing props to a
- * Client Component or returning data from a Server Action to the browser).
- *
- * Sorting / ordering by match score is performed server-side before calling
- * this function, so relevance ordering is preserved.
- */
-export function sanitizeProjectForTalent(p: ProjectWithMatch): ProjectForTalent {
-  return {
-    id: p.id,
-    vendorId: p.vendorId,
-    title: p.title,
-    description: p.description,
-    difficulty: p.difficulty,
-    type: p.type,
-    mode: p.mode,
-    durationWeeks: p.durationWeeks,
-    hoursPerWeek: p.hoursPerWeek,
-    paymentEnabled: p.paymentEnabled,
-    portfolioRequired: p.portfolioRequired,
-    rewardAmount: p.rewardAmount,
-    rewardNote: p.rewardNote,
-    deadline: p.deadline,
-    status: p.status,
-    createdAt: p.createdAt,
-    vendor: p.vendor,
-    // Intentionally omit talentStatus — strips possessed/isAdequate/talentLevel
-    skills: p.skills.map(({ skillId, name, category, minLevel, isRequired }) => ({
-      skillId,
-      name,
-      category,
-      minLevel,
-      isRequired,
-    })),
-  };
-}
+export type { ProjectForTalent };
 
 export interface TalentProjectsFilter {
   q?: string;
@@ -151,7 +81,7 @@ export interface TalentProjectsFilter {
 }
 
 export interface GetTalentProjectsResult {
-  projects: ProjectWithMatch[];
+  projects: (ProjectWithMatch | ProjectForTalent)[];
   totalOpenProjects: number;
   hasConfiguredSkills: boolean;
   talentAvailable: boolean;
@@ -349,15 +279,81 @@ export async function getTalentProjects(
       `)
       .eq("status", "open");
 
+    let rawProjectsData: unknown = rawProjects;
+
     if (projectsError) {
-      console.error("Error fetching projects for talent:", projectsError);
-      return {
-        projects: [],
-        totalOpenProjects: 0,
-        hasConfiguredSkills,
-        talentAvailable: talentContext.isAvailable,
-        error: "Gagal memuat daftar proyek dari database.",
-      };
+      const isMissingColumn =
+        projectsError.code === "42703" ||
+        projectsError.message?.includes("payment_enabled") ||
+        projectsError.message?.includes("portfolio_required") ||
+        projectsError.message?.includes("column");
+
+      if (isMissingColumn) {
+        // Fallback kompatibilitas jika migrasi 002 belum dijalankan pada tabel projects
+        const fallbackRes = await supabase
+          .from("projects")
+          .select(`
+            id,
+            vendor_id,
+            title,
+            description,
+            difficulty,
+            type,
+            mode,
+            duration_weeks,
+            hours_per_week,
+            reward_amount,
+            reward_note,
+            deadline,
+            status,
+            created_at,
+            vendor_profiles:vendor_id (
+              user_id,
+              organization_name,
+              description,
+              website,
+              location
+            ),
+            project_skills (
+              project_id,
+              skill_id,
+              min_level,
+              is_required,
+              skills (
+                id,
+                name,
+                category
+              )
+            )
+          `)
+          .eq("status", "open");
+
+        if (!fallbackRes.error && fallbackRes.data) {
+          rawProjectsData = fallbackRes.data.map((p) => ({
+            ...p,
+            payment_enabled: (p.reward_amount || 0) > 0 || p.difficulty === "advanced",
+            portfolio_required: false,
+          })) as unknown as RawProject[];
+        } else {
+          console.error("Error fetching projects for talent:", fallbackRes.error || projectsError);
+          return {
+            projects: [],
+            totalOpenProjects: 0,
+            hasConfiguredSkills,
+            talentAvailable: talentContext.isAvailable,
+            error: "Gagal memuat daftar proyek dari database.",
+          };
+        }
+      } else {
+        console.error("Error fetching projects for talent:", projectsError);
+        return {
+          projects: [],
+          totalOpenProjects: 0,
+          hasConfiguredSkills,
+          talentAvailable: talentContext.isAvailable,
+          error: "Gagal memuat daftar proyek dari database.",
+        };
+      }
     }
 
     // Lookup map talent skills for fast per-skill match indicator
@@ -367,7 +363,7 @@ export async function getTalentProjects(
       talentSkillsMap.set(ts.name.toLowerCase().trim(), ts);
     }
 
-    const projectsList = (rawProjects || []) as unknown as RawProject[];
+    const projectsList = (rawProjectsData || []) as unknown as RawProject[];
     const totalOpenProjects = projectsList.length;
     const talentDocument = buildTalentTextDocument(talentContext);
     const similarityByProjectId = new Map(
@@ -525,8 +521,12 @@ export async function getTalentProjects(
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
+    const sanitizedProjects = SHOW_MATCH_TO_TALENT
+      ? filtered
+      : filtered.map(sanitizeProjectForTalent);
+
     return {
-      projects: filtered,
+      projects: sanitizedProjects,
       totalOpenProjects,
       hasConfiguredSkills,
       talentAvailable: talentContext.isAvailable,
@@ -548,7 +548,7 @@ export async function getTalentProjects(
  * Fetch a single project detail with full matching breakdown for talent
  */
 export async function getTalentProjectDetail(projectId: string): Promise<{
-  project: ProjectWithMatch | null;
+  project: ProjectWithMatch | ProjectForTalent | null;
   error: string | null;
 }> {
   try {
@@ -607,11 +607,76 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       .eq("id", projectId)
       .maybeSingle();
 
-    if (projectError || !rawProject) {
+    let rawProjectData: unknown = rawProject;
+
+    if (projectError) {
+      const isMissingColumn =
+        projectError.code === "42703" ||
+        projectError.message?.includes("payment_enabled") ||
+        projectError.message?.includes("portfolio_required") ||
+        projectError.message?.includes("column");
+
+      if (isMissingColumn) {
+        const fallbackRes = await supabase
+          .from("projects")
+          .select(`
+            id,
+            vendor_id,
+            title,
+            description,
+            difficulty,
+            type,
+            mode,
+            duration_weeks,
+            hours_per_week,
+            reward_amount,
+            reward_note,
+            deadline,
+            status,
+            created_at,
+            vendor_profiles:vendor_id (
+              user_id,
+              organization_name,
+              description,
+              website,
+              location
+            ),
+            project_skills (
+              project_id,
+              skill_id,
+              min_level,
+              is_required,
+              skills (
+                id,
+                name,
+                category
+              )
+            )
+          `)
+          .eq("id", projectId)
+          .maybeSingle();
+
+        if (fallbackRes.data) {
+          rawProjectData = {
+            ...fallbackRes.data,
+            payment_enabled:
+              (fallbackRes.data.reward_amount || 0) > 0 ||
+              fallbackRes.data.difficulty === "advanced",
+            portfolio_required: false,
+          } as unknown as RawProject;
+        } else {
+          return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+        }
+      } else {
+        return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+      }
+    }
+
+    if (!rawProjectData) {
       return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
     }
 
-    const p = rawProject as unknown as RawProject;
+    const p = rawProjectData as unknown as RawProject;
 
     const vendorObj = Array.isArray(p.vendor_profiles)
       ? p.vendor_profiles[0]
@@ -699,7 +764,11 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       matchResult,
     };
 
-    return { project: projectWithMatch, error: null };
+    const finalProject = SHOW_MATCH_TO_TALENT
+      ? projectWithMatch
+      : sanitizeProjectForTalent(projectWithMatch);
+
+    return { project: finalProject, error: null };
   } catch (err: unknown) {
     console.error("Error in getTalentProjectDetail:", err);
     return {

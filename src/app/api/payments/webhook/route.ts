@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPaymentProvider } from "@/lib/payments";
 import { canTransition, canTransitionPayment } from "@/lib/workflow/transitions";
+import { createChatSystemMessage } from "@/lib/chat/system-messages";
 import type { ApplicationStatus, PaymentStatus } from "@/types/database";
 import { decidePaymentWebhook } from "@/lib/payments/webhook";
 import type { PaymentRecordStatus } from "@/types/database";
@@ -104,6 +105,10 @@ export async function POST(request: Request) {
   if (completionError) {
     return Response.json({ ok: false, error: "Gagal menyelesaikan pembayaran dan proyek." }, { status: 409 });
   }
+
+  // Buat pesan sistem otomatis untuk pembayaran sukses dan proyek selesai
+  await createChatSystemMessage(application.id, "payment_paid");
+  await createChatSystemMessage(application.id, "application_completed");
 
   revalidatePath("/vendor/dashboard");
   revalidatePath(`/vendor/projects/${application.project_id}/applicants`);

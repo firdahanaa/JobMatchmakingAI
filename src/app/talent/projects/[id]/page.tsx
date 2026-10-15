@@ -400,13 +400,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                         <span>Buka Percakapan Chat</span>
                       </Link>
                     )}
-                    <Link
-                      href={`/help?projectId=${encodeURIComponent(project.id)}`}
-                      className="inline-flex min-h-8 items-center justify-center text-xs font-semibold text-sky-700 underline underline-offset-2 hover:text-sky-900"
-                    >
-                      Laporkan kendala project
-                    </Link>
-                  </div>
+                    </div>
                 </div>
               </CardContent>
             </Card>

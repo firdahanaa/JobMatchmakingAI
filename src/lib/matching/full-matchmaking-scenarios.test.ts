@@ -7,20 +7,14 @@ import {
   combineRecommendationScores,
   RECOMMENDATION_WEIGHTS,
 } from "./tfidf";
-import { calculateMatch, calculateSkillGap, SKILL_LEVEL_NUMERIC } from "./index";
+import { calculateMatch } from "./index";
 import { sanitizeProjectForTalent } from "@/lib/talent-project-utils";
 import {
   canTransition,
-  canTransitionPayment,
-  getApprovalOutcome,
-  getInitialPaymentStatusOnAccept,
   getPaymentSuccessOutcome,
 } from "@/lib/workflow/transitions";
 import { getUnreviewedApplicationIds } from "@/lib/workflow/review-gate";
-import {
-  requestRevisionSchema,
-  updateApplicationStatusSchema,
-} from "@/lib/validators/application";
+import { requestRevisionSchema } from "@/lib/validators/application";
 import { decidePaymentWebhook } from "@/lib/payments/webhook";
 import type { TalentContext, ProjectContext } from "./types";
 import type { ProjectWithMatch } from "@/app/talent/projects/actions";

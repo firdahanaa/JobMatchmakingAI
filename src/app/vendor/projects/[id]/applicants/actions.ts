@@ -2,8 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createApplicationCharge } from "@/lib/payments/charges";
 import { calculateMatch, calculateSkillGap } from "@/lib/matching";
-import { updateApplicationStatusSchema, uuidSchema } from "@/lib/validators/application";
+import {
+  buildProjectTextDocument,
+  buildTalentTextDocument,
+  combineRecommendationScores,
+  rankDocumentsBySimilarity,
+} from "@/lib/matching";
+import {
+  requestRevisionSchema,
+  updateApplicationStatusSchema,
+  uuidSchema,
+} from "@/lib/validators/application";
+import {
+  canTransition,
+  canTransitionPayment,
+  getInitialPaymentStatusOnAccept,
+  getApprovalOutcome,
+  getApplicationStatusLabel,
+} from "@/lib/workflow/transitions";
+import { getPendingVendorReviews } from "@/lib/workflow/vendor-review-gate";
+import { createChatSystemMessage } from "@/lib/chat/system-messages";
 import { reviewSchema, type ReviewInput } from "@/lib/validators/review";
 import type {
   TalentContext,
@@ -14,6 +34,8 @@ import type {
 } from "@/lib/matching/types";
 import type {
   ApplicationStatus,
+  PaymentStatus,
+  PaymentRecordStatus,
   ProjectDifficulty,
   ProjectType,
   WorkMode,
@@ -25,6 +47,13 @@ export interface DetailedApplicantItem {
   projectId: string;
   talentId: string;
   status: ApplicationStatus;
+  paymentStatus: PaymentStatus;
+  paymentRecordStatus: PaymentRecordStatus | null;
+  paymentUrl: string | null;
+  projectRewardAmount: number | null;
+  submissionLinks: string[];
+  submissionNotes: string | null;
+  revisionNotes: string | null;
   message: string | null;
   contactEmail: string | null;
   createdAt: string;
@@ -43,6 +72,8 @@ export interface DetailedApplicantItem {
 
   // Recalculated matching with latest data
   latestMatchScore: number;
+  textSimilarityScore: number;
+  recommendationScore: number;
   snapshotMatchScore: number | null;
   matchBreakdown: {
     skill: number;
@@ -63,7 +94,6 @@ export interface DetailedApplicantItem {
   avgRating: number | null;
   reviewCount: number;
   completedProjectsCount: number;
-
   // All talent skills for detailed modal
   allTalentSkills: {
     skillId: number;
@@ -149,6 +179,7 @@ export async function getProjectApplicantsRecalculated(
         id,
         vendor_id,
         title,
+        description,
         status,
         difficulty,
         type,
@@ -249,6 +280,7 @@ export async function getProjectApplicantsRecalculated(
       completedAppsRes,
       reviewsRes,
       appReviewsRes,
+      paymentsRes,
     ] = await Promise.all([
       supabase.from("profiles").select("id, full_name, avatar_url").in("id", talentIds),
       supabase.from("talent_profiles").select("*").in("user_id", talentIds),
@@ -270,6 +302,10 @@ export async function getProjectApplicantsRecalculated(
       supabase
         .from("reviews")
         .select("id, application_id, rating, quality, timeliness, communication, comment, created_at")
+        .in("application_id", appIds),
+      supabase
+        .from("payments")
+        .select("application_id, status, redirect_url")
         .in("application_id", appIds),
     ]);
 
@@ -346,8 +382,22 @@ export async function getProjectApplicantsRecalculated(
       appReviewsMap.set(ar.application_id, ar);
     }
 
+    const paymentRecordsMap = new Map<
+      string,
+      { status: PaymentRecordStatus; redirect_url: string | null }
+    >();
+    for (const payment of paymentsRes.data || []) {
+      paymentRecordsMap.set(payment.application_id, {
+        status: payment.status as PaymentRecordStatus,
+        redirect_url: payment.redirect_url,
+      });
+    }
+
     // 4. Hitung ulang kecocokan (Real-time Recalculated Match Score) untuk setiap pelamar
-    const applicantsList: DetailedApplicantItem[] = apps.map((app) => {
+    const applicantsWithoutRecommendation: Omit<
+      DetailedApplicantItem,
+      "textSimilarityScore" | "recommendationScore"
+    >[] = apps.map((app) => {
       const prof = profilesMap.get(app.talent_id);
       const tProf = talentProfilesMap.get(app.talent_id);
       const tSkills = skillsMap.get(app.talent_id) || [];
@@ -418,10 +468,28 @@ export async function getProjectApplicantsRecalculated(
         projectId: app.project_id,
         talentId: app.talent_id,
         status: app.status as ApplicationStatus,
+        paymentStatus: app.payment_status as PaymentStatus,
+        paymentRecordStatus: paymentRecordsMap.get(app.id)?.status ?? null,
+        paymentUrl: paymentRecordsMap.get(app.id)?.redirect_url ?? null,
+        projectRewardAmount: rawProject.reward_amount,
+        submissionLinks: app.submission_links || (app.submission_url ? [app.submission_url] : []),
+        submissionNotes: app.submission_notes,
+        revisionNotes: app.revision_notes,
         message: cleanMsg || null,
         contactEmail,
         createdAt: app.created_at,
-        talentName: prof?.full_name || "Talenta",
+        talentName: (() => {
+          const name = prof?.full_name?.trim();
+          const isGeneric = !name || ["talenta", "talent", "pengguna"].includes(name.toLowerCase());
+          if (name && !isGeneric) return name;
+          if (contactEmail) {
+            const rawPrefix = contactEmail.split("@")[0].replace(/[._+-]/g, " ");
+            if (rawPrefix) {
+              return rawPrefix.replace(/\b\w/g, (c) => c.toUpperCase());
+            }
+          }
+          return name || tProf?.headline || "Pelamar Proyek";
+        })(),
         talentAvatar: prof?.avatar_url || null,
         headline: tProf?.headline || null,
         education: tProf?.education || null,
@@ -459,10 +527,43 @@ export async function getProjectApplicantsRecalculated(
       };
     });
 
-    // Urutkan pelamar berdasarkan skor terbaru secara descending
+    const projectDocument = buildProjectTextDocument({
+      title: rawProject.title,
+      description: rawProject.description,
+      skills: matchingProjectSkills,
+    });
+    const similarityByApplicationId = new Map(
+      rankDocumentsBySimilarity(
+        projectDocument,
+        applicantsWithoutRecommendation.map((applicant) => ({
+          id: applicant.id,
+          text: buildTalentTextDocument({
+            headline: applicant.headline,
+            bio: applicant.bio,
+            skills: applicant.allTalentSkills,
+          }),
+        }))
+      ).map(({ id, similarity }) => [id, similarity])
+    );
+
+    const applicantsList: DetailedApplicantItem[] = applicantsWithoutRecommendation.map(
+      (applicant) => {
+        const textSimilarity = similarityByApplicationId.get(applicant.id) ?? 0;
+        return {
+          ...applicant,
+          textSimilarityScore: Math.round(textSimilarity * 100),
+          recommendationScore: combineRecommendationScores(
+            applicant.latestMatchScore,
+            textSimilarity
+          ),
+        };
+      }
+    );
+
+    // The legacy composite score remains visible; the combined score only determines ranking.
     applicantsList.sort((a, b) => {
-      if (b.latestMatchScore !== a.latestMatchScore) {
-        return b.latestMatchScore - a.latestMatchScore;
+      if (b.recommendationScore !== a.recommendationScore) {
+        return b.recommendationScore - a.recommendationScore;
       }
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
@@ -494,16 +595,29 @@ export async function getProjectApplicantsRecalculated(
 }
 
 /**
- * Update application status (Accept, Reject, Mark as Completed)
- * Rule: Saat Accept, ubah status project menjadi 'in_progress'
+ * Update application status using pure workflow transitions:
+ * - Accept: pending -> accepted (sets payment_status to 'none' or 'not_requested')
+ * - Reject: pending -> rejected
+ * - Request Revision: submitted -> accepted (with revision_notes)
+ * - Approve result: submitted -> approved (or completed if !hasFee)
+ * - Complete: approved -> completed (only if !hasFee)
  */
 export async function updateApplicantStatus(
   applicationId: string,
   projectId: string,
-  newStatus: "accepted" | "rejected" | "completed"
-): Promise<{ success: boolean; error: string | null }> {
+  newStatus: ApplicationStatus,
+  revisionNotes?: string
+): Promise<{
+  success: boolean;
+  error: string | null;
+  paymentUrl?: string;
+  applicationStatus?: ApplicationStatus;
+}> {
   try {
-    const parseResult = updateApplicationStatusSchema.safeParse({ status: newStatus });
+    const parseResult = updateApplicationStatusSchema.safeParse({
+      status: newStatus,
+      revisionNotes,
+    });
     if (!parseResult.success) {
       return { success: false, error: "Status lamaran tidak valid." };
     }
@@ -528,7 +642,7 @@ export async function updateApplicantStatus(
     // Role verification
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, full_name")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -536,10 +650,10 @@ export async function updateApplicantStatus(
       return { success: false, error: "Akses ditolak. Hanya akun Vendor yang berwenang mengubah status pelamar." };
     }
 
-    // 1. Cek kepemilikan proyek
+    // 1. Cek kepemilikan proyek & fee
     const { data: project, error: checkError } = await supabase
       .from("projects")
-      .select("id, vendor_id, status")
+      .select("id, vendor_id, title, status, reward_amount")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -555,41 +669,210 @@ export async function updateApplicantStatus(
     }
 
     // 2. Cek status lamaran saat ini
-    const { data: existingApp, error: appCheckError } = await supabase
+    let { data: existingApp, error: appCheckError } = await supabase
       .from("applications")
-      .select("id, status")
+      .select("id, status, payment_status")
       .eq("id", applicationId)
       .eq("project_id", projectId)
       .maybeSingle();
+
+    if (
+      appCheckError &&
+      (appCheckError.code === "42703" || appCheckError.message?.includes("payment_status"))
+    ) {
+      const fb = await supabase
+        .from("applications")
+        .select("id, status")
+        .eq("id", applicationId)
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (fb.data) {
+        existingApp = { ...fb.data, payment_status: "none" };
+        appCheckError = null;
+      }
+    }
 
     if (appCheckError || !existingApp) {
       return { success: false, error: "Lamaran tidak ditemukan pada proyek ini." };
     }
 
-    if (existingApp.status === "withdrawn") {
+    const currentStatus = existingApp.status as ApplicationStatus;
+    const hasFee = Boolean(project.reward_amount && Number(project.reward_amount) > 0);
+
+    if (currentStatus === "pending" && newStatus === "accepted") {
+      const reviewGate = await getPendingVendorReviews(supabase, user.id);
+      if (reviewGate.error) {
+        return { success: false, error: "Rating tertunda tidak dapat diverifikasi. Coba lagi." };
+      }
+      if (reviewGate.data.length > 0) {
+        return {
+          success: false,
+          error: "Selesaikan rating project sebelumnya sebelum menerima pelamar baru.",
+        };
+      }
+    }
+
+    if (currentStatus === "submitted" && newStatus === "accepted") {
+      const revisionValidation = requestRevisionSchema.safeParse({
+        revisionNotes: revisionNotes?.trim() ?? "",
+      });
+      if (!revisionValidation.success) {
+        return {
+          success: false,
+          error: revisionValidation.error.issues[0]?.message || "Catatan revisi wajib diisi.",
+        };
+      }
+    }
+
+    // 3. Validasi transisi status melalui fungsi murni canTransition
+    const isAllowed = canTransition(currentStatus, newStatus, "vendor", {
+      hasFee,
+      revisionNotes,
+    });
+
+    if (!isAllowed) {
+      const fromLabel = getApplicationStatusLabel(currentStatus);
+      const toLabel = getApplicationStatusLabel(newStatus);
       return {
         success: false,
-        error: "Lamaran telah dibatalkan oleh talenta dan tidak dapat diubah statusnya.",
+        error: `Perubahan status dari '${fromLabel}' ke '${toLabel}' tidak diizinkan untuk peran Vendor.${
+          newStatus === "completed" && hasFee
+            ? " Proyek berbayar harus diselesaikan melalui pelunasan pembayaran."
+            : ""
+        }`,
       };
     }
 
-    // 2. Update status lamaran
-    const { error: updateAppError } = await supabase
-      .from("applications")
-      .update({ status: newStatus })
-      .eq("id", applicationId)
-      .eq("project_id", projectId);
+    const completesWithoutFee = newStatus === "approved" && !hasFee;
+    if (
+      completesWithoutFee &&
+      !canTransition("approved", "completed", "vendor", { hasFee: false })
+    ) {
+      return { success: false, error: "Hasil tidak dapat diselesaikan untuk proyek ini." };
+    }
+
+    let paymentUrl: string | undefined;
+    if (newStatus === "approved" && hasFee) {
+      const outcome = getApprovalOutcome(true);
+      if (
+        !canTransitionPayment(
+          existingApp.payment_status as PaymentStatus,
+          outcome.paymentStatus,
+          "vendor"
+        )
+      ) {
+        return {
+          success: false,
+          error: "Status pembayaran lamaran tidak valid untuk membuat tagihan.",
+        };
+      }
+
+      const charge = await createApplicationCharge({
+        applicationId,
+        amount: Number(project.reward_amount),
+        customer: {
+          id: user.id,
+          name: profile.full_name || "Vendor",
+          email: user.email || "",
+        },
+        description: `Pembayaran proyek ${project.title}`,
+      });
+      if (!charge.success) {
+        return { success: false, error: charge.error };
+      }
+      paymentUrl = charge.paymentUrl;
+    }
+
+    // 4. Siapkan payload pembaruan berdasarkan transisi
+    const nowIso = new Date().toISOString();
+    const approvalOutcome = newStatus === "approved" ? getApprovalOutcome(hasFee) : null;
+    const updatePayload: Record<string, unknown> = {
+      status: approvalOutcome?.applicationStatus ?? newStatus,
+    };
+
+    if (newStatus === "accepted") {
+      if (currentStatus === "pending") {
+        updatePayload.payment_status = getInitialPaymentStatusOnAccept(hasFee);
+      } else if (currentStatus === "submitted") {
+        // Vendor meminta revisi hasil
+        updatePayload.revision_notes = revisionNotes?.trim();
+      }
+    } else if (newStatus === "approved") {
+      updatePayload.payment_status = approvalOutcome?.paymentStatus;
+      updatePayload.approved_at = nowIso;
+      if (approvalOutcome?.applicationStatus === "completed") {
+        updatePayload.completed_at = nowIso;
+      }
+    } else if (newStatus === "completed") {
+      updatePayload.completed_at = nowIso;
+    }
+
+    // 5. Update data lamaran
+    let updateAppError =
+      newStatus === "approved" && hasFee
+        ? null
+        : await supabase
+            .from("applications")
+            .update(updatePayload)
+            .eq("id", applicationId)
+            .eq("project_id", projectId)
+            .then(({ error }) => error);
+
+    if (
+      updateAppError &&
+      (updateAppError.code === "42703" || updateAppError.message?.includes("payment_status"))
+    ) {
+      delete updatePayload.payment_status;
+      delete updatePayload.approved_at;
+      delete updatePayload.completed_at;
+      delete updatePayload.revision_notes;
+      updateAppError = await supabase
+        .from("applications")
+        .update(updatePayload)
+        .eq("id", applicationId)
+        .eq("project_id", projectId)
+        .then(({ error }) => error);
+    }
 
     if (updateAppError) {
       console.error("Error updating application status:", updateAppError);
       return { success: false, error: updateAppError.message || "Gagal mengubah status pelamar." };
     }
 
-    // 3. Aturan sederhana: Saat Accept, ubah status project menjadi 'in_progress'
-    if (newStatus === "accepted") {
+    // 5.5 Buat pesan sistem otomatis untuk alur percakapan chat
+    if (newStatus === "accepted" && currentStatus === "pending") {
+      await createChatSystemMessage(applicationId, "application_accepted");
+    } else if (newStatus === "rejected") {
+      await createChatSystemMessage(applicationId, "application_rejected");
+    } else if (newStatus === "accepted" && currentStatus === "submitted") {
+      await createChatSystemMessage(applicationId, "revision_requested", {
+        revisionNotes: revisionNotes?.trim(),
+      });
+    } else if (newStatus === "approved") {
+      await createChatSystemMessage(applicationId, "work_approved");
+      if (hasFee) {
+        await createChatSystemMessage(applicationId, "payment_awaiting");
+      }
+      if (completesWithoutFee) {
+        await createChatSystemMessage(applicationId, "application_completed");
+      }
+    } else if (newStatus === "completed" || updatePayload.status === "completed") {
+      await createChatSystemMessage(applicationId, "application_completed");
+    }
+
+    // 6. Sinkronisasi status proyek
+    if (newStatus === "accepted" && currentStatus === "pending") {
       await supabase
         .from("projects")
         .update({ status: "in_progress" })
+        .eq("id", projectId)
+        .eq("vendor_id", user.id);
+    } else if (
+      updatePayload.status === "completed"
+    ) {
+      await supabase
+        .from("projects")
+        .update({ status: "completed" })
         .eq("id", projectId)
         .eq("vendor_id", user.id);
     }
@@ -600,7 +883,12 @@ export async function updateApplicantStatus(
     revalidatePath("/talent/applications");
     revalidatePath(`/talent/projects/${projectId}`);
 
-    return { success: true, error: null };
+    return {
+      success: true,
+      error: null,
+      paymentUrl,
+      applicationStatus: updatePayload.status as ApplicationStatus,
+    };
   } catch (err: unknown) {
     console.error("Error updating applicant status:", err);
     return {
@@ -608,6 +896,81 @@ export async function updateApplicantStatus(
       error: err instanceof Error ? err.message : "Terjadi kesalahan saat memproses status pelamar.",
     };
   }
+}
+
+export async function createApplicationPaymentCharge(
+  applicationId: string,
+  projectId: string
+): Promise<{ success: boolean; error: string | null; paymentUrl?: string }> {
+  const appValidation = uuidSchema.safeParse(applicationId);
+  const projectValidation = uuidSchema.safeParse(projectId);
+  if (!appValidation.success || !projectValidation.success) {
+    return { success: false, error: "ID lamaran atau proyek tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { success: false, error: "Kamu harus login untuk membuat tagihan." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!profile || profile.role !== "vendor") {
+    return { success: false, error: "Hanya vendor yang dapat membuat tagihan." };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, vendor_id, title, reward_amount, payment_enabled")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (projectError || !project || project.vendor_id !== user.id) {
+    return { success: false, error: "Proyek tidak ditemukan atau bukan milikmu." };
+  }
+
+  const { data: application, error: applicationError } = await supabase
+    .from("applications")
+    .select("id, project_id, status, payment_status")
+    .eq("id", applicationId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (applicationError || !application) {
+    return { success: false, error: "Lamaran tidak ditemukan." };
+  }
+  if (
+    application.status !== "approved" ||
+    application.payment_status !== "awaiting_payment" ||
+    !project.payment_enabled ||
+    !project.reward_amount ||
+    Number(project.reward_amount) <= 0
+  ) {
+    return { success: false, error: "Lamaran ini belum menunggu pembayaran." };
+  }
+
+  const charge = await createApplicationCharge({
+    applicationId,
+    amount: Number(project.reward_amount),
+    customer: {
+      id: user.id,
+      name: profile.full_name || "Vendor",
+      email: user.email || "",
+    },
+    description: `Pembayaran proyek ${project.title}`,
+  });
+  if (!charge.success) return { success: false, error: charge.error };
+
+  // Buat pesan sistem otomatis untuk tagihan pembayaran
+  await createChatSystemMessage(applicationId, "payment_awaiting");
+
+  revalidatePath(`/vendor/projects/${projectId}/applicants`);
+  return { success: true, error: null, paymentUrl: charge.paymentUrl };
 }
 
 /**

@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   TrendingUp,
   Clock,
-  Star,
   Award,
   BookOpen,
   Info,
@@ -98,22 +97,9 @@ export function MatchBreakdownPanel({
             <Progress value={breakdown.availability} className="h-2 bg-sky-100" />
           </div>
 
-          {/* Rating Score */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                <Star className="h-3.5 w-3.5 text-amber-500" />
-                <span>Rekam Jejak & Ulasan (15%)</span>
-              </span>
-              <span className="font-bold text-[#0F172A]">{breakdown.rating}%</span>
-            </div>
-            <Progress value={breakdown.rating} className="h-2 bg-sky-100" />
-            {breakdown.rating === 60 && (
-              <span className="text-3xs block pt-0.5 text-slate-500">
-                *Skor awal netral 60% diterapkan untuk profil talenta baru.
-              </span>
-            )}
-          </div>
+          <p className="text-3xs text-slate-500">
+            Rekam jejak (15%) tetap dihitung dalam skor total. Detail rating ditampilkan kepada vendor.
+          </p>
         </div>
 
         {/* Component 2: Matched Skills */}

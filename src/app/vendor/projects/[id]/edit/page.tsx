@@ -80,12 +80,23 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
     mode: project.mode,
     durationWeeks: project.duration_weeks,
     hoursPerWeek: project.hours_per_week,
+    paymentEnabled: project.payment_enabled ?? false,
     rewardAmount: project.reward_amount,
     rewardNote: project.reward_note,
+    portfolioRequired: project.portfolio_required ?? false,
     deadline: project.deadline,
     status: project.status,
     skills: formattedSkills,
   };
+
+  // Check if any accepted applicant exists — fee lock guard
+  const supabaseCheck = await createClient();
+  const { count: acceptedCount } = await supabaseCheck
+    .from("applications")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", id)
+    .in("status", ["accepted", "submitted", "approved", "completed"]);
+  const hasAcceptedApplicants = (acceptedCount ?? 0) > 0;
 
   const handleUpdate = async (inputData: Parameters<typeof updateProject>[1]) => {
     "use server";
@@ -118,6 +129,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
             masterSkills={masterSkills}
             onSubmit={handleUpdate}
             isEdit={true}
+            hasAcceptedApplicants={hasAcceptedApplicants}
           />
         </div>
       </main>

@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 
 interface ApplicantsPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ reviewApplication?: string }>;
 }
 
 export async function generateMetadata({ params }: ApplicantsPageProps): Promise<Metadata> {
@@ -22,8 +23,9 @@ export async function generateMetadata({ params }: ApplicantsPageProps): Promise
   };
 }
 
-export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
+export default async function ApplicantsPage({ params, searchParams }: ApplicantsPageProps) {
   const { id } = await params;
+  const { reviewApplication } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -103,12 +105,14 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
               </p>
             </div>
 
-            <Link href={`/vendor/projects/${id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                <Edit3 className="h-3.5 w-3.5" />
-                <span>Edit Proyek</span>
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href={`/vendor/projects/${id}/edit`}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Edit Proyek</span>
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Interactive Applicants Manager */}
@@ -117,6 +121,7 @@ export default async function ApplicantsPage({ params }: ApplicantsPageProps) {
             projectTitle={project.title}
             projectStatus={project.status}
             initialApplicants={applicants}
+            initialReviewApplicationId={reviewApplication}
           />
         </div>
       </main>

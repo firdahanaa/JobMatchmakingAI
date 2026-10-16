@@ -116,6 +116,7 @@ export default function OnboardingPage({ isProfilePage = false }: { isProfilePag
         }
 
         const res = await saveTalentOnboarding({
+          fullName: fullName.trim() || undefined,
           headline: headline.trim(),
           education: education.trim(),
           location: location.trim(),
@@ -220,6 +221,24 @@ export default function OnboardingPage({ isProfilePage = false }: { isProfilePag
           <form onSubmit={handleSubmit} className="space-y-6">
             {role === "talent" ? (
               <>
+                <FormItem>
+                  <Label htmlFor="fullName">
+                    Nama Lengkap <span className="text-rose-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="fullName"
+                      placeholder="mis. Aditya Pratama"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-[#8a7668]">
+                    Nama asli yang akan terlihat oleh vendor pada lamaran dan pesan.
+                  </p>
+                </FormItem>
+
                 <FormItem>
                   <Label htmlFor="headline">
                     Headline Profesional <span className="text-rose-500">*</span>

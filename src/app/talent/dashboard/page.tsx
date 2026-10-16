@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BookOpen,
   Building2,
-  ChevronRight,
   Briefcase,
   FolderCheck,
   Star,
@@ -17,19 +16,15 @@ import {
   CheckCircle2,
   Award,
   Clock,
-  Target,
   Flame,
-  BarChart3,
-  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { StarRating } from "@/components/ui/star-rating";
+import { RatingDisplay } from "@/components/ui/rating-display";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
 import { getTalentProjects } from "@/app/talent/projects/actions";
 import { createClient } from "@/lib/supabase/server";
-import { Navbar } from "@/components/navbar";
 import { FuturisticHeroDashboard } from "@/components/futuristic-hero";
-import { AILiveTicker, ProjectFilterBar } from "@/components/talent/interactive-dashboard-widgets";
 
 export const metadata: Metadata = {
   title: "Dashboard Talenta",
@@ -156,13 +151,16 @@ export default async function TalentDashboardPage() {
   // 7. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
   // Menghitung seberapa sering tiap skill yang kurang muncul pada seluruh proyek terbuka
   const missingSkillFrequency: Record<string, { count: number; name: string }> = {};
-  for (const proj of projects) {
-    if (proj.matchResult?.missingSkills) {
-      for (const missingName of proj.matchResult.missingSkills) {
-        if (!missingSkillFrequency[missingName]) {
-          missingSkillFrequency[missingName] = { count: 0, name: missingName };
+  if (SHOW_MATCH_TO_TALENT) {
+    for (const proj of projects) {
+      const matchResult = "matchResult" in proj ? proj.matchResult : undefined;
+      if (matchResult?.missingSkills) {
+        for (const missingName of matchResult.missingSkills) {
+          if (!missingSkillFrequency[missingName]) {
+            missingSkillFrequency[missingName] = { count: 0, name: missingName };
+          }
+          missingSkillFrequency[missingName].count += 1;
         }
-        missingSkillFrequency[missingName].count += 1;
       }
     }
   }
@@ -180,7 +178,6 @@ export default async function TalentDashboardPage() {
       ? `Rp ${recommendedProjects[0].rewardAmount?.toLocaleString("id-ID")}`
       : "Sertifikat & Portofolio",
     duration: `${recommendedProjects[0].durationWeeks || 4} Minggu (${recommendedProjects[0].hoursPerWeek || 15} jam/mgg)`,
-    matchScore: recommendedProjects[0].matchResult?.score || 92,
     description: recommendedProjects[0].description,
     workMode: recommendedProjects[0].mode,
   } : null;
@@ -196,7 +193,6 @@ export default async function TalentDashboardPage() {
             stats={{
               totalProjects: projects.length || 1240,
               activeApplications: activeApplicationsCount,
-              avgMatch: 94,
             }}
           />
         </div>
@@ -222,7 +218,7 @@ export default async function TalentDashboardPage() {
                   <span className="text-slate-600">•</span>
                   <span className="inline-flex items-center gap-1.5">
                     <Flame className="h-3.5 w-3.5 text-sky-300" />
-                    <span className="text-sky-200">Match Puncak:</span> 95% Cocok untuk Profilmu
+                    Rekomendasi untuk {talentName} diperbarui berdasarkan keahlianmu
                   </span>
                   <span className="text-slate-600">•</span>
                   <span className="hidden sm:inline-flex items-center gap-1.5">
@@ -317,18 +313,7 @@ export default async function TalentDashboardPage() {
                   </div>
                 </div>
                 <div className="relative z-10 mt-5">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-black text-[#0F172A] tracking-tight tabular-nums">
-                      {avgRating !== null ? avgRating.toFixed(1) : "5.0"}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-500 mb-1">/ 5.0</span>
-                  </div>
-                  <div className="mt-2">
-                    <StarRating value={avgRating ?? 5.0} readOnly size="sm" />
-                  </div>
-                </div>
-                <div className="relative z-10 mt-3 text-xs text-slate-500">
-                  {avgRating !== null ? `${reviewCount} ulasan vendor` : "Cold-start 60% profil baru"}
+                  <RatingDisplay rating={avgRating} reviewCount={reviewCount} size="md" />
                 </div>
               </div>
             </div>
@@ -344,7 +329,7 @@ export default async function TalentDashboardPage() {
                     <div>
                       <h3 className="text-base font-extrabold text-[#0F172A]">Profil Keahlian Belum Diisi</h3>
                       <p className="text-xs text-[#0F172A]/70 mt-1 leading-relaxed max-w-xl">
-                        Lengkapi keahlianmu di halaman profil agar AI dapat memberikan rekomendasi proyek dengan Match Score yang akurat.
+                        Lengkapi keahlianmu di halaman profil agar AI dapat memberikan rekomendasi proyek yang paling relevan.
                       </p>
                     </div>
                   </div>
@@ -376,10 +361,10 @@ export default async function TalentDashboardPage() {
                         <div className="flex items-center gap-2.5">
                           <h2 className="text-lg font-black text-[#0F172A] tracking-tight">Recommended for You</h2>
                           <span className="rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-0.5 text-3xs font-extrabold text-white shadow-sm">
-                            Top 5 Match
+                            Top 5
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">Proyek AI dengan kecocokan tertinggi</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Proyek AI yang paling relevan untukmu</p>
                       </div>
                     </div>
                     <Link href="/talent/projects">
@@ -436,11 +421,7 @@ export default async function TalentDashboardPage() {
                                     {project.skills.slice(0, 3).map((s) => (
                                       <span
                                         key={s.skillId}
-                                        className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                                          s.talentStatus.isAdequate
-                                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                                            : "bg-sky-50/60 border-sky-100 text-slate-600"
-                                        }`}
+                                        className="rounded-full border border-sky-100 bg-sky-50/60 px-3 py-1 text-xs font-bold text-slate-600"
                                       >
                                         {s.name}
                                       </span>
@@ -451,9 +432,8 @@ export default async function TalentDashboardPage() {
                                   </div>
                                 </div>
 
-                                {/* Match score + arrow */}
+                                {/* Project navigation */}
                                 <div className="flex items-center justify-between md:flex-col md:items-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#F7ECEA] shrink-0">
-                                  <MatchScoreBadge score={project.matchResult.score} size="lg" />
                                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 group-hover:bg-sky-700 text-sky-800 group-hover:text-white shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:rotate-45">
                                     <ArrowRight className="h-5 w-5" />
                                   </div>
@@ -638,7 +618,7 @@ export default async function TalentDashboardPage() {
                   </div>
                 </div>
 
-                {/* ── SKILL GAP ── */}
+                {SHOW_MATCH_TO_TALENT && (
                 <div className="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-md">
                   {/* Glass header */}
                   <div className="relative overflow-hidden bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] p-5 border-b border-sky-100">
@@ -709,6 +689,7 @@ export default async function TalentDashboardPage() {
                     )}
                   </div>
                 </div>
+                )}
               </div>
             </div>
           </div>

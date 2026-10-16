@@ -6,6 +6,12 @@ export const portfolioUrlSchema = z
   .url('Format URL tidak valid (harus diawali http:// atau https://)');
 
 export const talentProfileUpdateSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, 'Nama lengkap minimal 2 karakter')
+    .max(100, 'Nama lengkap maksimal 100 karakter')
+    .optional(),
   headline: z
     .string()
     .trim()

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import {
   Sparkles,
@@ -29,7 +30,7 @@ export default async function VendorDashboardPage() {
     redirect("/login");
   }
 
-  const { data: projects, user, error } = await getVendorProjects();
+  const { data: projects, user, error, pendingReviews } = await getVendorProjects();
 
   const totalOpen = projects.filter((p) => p.status === "open").length;
   const totalCompleted = projects.filter((p) => p.status === "completed").length;
@@ -129,6 +130,35 @@ export default async function VendorDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {pendingReviews.length > 0 && (
+            <section
+              role="alert"
+              aria-labelledby="pending-vendor-reviews-title"
+              className="rounded-2xl border border-amber-300 bg-amber-50 p-5 sm:p-6"
+            >
+              <div className="space-y-1">
+                <h2 id="pending-vendor-reviews-title" className="text-base font-bold text-amber-950">
+                  Rating proyek tertunda ({pendingReviews.length})
+                </h2>
+                <p className="text-sm text-amber-900">
+                  Beri rating untuk talent pada project yang sudah selesai. Rating diperlukan sebelum project dan sertifikat dapat ditutup.
+                </p>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {pendingReviews.map((review) => (
+                  <li key={review.applicationId}>
+                    <Link
+                      href={`/vendor/projects/${review.projectId}/applicants?reviewApplication=${encodeURIComponent(review.applicationId)}`}
+                      className="inline-flex min-h-10 items-center font-semibold text-amber-950 underline decoration-amber-500 underline-offset-2 hover:text-amber-700"
+                    >
+                      Beri rating {review.talentName} · {review.projectTitle}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Error Banner if any */}
           {error && (

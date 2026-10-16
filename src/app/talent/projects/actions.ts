@@ -1,7 +1,18 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
+import {
+  type ProjectForTalent,
+  sanitizeProjectForTalent,
+} from "@/lib/talent-project-utils";
 import { calculateMatch } from "@/lib/matching";
+import {
+  buildProjectTextDocument,
+  buildTalentTextDocument,
+  combineRecommendationScores,
+  rankDocumentsBySimilarity,
+} from "@/lib/matching";
 import { SKILL_LEVEL_NUMERIC } from "@/lib/matching/types";
 import { uuidSchema } from "@/lib/validators/project";
 import type {
@@ -28,6 +39,8 @@ export interface ProjectWithMatch {
   mode: WorkMode;
   durationWeeks: number | null;
   hoursPerWeek: number | null;
+  paymentEnabled: boolean;
+  portfolioRequired: boolean;
   rewardAmount: number | null;
   rewardNote: string | null;
   deadline: string | null;
@@ -53,7 +66,11 @@ export interface ProjectWithMatch {
     };
   }[];
   matchResult: MatchResult;
+  textSimilarityScore?: number;
+  recommendationScore?: number;
 }
+
+export type { ProjectForTalent };
 
 export interface TalentProjectsFilter {
   q?: string;
@@ -64,7 +81,7 @@ export interface TalentProjectsFilter {
 }
 
 export interface GetTalentProjectsResult {
-  projects: ProjectWithMatch[];
+  projects: (ProjectWithMatch | ProjectForTalent)[];
   totalOpenProjects: number;
   hasConfiguredSkills: boolean;
   talentAvailable: boolean;
@@ -97,6 +114,8 @@ type RawProject = {
   mode: WorkMode;
   duration_weeks: number | null;
   hours_per_week: number | null;
+  payment_enabled: boolean;
+  portfolio_required: boolean;
   reward_amount: number | null;
   reward_note: string | null;
   deadline: string | null;
@@ -135,7 +154,7 @@ export async function getTalentMatchingContext(): Promise<{
     const [profileRes, skillsRes, ratingRes] = await Promise.all([
       supabase
         .from("talent_profiles")
-        .select("hours_per_week, preferred_mode, is_available")
+        .select("headline, bio, hours_per_week, preferred_mode, is_available")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -171,6 +190,8 @@ export async function getTalentMatchingContext(): Promise<{
 
     const talentContext: TalentContext = {
       skills: matchingSkills,
+      headline: talentProfile?.headline ?? null,
+      bio: talentProfile?.bio ?? null,
       hoursPerWeek: talentProfile?.hours_per_week ?? null,
       preferredMode: (talentProfile?.preferred_mode as WorkMode) ?? null,
       isAvailable: talentProfile?.is_available ?? true,
@@ -230,6 +251,8 @@ export async function getTalentProjects(
         mode,
         duration_weeks,
         hours_per_week,
+        payment_enabled,
+        portfolio_required,
         reward_amount,
         reward_note,
         deadline,
@@ -256,15 +279,81 @@ export async function getTalentProjects(
       `)
       .eq("status", "open");
 
+    let rawProjectsData: unknown = rawProjects;
+
     if (projectsError) {
-      console.error("Error fetching projects for talent:", projectsError);
-      return {
-        projects: [],
-        totalOpenProjects: 0,
-        hasConfiguredSkills,
-        talentAvailable: talentContext.isAvailable,
-        error: "Gagal memuat daftar proyek dari database.",
-      };
+      const isMissingColumn =
+        projectsError.code === "42703" ||
+        projectsError.message?.includes("payment_enabled") ||
+        projectsError.message?.includes("portfolio_required") ||
+        projectsError.message?.includes("column");
+
+      if (isMissingColumn) {
+        // Fallback kompatibilitas jika migrasi 002 belum dijalankan pada tabel projects
+        const fallbackRes = await supabase
+          .from("projects")
+          .select(`
+            id,
+            vendor_id,
+            title,
+            description,
+            difficulty,
+            type,
+            mode,
+            duration_weeks,
+            hours_per_week,
+            reward_amount,
+            reward_note,
+            deadline,
+            status,
+            created_at,
+            vendor_profiles:vendor_id (
+              user_id,
+              organization_name,
+              description,
+              website,
+              location
+            ),
+            project_skills (
+              project_id,
+              skill_id,
+              min_level,
+              is_required,
+              skills (
+                id,
+                name,
+                category
+              )
+            )
+          `)
+          .eq("status", "open");
+
+        if (!fallbackRes.error && fallbackRes.data) {
+          rawProjectsData = fallbackRes.data.map((p) => ({
+            ...p,
+            payment_enabled: (p.reward_amount || 0) > 0 || p.difficulty === "advanced",
+            portfolio_required: false,
+          })) as unknown as RawProject[];
+        } else {
+          console.error("Error fetching projects for talent:", fallbackRes.error || projectsError);
+          return {
+            projects: [],
+            totalOpenProjects: 0,
+            hasConfiguredSkills,
+            talentAvailable: talentContext.isAvailable,
+            error: "Gagal memuat daftar proyek dari database.",
+          };
+        }
+      } else {
+        console.error("Error fetching projects for talent:", projectsError);
+        return {
+          projects: [],
+          totalOpenProjects: 0,
+          hasConfiguredSkills,
+          talentAvailable: talentContext.isAvailable,
+          error: "Gagal memuat daftar proyek dari database.",
+        };
+      }
     }
 
     // Lookup map talent skills for fast per-skill match indicator
@@ -274,8 +363,25 @@ export async function getTalentProjects(
       talentSkillsMap.set(ts.name.toLowerCase().trim(), ts);
     }
 
-    const projectsList = (rawProjects || []) as unknown as RawProject[];
+    const projectsList = (rawProjectsData || []) as unknown as RawProject[];
     const totalOpenProjects = projectsList.length;
+    const talentDocument = buildTalentTextDocument(talentContext);
+    const similarityByProjectId = new Map(
+      rankDocumentsBySimilarity(
+        talentDocument,
+        projectsList.map((project) => ({
+          id: project.id,
+          text: buildProjectTextDocument({
+            title: project.title,
+            description: project.description,
+            skills: (project.project_skills || []).map((skill) => {
+              const skillObject = Array.isArray(skill.skills) ? skill.skills[0] : skill.skills;
+              return { name: skillObject?.name || `Skill #${skill.skill_id}` };
+            }),
+          }),
+        }))
+      ).map(({ id, similarity }) => [id, similarity])
+    );
 
     // Hitung calculateMatch untuk tiap proyek
     const mappedProjects: ProjectWithMatch[] = projectsList.map((p) => {
@@ -302,6 +408,7 @@ export async function getTalentProjects(
       };
 
       const matchResult = calculateMatch(talentContext, projectContext);
+      const textSimilarity = similarityByProjectId.get(p.id) ?? 0;
 
       // Detail skill proyek dengan indikator kepemilikan talent
       const enrichedSkills = pSkills.map((ps) => {
@@ -340,6 +447,8 @@ export async function getTalentProjects(
         mode: p.mode,
         durationWeeks: p.duration_weeks,
         hoursPerWeek: p.hours_per_week,
+        paymentEnabled: p.payment_enabled,
+        portfolioRequired: p.portfolio_required,
         rewardAmount: p.reward_amount,
         rewardNote: p.reward_note,
         deadline: p.deadline,
@@ -356,6 +465,8 @@ export async function getTalentProjects(
           : null,
         skills: enrichedSkills,
         matchResult,
+        textSimilarityScore: Math.round(textSimilarity * 100),
+        recommendationScore: combineRecommendationScores(matchResult.score, textSimilarity),
       };
     });
 
@@ -400,15 +511,22 @@ export async function getTalentProjects(
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       }
       // default: "match" (Match Score Tertinggi)
-      if (b.matchResult.score !== a.matchResult.score) {
-        return b.matchResult.score - a.matchResult.score;
+      const scoreDifference =
+        (b.recommendationScore ?? b.matchResult.score) -
+        (a.recommendationScore ?? a.matchResult.score);
+      if (scoreDifference !== 0) {
+        return scoreDifference;
       }
       // Jika skor sama, dahulukan yang lebih baru dibuat
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
+    const sanitizedProjects = SHOW_MATCH_TO_TALENT
+      ? filtered
+      : filtered.map(sanitizeProjectForTalent);
+
     return {
-      projects: filtered,
+      projects: sanitizedProjects,
       totalOpenProjects,
       hasConfiguredSkills,
       talentAvailable: talentContext.isAvailable,
@@ -430,7 +548,7 @@ export async function getTalentProjects(
  * Fetch a single project detail with full matching breakdown for talent
  */
 export async function getTalentProjectDetail(projectId: string): Promise<{
-  project: ProjectWithMatch | null;
+  project: ProjectWithMatch | ProjectForTalent | null;
   error: string | null;
 }> {
   try {
@@ -460,6 +578,8 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
         mode,
         duration_weeks,
         hours_per_week,
+        payment_enabled,
+        portfolio_required,
         reward_amount,
         reward_note,
         deadline,
@@ -487,11 +607,76 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       .eq("id", projectId)
       .maybeSingle();
 
-    if (projectError || !rawProject) {
+    let rawProjectData: unknown = rawProject;
+
+    if (projectError) {
+      const isMissingColumn =
+        projectError.code === "42703" ||
+        projectError.message?.includes("payment_enabled") ||
+        projectError.message?.includes("portfolio_required") ||
+        projectError.message?.includes("column");
+
+      if (isMissingColumn) {
+        const fallbackRes = await supabase
+          .from("projects")
+          .select(`
+            id,
+            vendor_id,
+            title,
+            description,
+            difficulty,
+            type,
+            mode,
+            duration_weeks,
+            hours_per_week,
+            reward_amount,
+            reward_note,
+            deadline,
+            status,
+            created_at,
+            vendor_profiles:vendor_id (
+              user_id,
+              organization_name,
+              description,
+              website,
+              location
+            ),
+            project_skills (
+              project_id,
+              skill_id,
+              min_level,
+              is_required,
+              skills (
+                id,
+                name,
+                category
+              )
+            )
+          `)
+          .eq("id", projectId)
+          .maybeSingle();
+
+        if (fallbackRes.data) {
+          rawProjectData = {
+            ...fallbackRes.data,
+            payment_enabled:
+              (fallbackRes.data.reward_amount || 0) > 0 ||
+              fallbackRes.data.difficulty === "advanced",
+            portfolio_required: false,
+          } as unknown as RawProject;
+        } else {
+          return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+        }
+      } else {
+        return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+      }
+    }
+
+    if (!rawProjectData) {
       return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
     }
 
-    const p = rawProject as unknown as RawProject;
+    const p = rawProjectData as unknown as RawProject;
 
     const vendorObj = Array.isArray(p.vendor_profiles)
       ? p.vendor_profiles[0]
@@ -559,6 +744,8 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       mode: p.mode,
       durationWeeks: p.duration_weeks,
       hoursPerWeek: p.hours_per_week,
+      paymentEnabled: p.payment_enabled,
+      portfolioRequired: p.portfolio_required,
       rewardAmount: p.reward_amount,
       rewardNote: p.reward_note,
       deadline: p.deadline,
@@ -577,7 +764,11 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       matchResult,
     };
 
-    return { project: projectWithMatch, error: null };
+    const finalProject = SHOW_MATCH_TO_TALENT
+      ? projectWithMatch
+      : sanitizeProjectForTalent(projectWithMatch);
+
+    return { project: finalProject, error: null };
   } catch (err: unknown) {
     console.error("Error in getTalentProjectDetail:", err);
     return {

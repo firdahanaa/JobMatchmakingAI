@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertCircle,
@@ -64,6 +65,9 @@ export default async function TalentApplicationsPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-sky-100 pt-5">
                 <TalentPageNavigation activePage="applications" />
+                <Link href="/help" className="inline-flex min-h-10 items-center rounded-lg border border-sky-200 px-3 text-xs font-semibold text-sky-800 hover:bg-sky-50">
+                  Laporkan kendala
+                </Link>
               </div>
             </div>
           </div>

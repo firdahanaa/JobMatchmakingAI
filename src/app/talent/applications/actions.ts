@@ -2,11 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { applyApplicationSchema, uuidSchema } from "@/lib/validators/application";
+import {
+  applicationAttachmentsSchema,
+  applyApplicationSchema,
+  MAX_APPLICATION_PDF_BYTES,
+  submitWorkDocumentationSchema,
+  uuidSchema,
+} from "@/lib/validators/application";
+import {
+  canTransition,
+  getApplicationStatusLabel,
+} from "@/lib/workflow/transitions";
+import { createChatSystemMessage } from "@/lib/chat/system-messages";
 import { calculateMatch } from "@/lib/matching";
 import { getTalentMatchingContext } from "@/app/talent/projects/actions";
 import type { ProjectContext, ProjectSkill, SkillLevel } from "@/lib/matching/types";
-import type { ApplicationStatus, ProjectDifficulty, ProjectType, WorkMode } from "@/types/database";
+import type {
+  ApplicationStatus,
+  PaymentStatus,
+  ProjectDifficulty,
+  ProjectType,
+  WorkMode,
+} from "@/types/database";
 
 export interface TalentApplicationItem {
   id: string;
@@ -20,11 +37,84 @@ export interface TalentApplicationItem {
   rewardNote: string | null;
   durationWeeks: number | null;
   projectStatus: string;
-  matchScore: number | null;
   status: ApplicationStatus;
+  paymentStatus: PaymentStatus;
+  cvPath: string | null;
+  portfolioPath: string | null;
+  relatedLinks: string[];
+  submissionUrl: string | null;
+  submissionLinks: string[];
+  submissionNotes: string | null;
+  revisionNotes: string | null;
+  hasReview: boolean;
   message: string | null;
   contactEmail: string | null;
   createdAt: string;
+}
+
+export type ApplicationDocumentKind = "cv" | "portfolio";
+
+async function hasPdfSignature(file: File): Promise<boolean> {
+  if (file.size > MAX_APPLICATION_PDF_BYTES) return false;
+  const signature = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  return String.fromCharCode(...signature) === "%PDF-";
+}
+
+export async function createApplicationDocumentSignedUrl(
+  applicationId: string,
+  documentKind: ApplicationDocumentKind
+): Promise<{ signedUrl: string | null; error: string | null }> {
+  if (documentKind !== "cv" && documentKind !== "portfolio") {
+    return { signedUrl: null, error: "Jenis dokumen tidak valid." };
+  }
+
+  const idValidation = uuidSchema.safeParse(applicationId);
+  if (!idValidation.success) {
+    return { signedUrl: null, error: "ID lamaran tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { signedUrl: null, error: "Silakan login untuk mengunduh dokumen." };
+  }
+
+  const { data: application, error: applicationError } = await supabase
+    .from("applications")
+    .select("id, talent_id, cv_path, portfolio_path, projects(vendor_id)")
+    .eq("id", applicationId)
+    .maybeSingle();
+
+  if (applicationError || !application) {
+    return { signedUrl: null, error: "Lamaran tidak ditemukan atau tidak dapat diakses." };
+  }
+
+  const project = Array.isArray(application.projects)
+    ? application.projects[0]
+    : application.projects;
+  if (application.talent_id !== user.id && project?.vendor_id !== user.id) {
+    return { signedUrl: null, error: "Kamu tidak memiliki akses ke dokumen ini." };
+  }
+
+  const path = documentKind === "cv" ? application.cv_path : application.portfolio_path;
+  const expectedFileName = documentKind === "cv" ? "cv.pdf" : "portfolio.pdf";
+  if (path !== `${application.talent_id}/${application.id}/${expectedFileName}`) {
+    return { signedUrl: null, error: "Dokumen tidak tersedia." };
+  }
+
+  const { data, error } = await supabase.storage
+    .from("application-docs")
+    .createSignedUrl(path, 300, { download: true });
+
+  if (error || !data) {
+    return { signedUrl: null, error: "Gagal membuat tautan unduhan sementara." };
+  }
+
+  return { signedUrl: data.signedUrl, error: null };
 }
 
 /**
@@ -32,7 +122,7 @@ export interface TalentApplicationItem {
  */
 export async function applyToProject(
   projectId: string,
-  rawMessage?: string
+  formData: FormData
 ): Promise<{ success: boolean; error: string | null; applicationId?: string }> {
   try {
     const supabase = await createClient();
@@ -66,7 +156,15 @@ export async function applyToProject(
     }
 
     // 1. Validasi pesan lamaran (maks 500 karakter)
-    const parseResult = applyApplicationSchema.safeParse({ message: rawMessage });
+    let relatedLinks: unknown;
+    try {
+      relatedLinks = JSON.parse(String(formData.get("relatedLinks") ?? "[]"));
+    } catch {
+      return { success: false, error: "Daftar link terkait tidak valid." };
+    }
+
+    const rawMessage = String(formData.get("message") ?? "");
+    const parseResult = applyApplicationSchema.safeParse({ message: rawMessage, relatedLinks });
     if (!parseResult.success) {
       return {
         success: false,
@@ -75,12 +173,47 @@ export async function applyToProject(
     }
     const cleanMessage = (parseResult.data.message || "").trim();
 
+    const cvFile = formData.get("cv");
+    const portfolioEntry = formData.get("portfolio");
+    const portfolioFile = portfolioEntry instanceof File ? portfolioEntry : null;
+    const attachments = applicationAttachmentsSchema.safeParse({
+      cv: cvFile,
+      portfolio: portfolioFile,
+    });
+    if (!attachments.success) {
+      return {
+        success: false,
+        error: attachments.error.issues[0]?.message || "Periksa kembali lampiran PDF.",
+      };
+    }
+    if (!(await hasPdfSignature(attachments.data.cv))) {
+      return { success: false, error: "Isi file CV tidak terdeteksi sebagai PDF yang valid." };
+    }
+    if (attachments.data.portfolio && !(await hasPdfSignature(attachments.data.portfolio))) {
+      return { success: false, error: "Isi file portofolio tidak terdeteksi sebagai PDF yang valid." };
+    }
+
     // 2. Periksa status proyek (harus 'open')
-    const { data: project, error: projectError } = await supabase
+    let { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, title, status, hours_per_week, mode, vendor_id")
+      .select("id, title, status, hours_per_week, mode, vendor_id, portfolio_required")
       .eq("id", projectId)
       .maybeSingle();
+
+    if (
+      projectError &&
+      (projectError.code === "42703" || projectError.message?.includes("portfolio_required"))
+    ) {
+      const fb = await supabase
+        .from("projects")
+        .select("id, title, status, hours_per_week, mode, vendor_id")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (fb.data) {
+        project = { ...fb.data, portfolio_required: false };
+        projectError = null;
+      }
+    }
 
     if (projectError || !project) {
       return { success: false, error: "Proyek tidak ditemukan." };
@@ -93,6 +226,10 @@ export async function applyToProject(
       };
     }
 
+    if (project.portfolio_required && !attachments.data.portfolio) {
+      return { success: false, error: "Proyek ini mewajibkan dokumen portofolio PDF." };
+    }
+
     // Cegah vendor melamar ke proyeknya sendiri
     if (project.vendor_id === user.id) {
       return {
@@ -101,23 +238,88 @@ export async function applyToProject(
       };
     }
 
+    // Pastikan profiles.full_name tersinkronisasi jika masih bernilai kosong atau default
+    const metaFullName = (user.user_metadata?.full_name || "").trim();
+    if (metaFullName && metaFullName.toLowerCase() !== "talenta" && metaFullName.toLowerCase() !== "talent") {
+      const { data: curProf } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        !curProf?.full_name ||
+        curProf.full_name.trim() === "" ||
+        ["talenta", "talent", "pengguna"].includes(curProf.full_name.trim().toLowerCase())
+      ) {
+        await supabase
+          .from("profiles")
+          .update({ full_name: metaFullName })
+          .eq("id", user.id);
+      }
+    }
+
     // 3. Periksa apakah sudah pernah melamar (cegah apply ganda)
-    const { data: existingApp, error: existingAppError } = await supabase
+    let { data: existingApp, error: existingAppError } = await supabase
       .from("applications")
-      .select("id, status")
+      .select("id, status, message, match_score, related_links, created_at, cv_path, portfolio_path")
       .eq("project_id", projectId)
       .eq("talent_id", user.id)
       .maybeSingle();
+
+    if (
+      existingAppError &&
+      (existingAppError.code === "42703" ||
+        existingAppError.message?.includes("related_links") ||
+        existingAppError.message?.includes("cv_path"))
+    ) {
+      const fb = await supabase
+        .from("applications")
+        .select("id, status, message, match_score, created_at")
+        .eq("project_id", projectId)
+        .eq("talent_id", user.id)
+        .maybeSingle();
+      if (!fb.error) {
+        existingApp = fb.data
+          ? ({
+              ...fb.data,
+              related_links: [],
+              cv_path: null,
+              portfolio_path: null,
+            } as unknown as typeof existingApp)
+          : null;
+        existingAppError = null;
+      }
+    }
 
     if (existingAppError && existingAppError.code !== "PGRST116") {
       console.error("Error checking existing application:", existingAppError);
     }
 
     if (existingApp && existingApp.status !== "withdrawn") {
-      return {
-        success: false,
-        error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
-      };
+      // Jika lamaran sebelumnya berstatus pending tapi belum memiliki lampiran berkas (misal upload gagal)
+      // Otomatis ubah status ke 'withdrawn' agar talent dapat mencoba melamar kembali tanpa terblokir
+      if (!existingApp.cv_path) {
+        const { error: autoWithdrawError } = await supabase
+          .from("applications")
+          .update({ status: "withdrawn" })
+          .eq("id", existingApp.id)
+          .eq("talent_id", user.id);
+
+        if (!autoWithdrawError) {
+          existingApp.status = "withdrawn";
+        } else {
+          return {
+            success: false,
+            error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: "Kamu sudah pernah melamar ke proyek ini. Periksa status lamaranmu di halaman 'Lamaran Saya'.",
+        };
+      }
     }
 
     // 4. Hitung Match Score di server (bukan dari client)
@@ -175,36 +377,71 @@ export async function applyToProject(
 
     if (existingApp && existingApp.status === "withdrawn") {
       // Re-apply: update existing withdrawn record to pending
-      const { data: updatedApp, error: updateError } = await supabase
+      const updatePayload: Record<string, unknown> = {
+        message: finalStoredMessage,
+        match_score: serverMatchScore,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        related_links: parseResult.data.relatedLinks,
+      };
+
+      let { data: updatedApp, error: updateError } = await supabase
         .from("applications")
-        .update({
-          message: finalStoredMessage,
-          match_score: serverMatchScore,
-          status: "pending",
-          created_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", existingApp.id)
         .select("id")
         .single();
+
+      if (
+        updateError &&
+        (updateError.code === "42703" || updateError.message?.includes("related_links"))
+      ) {
+        delete updatePayload.related_links;
+        const fb = await supabase
+          .from("applications")
+          .update(updatePayload)
+          .eq("id", existingApp.id)
+          .select("id")
+          .single();
+        updatedApp = fb.data;
+        updateError = fb.error;
+      }
 
       if (updateError) {
         console.error("Re-apply error:", updateError);
         return { success: false, error: updateError.message || "Gagal memperbarui lamaran." };
       }
-      createdAppId = updatedApp.id;
+      createdAppId = updatedApp?.id;
     } else {
       // Insert new application
-      const { data: newApp, error: insertError } = await supabase
+      const insertPayload: Record<string, unknown> = {
+        project_id: projectId,
+        talent_id: user.id,
+        message: finalStoredMessage,
+        match_score: serverMatchScore,
+        status: "pending",
+        related_links: parseResult.data.relatedLinks,
+      };
+
+      let { data: newApp, error: insertError } = await supabase
         .from("applications")
-        .insert({
-          project_id: projectId,
-          talent_id: user.id,
-          message: finalStoredMessage,
-          match_score: serverMatchScore,
-          status: "pending",
-        })
+        .insert(insertPayload)
         .select("id")
         .single();
+
+      if (
+        insertError &&
+        (insertError.code === "42703" || insertError.message?.includes("related_links"))
+      ) {
+        delete insertPayload.related_links;
+        const fb = await supabase
+          .from("applications")
+          .insert(insertPayload)
+          .select("id")
+          .single();
+        newApp = fb.data;
+        insertError = fb.error;
+      }
 
       if (insertError) {
         console.error("Insert application error:", insertError);
@@ -216,8 +453,112 @@ export async function applyToProject(
         }
         return { success: false, error: insertError.message || "Gagal mengirimkan lamaran." };
       }
-      createdAppId = newApp.id;
+      createdAppId = newApp?.id;
     }
+
+    if (!createdAppId) {
+      return { success: false, error: "Gagal mendapatkan ID lamaran." };
+    }
+
+    const cvPath = `${user.id}/${createdAppId}/cv.pdf`;
+    const portfolioPath = attachments.data.portfolio
+      ? `${user.id}/${createdAppId}/portfolio.pdf`
+      : null;
+    const uploadedPaths: string[] = [];
+    const previousPaths = new Set(
+      [existingApp?.cv_path, existingApp?.portfolio_path].filter((path): path is string => !!path)
+    );
+
+    const rollbackApplication = async () => {
+      const newPaths = uploadedPaths.filter((path) => !previousPaths.has(path));
+      if (newPaths.length > 0) {
+        await supabase.storage.from("application-docs").remove(newPaths);
+      }
+      if (existingApp?.status === "withdrawn") {
+        await supabase
+          .from("applications")
+          .update({
+            status: existingApp.status,
+            message: existingApp.message,
+            match_score: existingApp.match_score,
+            related_links: existingApp.related_links,
+            created_at: existingApp.created_at,
+          })
+          .eq("id", createdAppId)
+          .eq("talent_id", user.id);
+      } else {
+        // PERHATIKAN: delete() pada applications ditolak oleh RLS untuk talent.
+        // Update ke 'withdrawn' agar tidak terkunci dan diizinkan oleh policy "applications: talent ubah (withdraw)"
+        await supabase
+          .from("applications")
+          .update({ status: "withdrawn" })
+          .eq("id", createdAppId)
+          .eq("talent_id", user.id);
+      }
+    };
+
+    const filesToUpload = [
+      { path: cvPath, file: attachments.data.cv },
+      ...(attachments.data.portfolio && portfolioPath
+        ? [{ path: portfolioPath, file: attachments.data.portfolio }]
+        : []),
+    ];
+    for (const { path, file } of filesToUpload) {
+      const { error: uploadError } = await supabase.storage
+        .from("application-docs")
+        .upload(path, file, { contentType: "application/pdf", upsert: true });
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        await rollbackApplication();
+
+        const errMsg = uploadError.message || "";
+        const isBucketNotFound =
+          errMsg.toLowerCase().includes("bucket not found") ||
+          errMsg.toLowerCase().includes("not found") ||
+          (uploadError as { statusCode?: string }).statusCode === "404";
+
+        if (isBucketNotFound) {
+          return {
+            success: false,
+            error:
+              "Bucket storage 'application-docs' belum dibuat di Supabase. Silakan jalankan migrasi 002_payment_flow.sql di Supabase SQL Editor atau buat bucket 'application-docs' di menu Storage.",
+          };
+        }
+
+        return { success: false, error: "Gagal mengunggah lampiran. Coba kirim lamaran lagi." };
+      }
+      uploadedPaths.push(path);
+    }
+
+    const { error: pathUpdateError } = await supabase
+      .from("applications")
+      .update({ cv_path: cvPath, portfolio_path: portfolioPath })
+      .eq("id", createdAppId)
+      .eq("talent_id", user.id);
+
+    if (pathUpdateError) {
+      if (
+        pathUpdateError.code === "42703" ||
+        pathUpdateError.message?.includes("cv_path") ||
+        pathUpdateError.message?.includes("portfolio_path")
+      ) {
+        console.warn(
+          "Kolom cv_path/portfolio_path belum ada di applications (migrasi 002 belum diaplikasikan)."
+        );
+      } else {
+        await rollbackApplication();
+        return { success: false, error: "Lampiran tersimpan, tetapi gagal menghubungkan file ke lamaran." };
+      }
+    }
+
+    if (existingApp?.portfolio_path && !portfolioPath) {
+      await supabase.storage.from("application-docs").remove([existingApp.portfolio_path]);
+    }
+
+    // Buat pesan sistem otomatis untuk pembukaan percakapan chat
+    await createChatSystemMessage(createdAppId, "application_created", {
+      projectTitle: project.title,
+    });
 
     revalidatePath("/talent/projects");
     revalidatePath(`/talent/projects/${projectId}`);
@@ -294,10 +635,12 @@ export async function withdrawApplication(
       };
     }
 
-    if (app.status !== "pending") {
+    const currentStatus = app.status as ApplicationStatus;
+    const isAllowed = canTransition(currentStatus, "withdrawn", "talent");
+    if (!isAllowed) {
       return {
         success: false,
-        error: `Lamaran berstatus '${app.status}' sudah tidak dapat dibatalkan secara mandiri.`,
+        error: `Lamaran berstatus '${getApplicationStatusLabel(currentStatus)}' tidak dapat dibatalkan secara mandiri.`,
       };
     }
 
@@ -322,6 +665,110 @@ export async function withdrawApplication(
     return {
       success: false,
       error: err instanceof Error ? err.message : "Gagal membatalkan lamaran.",
+    };
+  }
+}
+
+/**
+ * Talent submits project work documentation/results (accepted -> submitted)
+ */
+export async function submitWorkDocumentation(
+  applicationId: string,
+  submissionLinks: string[],
+  submissionNotes?: string
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const parseResult = submitWorkDocumentationSchema.safeParse({
+      submissionLinks,
+      submissionNotes,
+    });
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: parseResult.error.issues[0]?.message || "Input dokumentasi tidak valid.",
+      };
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: "Kamu harus login untuk menyerahkan hasil pengerjaan." };
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== "talent") {
+      return {
+        success: false,
+        error: "Akses ditolak. Hanya akun Talenta yang dapat mengirimkan hasil pengerjaan.",
+      };
+    }
+
+    const { data: app, error: appError } = await supabase
+      .from("applications")
+      .select("id, talent_id, status, project_id")
+      .eq("id", applicationId)
+      .maybeSingle();
+
+    if (appError || !app) {
+      return { success: false, error: "Lamaran tidak ditemukan." };
+    }
+
+    if (app.talent_id !== user.id) {
+      return {
+        success: false,
+        error: "Kamu tidak berhak menyerahkan hasil untuk lamaran ini.",
+      };
+    }
+
+    const currentStatus = app.status as ApplicationStatus;
+    const isAllowed = canTransition(currentStatus, "submitted", "talent");
+    if (!isAllowed) {
+      return {
+        success: false,
+        error: `Tidak dapat mengirim hasil pada status '${getApplicationStatusLabel(currentStatus)}'. Status harus 'Diterima'.`,
+      };
+    }
+
+    const { error: updateError } = await supabase
+      .from("applications")
+      .update({
+        status: "submitted",
+        submission_links: parseResult.data.submissionLinks,
+        submission_url: parseResult.data.submissionLinks[0],
+        submission_notes: parseResult.data.submissionNotes?.trim() || null,
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId);
+
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message || "Gagal memperbarui status pengiriman hasil.",
+      };
+    }
+
+    // Buat pesan sistem otomatis untuk penyerahan hasil pengerjaan
+    await createChatSystemMessage(applicationId, "work_submitted");
+
+    revalidatePath("/talent/applications");
+    revalidatePath(`/talent/projects/${app.project_id}`);
+    revalidatePath(`/vendor/projects/${app.project_id}/applicants`);
+
+    return { success: true, error: null };
+  } catch (err: unknown) {
+    console.error("Error submitting documentation:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim hasil pengerjaan.",
     };
   }
 }
@@ -362,9 +809,17 @@ export async function getMyApplications(): Promise<{
         project_id,
         talent_id,
         status,
+        payment_status,
+        cv_path,
+        portfolio_path,
+        related_links,
+        submission_url,
+        submission_links,
+        submission_notes,
+        revision_notes,
         message,
-        match_score,
         created_at,
+        reviews (id),
         projects (
           id,
           title,
@@ -384,18 +839,83 @@ export async function getMyApplications(): Promise<{
       .eq("talent_id", user.id)
       .order("created_at", { ascending: false });
 
+    let rawApplicationsData: unknown = applicationsData;
+
     if (appsError) {
-      console.error("Error fetching my applications:", appsError);
-      return { data: [], error: "Gagal memuat riwayat lamaran." };
+      const isMissingCol =
+        appsError.code === "42703" ||
+        appsError.message?.includes("column") ||
+        appsError.message?.includes("payment_status") ||
+        appsError.message?.includes("cv_path") ||
+        appsError.message?.includes("related_links");
+
+      if (isMissingCol) {
+        const fallbackRes = await supabase
+          .from("applications")
+          .select(`
+            id,
+            project_id,
+            talent_id,
+            status,
+            message,
+            created_at,
+            reviews (id),
+            projects (
+              id,
+              title,
+              difficulty,
+              type,
+              mode,
+              reward_amount,
+              reward_note,
+              duration_weeks,
+              status,
+              vendor_profiles:vendor_id (
+                organization_name,
+                location
+              )
+            )
+          `)
+          .eq("talent_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!fallbackRes.error && fallbackRes.data) {
+          rawApplicationsData = fallbackRes.data.map((app) => ({
+            ...app,
+            payment_status: "none" as PaymentStatus,
+            cv_path: null,
+            portfolio_path: null,
+            related_links: [],
+            submission_url: null,
+            submission_links: [],
+            submission_notes: null,
+            revision_notes: null,
+          }));
+        } else {
+          console.error("Error fetching my applications fallback:", fallbackRes.error || appsError);
+          return { data: [], error: "Gagal memuat riwayat lamaran." };
+        }
+      } else {
+        console.error("Error fetching my applications:", appsError);
+        return { data: [], error: "Gagal memuat riwayat lamaran." };
+      }
     }
 
     type RawApp = {
       id: string;
       project_id: string;
       status: ApplicationStatus;
+      payment_status: PaymentStatus;
+      cv_path: string | null;
+      portfolio_path: string | null;
+      related_links: string[] | null;
+      submission_url: string | null;
+      submission_links: string[] | null;
+      submission_notes: string | null;
+      revision_notes: string | null;
       message: string | null;
-      match_score: number | null;
       created_at: string;
+      reviews: { id: string }[] | { id: string } | null;
       projects: {
         id: string;
         title: string;
@@ -421,7 +941,7 @@ export async function getMyApplications(): Promise<{
       }[] | null;
     };
 
-    const rawList = (applicationsData || []) as unknown as RawApp[];
+    const rawList = (rawApplicationsData || []) as unknown as RawApp[];
 
     const items: TalentApplicationItem[] = rawList.map((app) => {
       const p = Array.isArray(app.projects) ? app.projects[0] : app.projects;
@@ -453,8 +973,18 @@ export async function getMyApplications(): Promise<{
         rewardNote: p?.reward_note ?? null,
         durationWeeks: p?.duration_weeks ?? null,
         projectStatus: p?.status || "open",
-        matchScore: app.match_score,
         status: app.status,
+        paymentStatus: app.payment_status,
+        cvPath: app.cv_path,
+        portfolioPath: app.portfolio_path,
+        relatedLinks: app.related_links || [],
+        submissionUrl: app.submission_url,
+        submissionLinks: app.submission_links || (app.submission_url ? [app.submission_url] : []),
+        submissionNotes: app.submission_notes,
+        revisionNotes: app.revision_notes,
+        hasReview: Array.isArray(app.reviews)
+          ? app.reviews.length > 0
+          : app.reviews !== null,
         message: cleanMsg || null,
         contactEmail,
         createdAt: app.created_at,
@@ -475,7 +1005,7 @@ export async function getMyApplications(): Promise<{
  * Check whether logged-in talent has already applied to a specific project
  */
 export async function getApplicationForProject(projectId: string): Promise<{
-  application: { id: string; status: ApplicationStatus; matchScore: number | null } | null;
+  application: { id: string; status: ApplicationStatus } | null;
 }> {
   try {
     const supabase = await createClient();
@@ -494,7 +1024,7 @@ export async function getApplicationForProject(projectId: string): Promise<{
 
     const { data: app } = await supabase
       .from("applications")
-      .select("id, status, match_score")
+      .select("id, status")
       .eq("project_id", projectId)
       .eq("talent_id", user.id)
       .maybeSingle();
@@ -507,7 +1037,6 @@ export async function getApplicationForProject(projectId: string): Promise<{
       application: {
         id: app.id,
         status: app.status as ApplicationStatus,
-        matchScore: app.match_score,
       },
     };
   } catch {

@@ -5,17 +5,18 @@ import {
   Clock,
   Coins,
   MapPin,
-  Check,
   Building2,
+  Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { MatchScoreBadge } from "./match-score-badge";
-import type { ProjectWithMatch } from "@/app/talent/projects/actions";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
+import type { ProjectForTalent, ProjectWithMatch } from "@/app/talent/projects/actions";
 
 interface ProjectCardProps {
-  project: ProjectWithMatch;
+  project: ProjectForTalent | ProjectWithMatch;
 }
 
 const difficultyLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "success" | "warning" }> = {
@@ -59,6 +60,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
       : project.type === "volunteer"
       ? "Sukarela (Volunteer)"
       : "Sesuai Kesepakatan";
+  const feeBadgeLabel = project.paymentEnabled
+    ? `Berbayar ${new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0,
+      }).format(project.rewardAmount ?? 0)}`
+    : "Tanpa fee";
 
   const formattedDeadline = project.deadline
     ? new Date(project.deadline).toLocaleDateString("id-ID", {
@@ -87,7 +95,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       }}
     >
       <CardHeader className="p-5 sm:p-6 pb-3 space-y-3 relative z-10">
-        {/* Header row: Organization & Match Score Badge */}
+        {/* Organization and optional Match Score Badge */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold truncate">
             <Building2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
@@ -104,9 +112,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </>
             )}
           </div>
-          <div className="shrink-0">
-            <MatchScoreBadge score={project.matchResult.score} size="md" />
-          </div>
+          {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
+            <div className="shrink-0">
+              <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+            </div>
+          )}
         </div>
 
         {/* Project Title */}
@@ -123,6 +133,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </Badge>
           <Badge variant={typeInfo.variant} className="text-2xs font-bold px-2.5 py-0.5">
             {typeInfo.label}
+          </Badge>
+          <Badge variant={project.paymentEnabled ? "success" : "outline"} className="text-2xs font-bold px-2.5 py-0.5">
+            {feeBadgeLabel}
           </Badge>
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-sky-50 text-sky-800 border border-sky-100">
             <span>{modeInfo.icon}</span>
@@ -147,33 +160,43 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-2xs font-bold text-slate-500 uppercase tracking-wider">
             <span>Keahlian Yang Dibutuhkan</span>
-            <span className="text-sky-700 font-extrabold">
-              {project.skills.filter((s) => s.talentStatus.isAdequate).length} /{" "}
-              {project.skills.length} cocok
-            </span>
+            {SHOW_MATCH_TO_TALENT && project.skills.some((s) => "talentStatus" in s) ? (
+              <span className="text-sky-700 font-extrabold">
+                {
+                  project.skills.filter(
+                    (s) =>
+                      "talentStatus" in s &&
+                      (s as { talentStatus?: { isAdequate?: boolean } }).talentStatus?.isAdequate
+                  ).length
+                }{" "}
+                / {project.skills.length} cocok
+              </span>
+            ) : (
+              <span>{project.skills.length} skill</span>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-1.5">
             {project.skills.map((skill) => {
-              const isAdequate = skill.talentStatus.isAdequate;
-              const possessed = skill.talentStatus.possessed;
+              const skillWithStatus = skill as {
+                talentStatus?: { isAdequate?: boolean; possessed?: boolean };
+              };
+              const isAdequate = SHOW_MATCH_TO_TALENT && skillWithStatus.talentStatus?.isAdequate;
+              const possessed = SHOW_MATCH_TO_TALENT && skillWithStatus.talentStatus?.possessed;
 
               return (
                 <span
                   key={skill.skillId}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                    isAdequate
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                      : possessed
-                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "bg-slate-50 text-slate-600 border border-slate-200"
-                  }`}
-                  title={
-                    isAdequate
-                      ? `Kamu menguasai ${skill.name} (${skill.talentStatus.talentLevel})`
-                      : possessed
-                      ? `Levelmu: ${skill.talentStatus.talentLevel}, butuh: ${skill.minLevel}`
-                      : `Belum ditambahkan`
+                  className={
+                    SHOW_MATCH_TO_TALENT && skillWithStatus.talentStatus
+                      ? `inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                          isAdequate
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : possessed
+                            ? "bg-amber-50 text-amber-800 border border-amber-200"
+                            : "bg-slate-50 text-slate-600 border border-slate-200"
+                        }`
+                      : "inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-bold text-slate-700"
                   }
                 >
                   {isAdequate && (

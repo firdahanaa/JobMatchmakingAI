@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
   Award,
 } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
+import { RatingDisplay } from "@/components/ui/rating-display";
 import { Button } from "@/components/ui/button";
 import type { DetailedApplicantItem } from "@/app/vendor/projects/[id]/applicants/actions";
 
@@ -87,6 +89,19 @@ export function ApplicantDetailModal({
                       : "Email kontak tersimpan di akun pelamar"}
                   </span>
                 </div>
+
+                <div className="pt-2">
+                  <Link href={`/vendor/messages?appId=${encodeURIComponent(applicant.id)}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs gap-1.5 h-8 font-semibold text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-sky-600" />
+                      <span>Buka Percakapan Chat</span>
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -137,11 +152,8 @@ export function ApplicantDetailModal({
             <span className="text-3xs text-[#a89080] block font-semibold uppercase">
               Rating & Selesai
             </span>
-            <div className="flex items-center gap-1 font-semibold text-[#5c4639] mt-0.5 truncate">
-              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
-              <span>
-                {applicant.avgRating !== null ? applicant.avgRating.toFixed(1) : "3.0"}
-              </span>
+            <div className="mt-0.5 truncate">
+              <RatingDisplay rating={applicant.avgRating} reviewCount={applicant.reviewCount} size="sm" />
               <span className="text-[#a89080]">({applicant.completedProjectsCount} selesai)</span>
             </div>
           </div>
@@ -307,7 +319,7 @@ export function ApplicantDetailModal({
               ))}
             </div>
           ) : (
-            <p className="text-[#a89080] italic">Belum ada riwayat ulasan dari proyek sebelumnya.</p>
+            <p className="text-[#a89080] italic">Belum ada rating</p>
           )}
         </div>
       </DialogContent>

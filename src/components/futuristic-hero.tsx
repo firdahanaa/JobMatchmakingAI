@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
 import {
   Home,
   Search,
@@ -37,14 +38,14 @@ interface FuturisticHeroDashboardProps {
     location: string;
     stipend: string;
     duration: string;
-    matchScore: number;
+    matchScore?: number;
     description: string;
     workMode: string;
   } | null;
   stats?: {
     totalProjects: number;
     activeApplications: number;
-    avgMatch: number;
+    avgMatch?: number;
   };
 }
 
@@ -79,7 +80,7 @@ const FIELD_OPTIONS = [
   "Photographer",
 ];
 
-const MATCH_OPTIONS = ["Semua", "50%+", "60%+", "70%+", "80%+", "90%+"];
+const MATCH_OPTIONS = ["Semua", "Relevan"];
 
 function FilterDropdown({
   icon: Icon,
@@ -166,7 +167,7 @@ export function FuturisticHeroDashboard({
   userRole = "talent",
   publicLanding = false,
   topProject,
-  stats = { totalProjects: 1240, activeApplications: 12, avgMatch: 94 },
+  stats = { totalProjects: 1240, activeApplications: 12 },
 }: FuturisticHeroDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<"freelance" | "volunteer">("freelance");
@@ -186,7 +187,6 @@ export function FuturisticHeroDashboard({
     location: "Bandung (Remote)",
     stipend: "Rp 3.500.000",
     duration: "4 Minggu · 15 jam/mgg",
-    matchScore: 96,
     description:
       "Arsitektur UI/UX futuristik & integrasi algoritma matchmaking kecocokan talenta otomatis berbasis skill gap analitik presisi.",
     workMode: "Remote",
@@ -411,13 +411,15 @@ export function FuturisticHeroDashboard({
                   options={FIELD_OPTIONS}
                   onChange={setField}
                 />
-                <FilterDropdown
-                  icon={TrendingUp}
-                  label="Min. Match"
-                  value={minMatch}
-                  options={MATCH_OPTIONS}
-                  onChange={setMinMatch}
-                />
+                {SHOW_MATCH_TO_TALENT && (
+                  <FilterDropdown
+                    icon={TrendingUp}
+                    label="Min. Match"
+                    value={minMatch}
+                    options={MATCH_OPTIONS}
+                    onChange={setMinMatch}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -516,7 +518,9 @@ export function FuturisticHeroDashboard({
               </h1>
 
               <p className="text-sm sm:text-base text-white/75 max-w-sm leading-relaxed font-medium mb-7">
-                Temukan proyek freelance & volunteer dengan kecocokan skill AI transparan, skor 0–100 real-time, dan panduan skill gap presisi.
+                {userRole === "vendor"
+                  ? "Temukan talent relevan dan bandingkan kecocokan skill secara transparan."
+                  : "Temukan proyek freelance dan volunteer yang sesuai dengan keahlian serta preferensimu."}
               </p>
 
               {/* CTA Buttons */}
@@ -622,15 +626,17 @@ export function FuturisticHeroDashboard({
                   {sampleProject.title}
                 </h3>
               </div>
-              <div
-                className="shrink-0 h-11 w-11 flex items-center justify-center text-white text-xs font-black shadow-md"
-                style={{
-                  borderRadius: "0.875rem",
-                  background: "linear-gradient(135deg, #66879b, #506c83)",
-                }}
-              >
-                {sampleProject.matchScore}%
-              </div>
+              {SHOW_MATCH_TO_TALENT && sampleProject.matchScore != null && (
+                <div
+                  className="shrink-0 h-11 w-11 flex items-center justify-center text-white text-xs font-black shadow-md"
+                  style={{
+                    borderRadius: "0.875rem",
+                    background: "linear-gradient(135deg, #66879b, #506c83)",
+                  }}
+                >
+                  {sampleProject.matchScore}%
+                </div>
+              )}
             </div>
 
             <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
@@ -648,17 +654,19 @@ export function FuturisticHeroDashboard({
               >
                 🖥 {sampleProject.workMode}
               </span>
-              <span
-                className="text-[10px] font-bold text-emerald-700 px-2.5 py-1"
-                style={{
-                  borderRadius: "999px",
-                  background: "rgba(236,253,245,0.9)",
-                  border: "1px solid rgba(167,243,208,0.8)",
-                }}
-              >
-                <Target className="inline h-3 w-3 mr-0.5" />
-                AI Match
-              </span>
+              {SHOW_MATCH_TO_TALENT && (
+                <span
+                  className="text-[10px] font-bold text-emerald-700 px-2.5 py-1"
+                  style={{
+                    borderRadius: "999px",
+                    background: "rgba(236,253,245,0.9)",
+                    border: "1px solid rgba(167,243,208,0.8)",
+                  }}
+                >
+                  <Target className="inline h-3 w-3 mr-0.5" />
+                  AI Match
+                </span>
+              )}
             </div>
 
             <div

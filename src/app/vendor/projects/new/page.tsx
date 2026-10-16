@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { ProjectForm } from "@/components/vendor/project-form";
 import { getMasterSkills, createProject } from "../actions";
 import { createClient } from "@/lib/supabase/server";
+import { getPendingVendorReviews } from "@/lib/workflow/vendor-review-gate";
 import { PlusCircle } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -21,6 +23,7 @@ export default async function NewProjectPage() {
     redirect("/login");
   }
 
+  const pendingReviewGate = await getPendingVendorReviews(supabase, user.id);
   const { data: masterSkills } = await getMasterSkills();
 
   return (
@@ -44,11 +47,36 @@ export default async function NewProjectPage() {
           </div>
 
           {/* Form */}
-          <ProjectForm
-            masterSkills={masterSkills}
-            onSubmit={createProject}
-            isEdit={false}
-          />
+          {pendingReviewGate.error ? (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">
+              Rating tertunda tidak dapat diverifikasi. Muat ulang halaman sebelum membuat project.
+            </div>
+          ) : pendingReviewGate.data.length > 0 ? (
+            <section role="alert" className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-6">
+              <h2 className="text-lg font-bold text-amber-950">Selesaikan rating sebelum membuat project</h2>
+              <p className="text-sm text-amber-900">
+                Ada {pendingReviewGate.data.length} project selesai yang masih menunggu rating talent.
+              </p>
+              <ul className="space-y-2">
+                {pendingReviewGate.data.map((review) => (
+                  <li key={review.applicationId}>
+                    <Link
+                      href={`/vendor/projects/${review.projectId}/applicants?reviewApplication=${encodeURIComponent(review.applicationId)}`}
+                      className="font-semibold text-amber-950 underline underline-offset-2"
+                    >
+                      Beri rating {review.talentName} · {review.projectTitle}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <ProjectForm
+              masterSkills={masterSkills}
+              onSubmit={createProject}
+              isEdit={false}
+            />
+          )}
         </div>
       </main>
     </div>

@@ -22,6 +22,7 @@ import {
 } from "./actions";
 import { toast } from "sonner";
 import { StarRating } from "@/components/ui/star-rating";
+import { RatingDisplay } from "@/components/ui/rating-display";
 import {
   User,
   Sparkles,
@@ -47,6 +48,7 @@ export default function TalentProfilePage() {
   const [activeTab, setActiveTab] = React.useState("info");
 
   // Profile Form state
+  const [fullName, setFullName] = React.useState("");
   const [headline, setHeadline] = React.useState("");
   const [education, setEducation] = React.useState("");
   const [location, setLocation] = React.useState("");
@@ -66,6 +68,7 @@ export default function TalentProfilePage() {
       const res = await getTalentProfileData();
       if (res.data) {
         setPageData(res.data);
+        setFullName(res.data.user.fullName || "");
         const tp = res.data.talentProfile;
         if (tp) {
           setHeadline(tp.headline || "");
@@ -125,6 +128,7 @@ export default function TalentProfilePage() {
     setIsSavingProfile(true);
 
     const result = await updateTalentProfile({
+      fullName: fullName.trim(),
       headline: headline.trim(),
       bio: bio.trim() || null,
       education: education.trim(),
@@ -136,6 +140,14 @@ export default function TalentProfilePage() {
     });
 
     if (result.success) {
+      setPageData((prev) =>
+        prev
+          ? {
+              ...prev,
+              user: { ...prev.user, fullName: fullName.trim() },
+            }
+          : null
+      );
       toast.success("Informasi profil berhasil diperbarui!");
     } else {
       toast.error(result.error || "Gagal memperbarui profil.");
@@ -170,6 +182,7 @@ export default function TalentProfilePage() {
     let hasError = false;
 
     const profileRes = await updateTalentProfile({
+      fullName: fullName.trim(),
       headline: headline.trim(),
       bio: bio.trim() || null,
       education: education.trim(),
@@ -198,6 +211,14 @@ export default function TalentProfilePage() {
     }
 
     if (!hasError) {
+      setPageData((prev) =>
+        prev
+          ? {
+              ...prev,
+              user: { ...prev.user, fullName: fullName.trim() },
+            }
+          : null
+      );
       toast.success("Seluruh data profil dan keahlian berhasil disimpan!");
     }
 
@@ -247,7 +268,7 @@ export default function TalentProfilePage() {
                 </div>
 
                 <p className="max-w-xl text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
-                  Kelola informasi pribadi, ketersediaan proyek, dan keahlian untuk memaksimalkan Match Score.
+                  Kelola informasi pribadi, ketersediaan proyek, dan keahlian untuk mendapatkan rekomendasi proyek yang relevan.
                 </p>
               </div>
 
@@ -399,6 +420,23 @@ export default function TalentProfilePage() {
               {/* Tab 1: Info & Availability */}
               <TabsContent value="info">
                 <form onSubmit={handleSaveProfile} className="space-y-6">
+                  {/* Nama Lengkap */}
+                  <FormItem>
+                    <Label htmlFor="fullName">
+                      Nama Lengkap <span className="text-rose-500">*</span>
+                    </Label>
+                    <Input
+                      id="fullName"
+                      placeholder="mis. Aditya Pratama"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-[#4A7AAF]">
+                      Nama yang akan ditampilkan kepada vendor pada lamaran proyek dan ruang percakapan.
+                    </p>
+                  </FormItem>
+
                   {/* Headline */}
                   <FormItem>
                     <Label htmlFor="headline">
@@ -604,19 +642,9 @@ export default function TalentProfilePage() {
                   {/* Rating Average */}
                   <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
                     <p className="text-xs font-semibold text-amber-900">Rating Rata-rata</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-amber-800">
-                        {pageData?.ratingStats.avgRating != null
-                          ? pageData.ratingStats.avgRating.toFixed(1)
-                          : "Belum Ada"}
-                      </span>
-                      {pageData?.ratingStats.avgRating != null && (
-                        <span className="text-xs text-amber-600">/ 5.0</span>
-                      )}
-                    </div>
-                    <StarRating
-                      value={pageData?.ratingStats.avgRating ?? 0}
-                      readOnly
+                    <RatingDisplay
+                      rating={pageData?.ratingStats.avgRating ?? null}
+                      reviewCount={pageData?.ratingStats.reviewCount}
                       size="sm"
                     />
                   </div>

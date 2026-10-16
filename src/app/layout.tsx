@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { Footer } from "@/components/footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,6 +34,7 @@ export default function RootLayout({
         className="min-h-full flex flex-col bg-[#F0F9FF] text-[#0F172A] selection:bg-sky-500 selection:text-white"
       >
         {children}
+        <Footer />
         <Toaster richColors position="top-right" />
       </body>
     </html>

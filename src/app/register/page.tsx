@@ -120,7 +120,7 @@ function RegisterForm() {
       heading="Ayo mulai perjalananmu!"
       description="Buat akun Pathfolio dan temukan peluang baru untuk mengembangkan pengalamanmu."
     >
-        <section className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl shadow-slate-400/10 backdrop-blur-sm sm:p-7">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/[0.04] sm:p-7">
           {errorMessage && (
             <div className="mb-6 flex items-start gap-2.5 rounded-xl bg-rose-50 p-4 border border-rose-200 text-sm text-rose-800">
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
@@ -149,7 +149,7 @@ function RegisterForm() {
                     type="text"
                     autoComplete="name"
                     placeholder="Nama lengkap"
-                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    className="mt-1.5 h-11 rounded-xl border-slate-200 bg-slate-50 px-4 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                     {...register("fullName")}
                   />
                   {errors.fullName && <FormMessage>{errors.fullName.message}</FormMessage>}
@@ -162,7 +162,7 @@ function RegisterForm() {
                     type="email"
                     autoComplete="email"
                     placeholder="nama@email.com"
-                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    className="mt-1.5 h-11 rounded-xl border-slate-200 bg-slate-50 px-4 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                     {...register("email")}
                   />
                   {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
@@ -175,7 +175,7 @@ function RegisterForm() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Minimal 8 karakter"
-                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    className="mt-1.5 h-11 rounded-xl border-slate-200 bg-slate-50 px-4 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                     {...register("password")}
                   />
                   {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
@@ -188,7 +188,7 @@ function RegisterForm() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Ulangi password"
-                    className="mt-1.5 h-11 rounded-full border-transparent bg-[#f5f0ec] px-5 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                    className="mt-1.5 h-11 rounded-xl border-slate-200 bg-slate-50 px-4 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                     {...register("confirmPassword")}
                   />
                   {errors.confirmPassword && <FormMessage>{errors.confirmPassword.message}</FormMessage>}
@@ -202,10 +202,10 @@ function RegisterForm() {
                     type="button"
                     onClick={() => setValue("role", "talent")}
                     aria-pressed={selectedRole === "talent"}
-                    className={`flex items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
                       selectedRole === "talent"
-                        ? "border-sky-700 bg-sky-800 text-white"
-                        : "border-white/80 bg-white/60 text-slate-700 hover:bg-white"
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <User className="h-4 w-4" />
@@ -215,10 +215,10 @@ function RegisterForm() {
                     type="button"
                     onClick={() => setValue("role", "vendor")}
                     aria-pressed={selectedRole === "vendor"}
-                    className={`flex items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
                       selectedRole === "vendor"
-                        ? "border-sky-700 bg-sky-800 text-white"
-                        : "border-white/80 bg-white/60 text-slate-700 hover:bg-white"
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <Briefcase className="h-4 w-4" />
@@ -233,7 +233,7 @@ function RegisterForm() {
                   <input
                     id="acceptTerms"
                     type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-400 accent-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 accent-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                     {...register("acceptTerms")}
                   />
                   <span>Saya setuju dengan syarat penggunaan dan kebijakan privasi Pathfolio.</span>
@@ -244,7 +244,7 @@ function RegisterForm() {
               <Button
                 type="submit"
                 isLoading={isLoading}
-                className="h-12 w-full gap-2 rounded-full bg-[#f5f0ec] font-semibold text-slate-800 shadow-sm transition-colors hover:bg-white"
+                className="h-12 w-full gap-2 rounded-xl bg-slate-950 font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
               >
                 Daftar
                 <ArrowRight className="h-4 w-4" />
@@ -255,7 +255,7 @@ function RegisterForm() {
 
         <p className="mt-5 text-center text-sm text-slate-700">
           Sudah punya akun?{" "}
-          <Link href="/login" className="font-bold text-sky-800 underline-offset-4 hover:underline">
+          <Link href="/login" className="font-bold text-blue-700 underline-offset-4 hover:underline">
             Masuk
           </Link>
         </p>
@@ -267,8 +267,8 @@ export default function RegisterPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#c9dce7]">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-700 border-t-transparent" />
+        <div className="flex min-h-screen items-center justify-center bg-slate-50">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-700 border-t-transparent" />
         </div>
       }
     >

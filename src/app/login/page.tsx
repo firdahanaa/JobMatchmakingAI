@@ -122,7 +122,7 @@ export default function LoginPage() {
       heading="Senang melihatmu kembali!"
       description="Masuk ke Pathfolio untuk melanjutkan perjalanan dan menemukan proyek yang cocok dengan keahlianmu."
     >
-      <div className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl shadow-slate-400/10 backdrop-blur-sm sm:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/[0.04] sm:p-8">
         {errorMessage && (
           <div className="mb-6 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
@@ -139,7 +139,7 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 placeholder="nama@email.com"
-                className="h-12 rounded-full border-transparent bg-[#f5f0ec] pl-11 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 pl-11 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                 {...register("email")}
               />
               <Mail className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-500" />
@@ -155,7 +155,7 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 placeholder="Masukkan password"
-                className="h-12 rounded-full border-transparent bg-[#f5f0ec] pl-11 focus-visible:border-sky-400 focus-visible:ring-sky-200"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 pl-11 focus-visible:border-blue-500 focus-visible:ring-blue-200"
                 {...register("password")}
               />
               <Lock className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-500" />
@@ -166,7 +166,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             isLoading={isLoading}
-            className="h-12 w-full rounded-full bg-[#f5f0ec] font-semibold text-slate-800 shadow-sm transition-colors hover:bg-white"
+            className="h-12 w-full rounded-xl bg-slate-950 font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
           >
             Masuk
             <ArrowRight className="h-4 w-4" />
@@ -176,7 +176,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-slate-700">
         Belum punya akun?{" "}
-        <Link href="/register" className="font-bold text-sky-800 underline-offset-4 hover:underline">
+        <Link href="/register" className="font-bold text-blue-700 underline-offset-4 hover:underline">
           Daftar sekarang
         </Link>
       </p>

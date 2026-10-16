@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { ArrowUpRight, Layers3, Sparkles, Target } from "lucide-react";
 
 interface AuthLayoutProps {
   heading: string;
@@ -8,94 +8,72 @@ interface AuthLayoutProps {
   children: ReactNode;
 }
 
-function AuthLandscape() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="absolute inset-0 h-full w-full"
-      viewBox="0 0 900 1200"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <defs>
-        <linearGradient id="auth-sky" x1="0" y1="0" x2="0.8" y2="1">
-          <stop offset="0" stopColor="#e9dafa" />
-          <stop offset=".48" stopColor="#ffd8ba" />
-          <stop offset="1" stopColor="#c6e7ed" />
-        </linearGradient>
-        <linearGradient id="auth-meadow" x1="0" y1="0" x2=".7" y2="1">
-          <stop offset="0" stopColor="#a7c87a" />
-          <stop offset="1" stopColor="#344e66" />
-        </linearGradient>
-        <linearGradient id="auth-mountain" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f4f1ff" />
-          <stop offset="1" stopColor="#9da9d0" />
-        </linearGradient>
-      </defs>
-      <rect width="900" height="1200" fill="url(#auth-sky)" />
-      <circle cx="155" cy="235" r="92" fill="#fff3d8" opacity=".6" />
-      <path d="M0 610 130 492l91 79 167-253 181 237 102-118 229 191v230H0Z" fill="#aab1d3" />
-      <path d="m262 494 126-176 58 76-43-15-27 28-25-13-32 54-19-8-21 34-17-4Z" fill="#faf7ff" />
-      <path d="m0 634 143-110 101 74 133-171 152 177 93-95 278 149v144H0Z" fill="url(#auth-mountain)" opacity=".9" />
-      <path d="M0 748q183-105 359-15t541-20v487H0Z" fill="#8da969" />
-      <path d="M0 842q217-160 420-42t480-22v422H0Z" fill="#a5bd70" />
-      <path d="M0 967q230-166 461-20t439-42v295H0Z" fill="url(#auth-meadow)" />
-      <path d="M0 1093q256-174 475-30t425-20v157H0Z" fill="#435b68" opacity=".72" />
-      <g fill="#314c4d" opacity=".9">
-        <path d="m42 720 35-105 35 105H96v77H58v-77Zm83 12 28-87 29 87h-19v64h-29v-64Zm-120 22 25-78 26 78H39v61H16v-61Z" />
-        <path d="m719 700 34-104 34 104h-22v78h-38v-78Zm77 24 26-81 27 81h-18v59h-35v-59Z" />
-      </g>
-      <g fill="#f7e39a" opacity=".95">
-        <circle cx="125" cy="930" r="7" /><circle cx="205" cy="1010" r="6" /><circle cx="310" cy="916" r="8" />
-        <circle cx="413" cy="1047" r="7" /><circle cx="535" cy="942" r="6" /><circle cx="638" cy="1060" r="8" />
-        <circle cx="754" cy="932" r="7" /><circle cx="845" cy="1012" r="6" />
-      </g>
-      <g fill="#f4f0ff">
-        <circle cx="166" cy="1070" r="8" /><circle cx="166" cy="1057" r="5" /><circle cx="179" cy="1070" r="5" /><circle cx="153" cy="1070" r="5" /><circle cx="166" cy="1083" r="5" />
-        <circle cx="368" cy="1128" r="8" /><circle cx="368" cy="1115" r="5" /><circle cx="381" cy="1128" r="5" /><circle cx="355" cy="1128" r="5" /><circle cx="368" cy="1141" r="5" />
-        <circle cx="709" cy="1103" r="8" /><circle cx="709" cy="1090" r="5" /><circle cx="722" cy="1103" r="5" /><circle cx="696" cy="1103" r="5" /><circle cx="709" cy="1116" r="5" />
-      </g>
-      <g fill="#ed9d86">
-        <circle cx="266" cy="1090" r="7" /><circle cx="266" cy="1078" r="4" /><circle cx="278" cy="1090" r="4" /><circle cx="254" cy="1090" r="4" /><circle cx="266" cy="1102" r="4" />
-        <circle cx="567" cy="1138" r="7" /><circle cx="567" cy="1126" r="4" /><circle cx="579" cy="1138" r="4" /><circle cx="555" cy="1138" r="4" /><circle cx="567" cy="1150" r="4" />
-        <circle cx="813" cy="1055" r="7" /><circle cx="813" cy="1043" r="4" /><circle cx="825" cy="1055" r="4" /><circle cx="801" cy="1055" r="4" /><circle cx="813" cy="1067" r="4" />
-      </g>
-    </svg>
-  );
-}
-
 export function AuthLayout({ heading, description, children }: AuthLayoutProps) {
   return (
-    <main className="min-h-screen bg-[#c9dce7]">
-      <div className="grid min-h-screen lg:grid-cols-[46%_54%]">
-        <aside
-          className="relative h-48 overflow-hidden sm:h-64 lg:sticky lg:top-0 lg:h-screen"
-          style={{ borderRadius: "0 18% 20% 0 / 0 50% 50% 0" }}
-        >
-          <AuthLandscape />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/55 to-transparent px-6 pb-5 pt-16 sm:px-10 sm:pb-8 lg:px-12 lg:pb-12">
-            <Link href="/" className="inline-flex items-center gap-2.5 text-xl font-black tracking-tight text-white drop-shadow">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/40 backdrop-blur">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              Pathfolio
-            </Link>
-            <p className="mt-3 hidden max-w-sm text-sm leading-relaxed text-white/90 drop-shadow sm:block">
-              Temukan proyek yang tepat, bangun pengalaman, dan kembangkan perjalanan kariermu.
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto grid min-h-screen max-w-[1600px] lg:grid-cols-[0.92fr_1.08fr]">
+        <aside className="relative isolate flex min-h-[280px] flex-col justify-between overflow-hidden rounded-b-[2rem] bg-slate-950 px-6 py-6 text-white sm:px-10 sm:py-8 lg:sticky lg:top-0 lg:h-screen lg:rounded-none lg:px-14 lg:py-12">
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_18%_5%,_rgba(59,130,246,0.45),_transparent_42%),radial-gradient(ellipse_at_90%_88%,_rgba(37,99,235,0.32),_transparent_40%)]" />
+          <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:48px_48px]" />
+          <div className="pointer-events-none absolute -bottom-36 -right-28 -z-10 h-96 w-96 rounded-full border border-blue-200/20" />
+          <div className="pointer-events-none absolute -bottom-24 -right-16 -z-10 h-72 w-72 rounded-full border border-blue-200/20" />
+
+          <Link
+            href="/"
+            className="inline-flex w-fit items-center gap-2.5 text-lg font-extrabold tracking-tight"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+              <Layers3 className="h-5 w-5" />
+            </span>
+            pathfolio
+          </Link>
+
+          <div className="relative mt-10 max-w-xl lg:mt-0">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-blue-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Peluang yang relevan, langkah yang jelas
+            </span>
+            <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Temukan kecocokan.
+              <br />
+              Bangun pengalaman.
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
+              Terhubung lewat skill, tumbuh lewat kolaborasi, dan buat setiap proyek jadi bagian
+              dari perjalananmu.
             </p>
+
+            <div className="mt-7 hidden max-w-md rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur sm:block">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/15 text-blue-200">
+                    <Target className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs text-slate-300">Kecocokan proyek</p>
+                    <p className="mt-0.5 text-sm font-bold">Dijelaskan dengan transparan</p>
+                  </div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-blue-200" />
+              </div>
+            </div>
           </div>
+
+          <p className="mt-8 hidden text-xs text-slate-400 lg:block">
+            © 2026 Pathfolio — Connecting people with the right opportunities.
+          </p>
         </aside>
 
-        <section className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-5 py-9 sm:px-8 lg:min-h-screen lg:px-12 lg:py-12">
-          <div className="w-full max-w-xl">
+        <section className="flex min-h-[calc(100vh-17.5rem)] items-center justify-center px-4 py-10 sm:px-8 lg:min-h-screen lg:px-12 xl:px-20">
+          <div className="w-full max-w-lg">
             <header className="mb-7">
-              <div className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-sky-700">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                Pathfolio
-              </div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{heading}</h1>
-              <p className="mt-2 max-w-lg text-sm leading-relaxed text-slate-600">{description}</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
+                Selamat datang di Pathfolio
+              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                {heading}
+              </h1>
+              <p className="mt-2 max-w-lg text-sm leading-6 text-slate-600">{description}</p>
             </header>
             {children}
           </div>

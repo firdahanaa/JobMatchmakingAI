@@ -51,7 +51,7 @@ export default async function VendorDashboardPage() {
   } : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7ECEA]">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <main className="flex-1 py-2 sm:py-6 px-1 sm:px-3 lg:px-6 space-y-8">
         {/* Futuristic Hero Banner (Orizon Inspired - Full Bleed Width) */}
         <div className="w-full">
@@ -70,9 +70,9 @@ export default async function VendorDashboardPage() {
 
           {/* Quick Metrics: Proyek Aktif, Total Pelamar, Proyek Selesai */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <Card className="border-[#e8d5d0] bg-white shadow-2xs">
+            <Card className="border-slate-200 bg-white">
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-[#8a7668]">
+                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                   <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                   Proyek Aktif (Open)
                 </CardDescription>
@@ -80,52 +80,52 @@ export default async function VendorDashboardPage() {
                   {totalOpen}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[#8a7668]">
+              <CardContent className="text-xs text-slate-500">
                 Sedang aktif membuka lamaran
               </CardContent>
             </Card>
 
-            <Card className="border-[#e8d5d0] bg-white shadow-2xs">
+            <Card className="border-slate-200 bg-white">
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-[#8a7668]">
-                  <Users className="h-3.5 w-3.5 text-[#C98B75]" />
+                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Users className="h-3.5 w-3.5 text-blue-700" />
                   Total Pelamar
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold text-[#b87a65]">
+                <CardTitle className="text-2xl font-bold text-slate-950">
                   {totalApplicants}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[#8a7668]">
+              <CardContent className="text-xs text-slate-500">
                 Lamaran siap dievaluasi & diranking AI
               </CardContent>
             </Card>
 
-            <Card className="border-[#e8d5d0] bg-white shadow-2xs">
+            <Card className="border-slate-200 bg-white">
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-[#8a7668]">
+                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                   <FolderCheck className="h-3.5 w-3.5 text-blue-600" />
                   Proyek Selesai
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold text-[#4a3728]">
+                <CardTitle className="text-2xl font-bold text-slate-950">
                   {totalCompleted}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[#8a7668]">
+              <CardContent className="text-xs text-slate-500">
                 Telah rampung dikerjakan
               </CardContent>
             </Card>
 
-            <Card className="border-[#e8d5d0] bg-white shadow-2xs">
+            <Card className="border-slate-200 bg-white">
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-[#8a7668]">
+                <CardDescription className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                   <Briefcase className="h-3.5 w-3.5 text-[#a89080]" />
                   Total Proyek
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold text-[#4a3728]">
+                <CardTitle className="text-2xl font-bold text-slate-950">
                   {projects.length}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[#8a7668]">
+              <CardContent className="text-xs text-slate-500">
                 Semua proyek yang pernah dibuat
               </CardContent>
             </Card>
@@ -172,14 +172,14 @@ export default async function VendorDashboardPage() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-[#4a3728] tracking-tight">
+                <h2 className="text-xl font-bold text-slate-950 tracking-tight">
                   Daftar Proyek Organisasi
                 </h2>
-                <p className="text-xs text-[#8a7668]">
+                <p className="text-xs text-slate-500">
                   Kelola status, pantau pelamar, dan perbarui detail proyek dalam satu tempat.
                 </p>
               </div>
-              <span className="w-fit rounded-full border border-[#e8d5d0] bg-white px-3 py-1 text-xs font-semibold text-[#7a6559]">
+              <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                 {projects.length} proyek
               </span>
             </div>

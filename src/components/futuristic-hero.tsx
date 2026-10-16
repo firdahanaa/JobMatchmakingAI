@@ -30,7 +30,6 @@ import {
 
 interface FuturisticHeroDashboardProps {
   userRole?: "talent" | "vendor" | null;
-  publicLanding?: boolean;
   topProject?: {
     id: string;
     title: string;
@@ -165,7 +164,6 @@ function FilterDropdown({
 
 export function FuturisticHeroDashboard({
   userRole = "talent",
-  publicLanding = false,
   topProject,
   stats = { totalProjects: 1240, activeApplications: 12 },
 }: FuturisticHeroDashboardProps) {
@@ -247,14 +245,14 @@ export function FuturisticHeroDashboard({
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(175deg, #315a73 0%, #537c93 18%, #769bad 38%, #9fb9c7 58%, #c9dce7 78%, #e3eaeb 100%)",
+                "linear-gradient(145deg, #0f172a 0%, #172554 42%, #1e40af 76%, #2563eb 100%)",
             }}
           />
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse 80% 60% at 60% 90%, rgba(255,255,255,0.55) 0%, transparent 70%)",
+                "radial-gradient(ellipse 80% 60% at 70% 92%, rgba(147,197,253,0.34) 0%, transparent 70%)",
             }}
           />
           <div
@@ -318,41 +316,7 @@ export function FuturisticHeroDashboard({
           />
         </div>
 
-        {publicLanding ? (
-          <header className="relative z-20 mx-4 mt-4 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/65 bg-white/85 p-3 shadow-lg shadow-sky-900/10 backdrop-blur-xl sm:mx-5 sm:mt-5 sm:p-4">
-            <nav
-              aria-label="Pilih jenis akun"
-              className="col-start-2 row-start-1 flex items-center gap-1.5"
-            >
-              <Link
-                href="/talent"
-                className="rounded-full border border-sky-200 bg-white px-2.5 py-2 text-xs font-extrabold text-sky-800 shadow-sm transition-colors hover:border-sky-400 hover:bg-sky-50 sm:px-4 sm:text-sm"
-              >
-                Talent
-              </Link>
-              <Link
-                href="/vendor"
-                className="rounded-full border border-sky-200 bg-white px-2.5 py-2 text-xs font-extrabold text-sky-800 shadow-sm transition-colors hover:border-sky-400 hover:bg-sky-50 sm:px-4 sm:text-sm"
-              >
-                Vendor
-              </Link>
-            </nav>
-            <div className="col-start-3 row-start-1 flex items-center justify-self-end gap-1.5 sm:gap-2">
-              <Link
-                href="/login"
-                className="rounded-full border border-sky-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-sky-400 hover:bg-sky-50 sm:px-4 sm:text-sm"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="rounded-full border border-sky-700 bg-sky-700 px-2.5 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:border-sky-800 hover:bg-sky-800 sm:px-4 sm:text-sm"
-              >
-                Sign up
-              </Link>
-            </div>
-          </header>
-        ) : userRole === "talent" && (
+        {userRole === "talent" && (
           <div className="relative z-20 mx-4 mt-4 sm:mx-5 sm:mt-5">
             <div
               className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3"
@@ -431,7 +395,7 @@ export function FuturisticHeroDashboard({
         <div className="relative z-10 flex min-h-[380px] sm:min-h-[440px] lg:min-h-[480px]">
 
           {/* LEFT ICON PILL SIDEBAR — no Kategori, no duplicate profile avatar */}
-          {!publicLanding && <div className="relative z-20 flex flex-col items-center gap-2.5 py-7 px-3 sm:px-4">
+          <div className="relative z-20 flex flex-col items-center gap-2.5 py-7 px-3 sm:px-4">
             {sidebarItems.map((item, idx) => (
               <div key={idx} className="relative h-12 w-12 shrink-0">
                 <Link
@@ -478,7 +442,7 @@ export function FuturisticHeroDashboard({
                 </button>
               </div>
             )}
-          </div>}
+          </div>
 
           {/* CENTER HEADLINE */}
           <div className="flex-1 flex flex-col justify-center px-2 sm:px-4 lg:px-6 py-8">

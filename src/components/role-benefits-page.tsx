@@ -13,6 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { PublicSiteHeader } from "@/components/public-site-header";
 
 type Role = "talent" | "vendor";
 
@@ -99,27 +100,13 @@ export function RoleBenefitsPage({ role }: { role: Role }) {
   const registerHref = `/register?role=${role}`;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-slate-50 text-slate-900">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition-colors hover:text-sky-800"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Kembali ke beranda
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-bold text-sky-800 shadow-sm transition-colors hover:bg-sky-50"
-          >
-            Log in
-          </Link>
-        </header>
+    <main className="min-h-screen bg-[#f8fafc] text-slate-900">
+      <PublicSiteHeader activeRole={role} />
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
 
         <section className="py-16 text-center sm:py-24">
           <div className="mx-auto flex max-w-3xl flex-col items-center">
-            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-bold text-sky-800 shadow-sm">
+            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-4 py-2 text-sm font-bold text-blue-800 shadow-sm">
               <Sparkles className="h-4 w-4" />
               {content.label}
             </span>
@@ -132,7 +119,7 @@ export function RoleBenefitsPage({ role }: { role: Role }) {
             </p>
             <Link
               href={registerHref}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-sky-700 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-900/15 transition-colors hover:bg-sky-800"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/15 transition-colors hover:bg-slate-800"
             >
               Daftar sebagai {role === "talent" ? "Talent" : "Vendor"}
               <ArrowRight className="h-4 w-4" />
@@ -153,9 +140,9 @@ export function RoleBenefitsPage({ role }: { role: Role }) {
             {content.benefits.map(({ icon: Icon, title, description }) => (
               <article
                 key={title}
-                className="rounded-3xl border border-sky-100 bg-white p-6 shadow-sm shadow-slate-900/5"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5"
               >
-                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-800">
+                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-800">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="text-base font-extrabold">{title}</h3>
@@ -178,7 +165,7 @@ export function RoleBenefitsPage({ role }: { role: Role }) {
             </p>
             <Link
               href={registerHref}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition-colors hover:bg-sky-100"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition-colors hover:bg-blue-50"
             >
               Sign up
               <CheckCircle2 className="h-4 w-4" />

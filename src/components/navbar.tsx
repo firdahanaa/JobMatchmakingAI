@@ -131,14 +131,14 @@ export function Navbar({ initialUser }: NavbarProps) {
   const isVendor = user?.role === "vendor";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/60 bg-[#c9dce7]/90 backdrop-blur-xl shadow-xs shadow-slate-400/10">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-xl">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         {/* Brand Logo */}
         <Link
           href={user ? (isTalent ? "/talent/dashboard" : "/vendor/dashboard") : "/"}
           className="flex items-center gap-2.5 font-black text-lg text-[#0F172A] group"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/25 group-hover:scale-105 transition-transform">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm group-hover:scale-105 transition-transform">
             <Sparkles className="h-5 w-5" />
           </div>
           <span className="tracking-tight text-[#0F172A]">

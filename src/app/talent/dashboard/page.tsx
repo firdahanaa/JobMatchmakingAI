@@ -183,7 +183,7 @@ export default async function TalentDashboardPage() {
   } : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F0F9FF] text-[#0F172A]">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-950">
       <main className="flex-1 px-1 sm:px-3 lg:px-6">
         {/* Hero — zero padding, fills full width */}
         <div className="w-full pt-2 sm:pt-6">

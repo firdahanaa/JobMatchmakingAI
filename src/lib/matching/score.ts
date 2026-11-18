@@ -36,18 +36,21 @@ function buildTalentSkillMap(skills: TalentSkill[]): Map<number | string, Talent
  * Score = earned weight of possessed skills / total project skill weight * 100.
  */
 export function calculateSkillScore(
-  talent: TalentContext | { skills: TalentSkill[] },
-  project: ProjectContext | { skills: ProjectContext["skills"] }
+  talent: TalentContext | { skills?: TalentSkill[] | null },
+  project: ProjectContext | { skills?: ProjectContext["skills"] | null }
 ): number {
-  if (project.skills.length === 0) {
+  const talentSkills = Array.isArray(talent.skills) ? talent.skills : [];
+  const projectSkills = Array.isArray(project.skills) ? project.skills : [];
+
+  if (projectSkills.length === 0) {
     return 100;
   }
 
-  const talentSkillMap = buildTalentSkillMap(talent.skills);
+  const talentSkillMap = buildTalentSkillMap(talentSkills);
   let totalWeight = 0;
   let earnedWeight = 0;
 
-  for (const ps of project.skills) {
+  for (const ps of projectSkills) {
     const weight = ps.isRequired ? 1.0 : 0.5;
     totalWeight += weight;
 
@@ -74,18 +77,21 @@ export function calculateSkillScore(
  * Returns weighted average (required skills weight 1.0, non-required 0.5).
  */
 export function calculateLevelFitScore(
-  talent: TalentContext | { skills: TalentSkill[] },
-  project: ProjectContext | { skills: ProjectContext["skills"] }
+  talent: TalentContext | { skills?: TalentSkill[] | null },
+  project: ProjectContext | { skills?: ProjectContext["skills"] | null }
 ): number {
-  if (project.skills.length === 0) {
+  const talentSkills = Array.isArray(talent.skills) ? talent.skills : [];
+  const projectSkills = Array.isArray(project.skills) ? project.skills : [];
+
+  if (projectSkills.length === 0) {
     return 100;
   }
 
-  const talentSkillMap = buildTalentSkillMap(talent.skills);
+  const talentSkillMap = buildTalentSkillMap(talentSkills);
   let totalWeight = 0;
   let weightedFitSum = 0;
 
-  for (const ps of project.skills) {
+  for (const ps of projectSkills) {
     const weight = ps.isRequired ? 1.0 : 0.5;
     totalWeight += weight;
 
@@ -132,15 +138,19 @@ export function calculateAvailabilityScore(
     return 0;
   }
 
+  const talentHours = talent.hoursPerWeek ?? null;
+  const projectHours = project.hoursPerWeek ?? null;
+  const talentMode = talent.preferredMode ?? null;
+
   const hoursMatch =
-    talent.hoursPerWeek === null ||
-    project.hoursPerWeek === null ||
-    talent.hoursPerWeek >= project.hoursPerWeek;
+    talentHours === null ||
+    projectHours === null ||
+    talentHours >= projectHours;
 
   const modeMatch =
     project.mode === "remote" ||
-    talent.preferredMode === null ||
-    talent.preferredMode === project.mode;
+    talentMode === null ||
+    talentMode === project.mode;
 
   if (hoursMatch && modeMatch) {
     return 100;

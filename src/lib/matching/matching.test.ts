@@ -155,6 +155,25 @@ describe("Matching Engine: calculateAvailabilityScore", () => {
     expect(calculateAvailabilityScore(talent, project)).toBe(100);
   });
 
+  it("menganggap value undefined sebagai data fleksibel yang tidak membatasi kecocokan", () => {
+    const talent = {
+      skills: [],
+      hoursPerWeek: undefined,
+      preferredMode: undefined,
+      isAvailable: true,
+      avgRating: null,
+    } as unknown as TalentContext;
+    const project: ProjectContext = {
+      skills: [],
+      hoursPerWeek: 20,
+      mode: "onsite",
+    };
+
+    expect(calculateAvailabilityScore(talent, project)).toBe(100);
+    expect(calculateSkillScore(talent, project)).toBe(100);
+    expect(calculateLevelFitScore(talent, project)).toBe(100);
+  });
+
   it("memberikan skor 50 jika sebagian cocok (misal jam cukup tapi mode tidak cocok)", () => {
     const talent: TalentContext = {
       skills: [],

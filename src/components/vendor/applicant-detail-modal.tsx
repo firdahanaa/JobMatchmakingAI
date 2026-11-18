@@ -19,10 +19,15 @@ import {
   MessageSquare,
   Mail,
   Award,
+  FileText,
+  Download,
+  LoaderCircle,
 } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { Button } from "@/components/ui/button";
 import type { DetailedApplicantItem } from "@/app/vendor/projects/[id]/applicants/actions";
+import { getApplicantCvDownloadUrl } from "@/app/talent/profile/cv-actions";
+import { toast } from "sonner";
 
 interface ApplicantDetailModalProps {
   applicant: DetailedApplicantItem | null;
@@ -37,6 +42,32 @@ export function ApplicantDetailModal({
   onClose,
   onOpenReview,
 }: ApplicantDetailModalProps) {
+  const [isDownloadingCv, setIsDownloadingCv] = React.useState(false);
+
+  const handleDownloadCv = async () => {
+    if (!applicant) return;
+    const downloadWindow = window.open("about:blank", "_blank");
+    if (!downloadWindow) {
+      toast.error("Izinkan tab baru untuk mengunduh CV dengan aman.");
+      return;
+    }
+
+    setIsDownloadingCv(true);
+    try {
+      const result = await getApplicantCvDownloadUrl(applicant.id);
+      if (!result.url) {
+        downloadWindow.close();
+        throw new Error(result.error || "CV tidak dapat diunduh.");
+      }
+      downloadWindow.location.replace(result.url);
+    } catch (error) {
+      downloadWindow.close();
+      toast.error(error instanceof Error ? error.message : "CV tidak dapat diunduh.");
+    } finally {
+      setIsDownloadingCv(false);
+    }
+  };
+
   if (!applicant) return null;
 
   return (
@@ -156,6 +187,79 @@ export function ApplicantDetailModal({
             </p>
           </div>
         )}
+
+        {/* Education history and work experience */}
+        {applicant.educationHistory.length > 0 && (
+          <div className="space-y-2 text-xs">
+            <h4 className="font-bold text-[#5c4639]">Riwayat Pendidikan</h4>
+            <div className="space-y-2">
+              {applicant.educationHistory.map((education, index) => (
+                <div key={`${education.institution}-${index}`} className="rounded-xl border border-[#F7ECEA] bg-[#F7ECEA]/50 p-3">
+                  <p className="font-semibold text-[#5c4639]">{education.degree} {education.fieldOfStudy}</p>
+                  <p className="mt-0.5 text-[#7a6559]">{education.institution}</p>
+                  {(education.startDate || education.endDate) && (
+                    <p className="mt-0.5 text-2xs text-[#a89080]">
+                      {education.startDate || "—"} – {education.endDate || "Saat ini"}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {applicant.workExperience.length > 0 && (
+          <div className="space-y-2 text-xs">
+            <h4 className="font-bold text-[#5c4639]">Pengalaman Kerja</h4>
+            <div className="space-y-2">
+              {applicant.workExperience.map((experience, index) => (
+                <div key={`${experience.company}-${index}`} className="rounded-xl border border-[#F7ECEA] bg-[#F7ECEA]/50 p-3">
+                  <p className="font-semibold text-[#5c4639]">{experience.role} · {experience.company}</p>
+                  {(experience.startDate || experience.endDate || experience.isCurrent) && (
+                    <p className="mt-0.5 text-2xs text-[#a89080]">
+                      {experience.startDate || "—"} – {experience.isCurrent ? "Saat ini" : experience.endDate || "—"}
+                    </p>
+                  )}
+                  {experience.description && (
+                    <p className="mt-1 whitespace-pre-wrap leading-relaxed text-[#7a6559]">{experience.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Application CV snapshot */}
+        <div className="flex flex-col gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-800">CV pada saat melamar</p>
+              {applicant.candidateCvName ? (
+                <p className="mt-0.5 truncate text-2xs text-slate-600">{applicant.candidateCvName}</p>
+              ) : (
+                <p className="mt-0.5 text-2xs text-slate-500">Pelamar tidak menyertakan CV.</p>
+              )}
+            </div>
+          </div>
+          {applicant.candidateCvName && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleDownloadCv}
+              disabled={isDownloadingCv}
+              className="h-8 shrink-0 gap-1.5 border-sky-200 text-xs text-sky-800"
+            >
+              {isDownloadingCv ? (
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Unduh snapshot
+            </Button>
+          )}
+        </div>
 
         {/* Message from talent */}
         {applicant.message && (

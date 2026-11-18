@@ -19,12 +19,50 @@ export interface TalentProfile {
   headline: string | null;
   bio: string | null;
   education: string | null;
+  education_history: EducationHistoryItem[];
+  work_experience: WorkExperienceItem[];
   location: string | null;
   hours_per_week: number | null;
   preferred_mode: WorkMode | null;
   is_available: boolean;
   portfolio_urls: string[];
+  current_cv_id: string | null;
   updated_at: string;
+}
+
+export interface EducationHistoryItem {
+  institution: string;
+  degree: string;
+  fieldOfStudy: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface WorkExperienceItem {
+  company: string;
+  role: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+}
+
+export type CvProcessingStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'needs_ocr'
+  | 'failed';
+
+export interface CandidateCv {
+  id: string;
+  candidate_id: string;
+  original_filename: string;
+  file_size_bytes: number;
+  processing_status: CvProcessingStatus;
+  processing_error: string | null;
+  uploaded_at: string;
+  processed_at: string | null;
 }
 
 export interface VendorProfile {
@@ -81,6 +119,7 @@ export interface Application {
   talent_id: string;
   message: string | null;
   match_score: number | null;
+  candidate_cv_id: string | null;
   status: ApplicationStatus;
   created_at: string;
   project?: Project;

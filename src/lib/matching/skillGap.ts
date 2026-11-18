@@ -16,20 +16,22 @@ import {
  * - readinessPercent: percentage of readiness (0-100) based on matched skills
  */
 export function calculateSkillGap(
-  talent: TalentContext | { skills: TalentSkill[] },
-  project: ProjectContext | { skills: ProjectSkill[] }
+  talent: TalentContext | { skills?: TalentSkill[] | null },
+  project: ProjectContext | { skills?: ProjectSkill[] | null }
 ): SkillGapResult {
+  const talentSkills = Array.isArray(talent.skills) ? talent.skills : [];
+  const projectSkills = Array.isArray(project.skills) ? project.skills : [];
   const missingSkills: string[] = [];
   const underLevelSkills: { name: string; has: SkillLevel; needs: SkillLevel }[] = [];
   const matchedSkills: string[] = [];
 
   const talentSkillMap = new Map<number | string, TalentSkill>();
-  for (const ts of talent.skills) {
+  for (const ts of talentSkills) {
     talentSkillMap.set(ts.skillId, ts);
     talentSkillMap.set(ts.name.toLowerCase().trim(), ts);
   }
 
-  for (const ps of project.skills) {
+  for (const ps of projectSkills) {
     const talentSkill =
       talentSkillMap.get(ps.skillId) ??
       talentSkillMap.get(ps.name.toLowerCase().trim());
@@ -52,7 +54,7 @@ export function calculateSkillGap(
     }
   }
 
-  const totalSkills = project.skills.length;
+  const totalSkills = projectSkills.length;
   const readinessPercent =
     totalSkills === 0
       ? 100

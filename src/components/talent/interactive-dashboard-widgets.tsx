@@ -1,15 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { Sparkles, Radar, Flame, SlidersHorizontal, Search, CheckCircle2, ArrowUpRight, Zap, Target } from "lucide-react";
+import React from "react";
+import { Sparkles, Radar, Flame, Search, CheckCircle2, Zap, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface InteractiveDashboardProps {
-  onFilterChange?: (filter: string) => void;
-  activeFilter?: string;
-  searchQuery?: string;
-  onSearchChange?: (query: string) => void;
-}
 
 /**
  * Animated Live AI Activity Ticker

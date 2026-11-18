@@ -120,6 +120,19 @@ export async function applyToProject(
       };
     }
 
+    const { data: talentProfile, error: talentProfileError } = await supabase
+      .from("talent_profiles")
+      .select("current_cv_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (talentProfileError) {
+      console.error("Candidate CV snapshot lookup error:", talentProfileError);
+      return { success: false, error: "Gagal memuat versi CV untuk lamaran." };
+    }
+
+    const candidateCvId = talentProfile?.current_cv_id ?? null;
+
     // 4. Hitung Match Score di server (bukan dari client)
     const { context: talentContext, error: contextError } = await getTalentMatchingContext();
     if (contextError || !talentContext) {
@@ -201,6 +214,7 @@ export async function applyToProject(
           talent_id: user.id,
           message: finalStoredMessage,
           match_score: serverMatchScore,
+          candidate_cv_id: candidateCvId,
           status: "pending",
         })
         .select("id")

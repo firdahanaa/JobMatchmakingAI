@@ -218,7 +218,8 @@ export function ApplyDialog({
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
               Pihak vendor <strong className="text-slate-700">{vendorName}</strong> akan menerima
-              profil keahlianmu, link portofolio, dan snapshot skor kecocokan saat ini.
+              profil keahlianmu, link portofolio, dan snapshot skor kecocokan. CV terbaru ikut
+              disertakan jika kamu sudah mengunggahnya.
             </DialogDescription>
           </DialogHeader>
 

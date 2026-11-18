@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BookOpen,
   Building2,
-  ChevronRight,
   Briefcase,
   FolderCheck,
   Star,
@@ -17,19 +16,14 @@ import {
   CheckCircle2,
   Award,
   Clock,
-  Target,
   Flame,
-  BarChart3,
-  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { StarRating } from "@/components/ui/star-rating";
 import { getTalentProjects } from "@/app/talent/projects/actions";
 import { createClient } from "@/lib/supabase/server";
-import { Navbar } from "@/components/navbar";
 import { FuturisticHeroDashboard } from "@/components/futuristic-hero";
-import { AILiveTicker, ProjectFilterBar } from "@/components/talent/interactive-dashboard-widgets";
 
 export const metadata: Metadata = {
   title: "Dashboard Talenta",
@@ -119,16 +113,7 @@ export default async function TalentDashboardPage() {
     };
   });
 
-  // 5. Ambil data profil talent
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const talentName = profile?.full_name || user.user_metadata?.full_name || "Talenta Muda";
-
-  // 6. Ambil data skill talent untuk "Skill Progress"
+  // 5. Ambil data skill talent untuk "Skill Progress"
   const { data: talentSkillsData } = await supabase
     .from("talent_skills")
     .select("skill_id, level, skills(id, name, category)")
@@ -153,7 +138,7 @@ export default async function TalentDashboardPage() {
     };
   });
 
-  // 7. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
+  // 6. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
   // Menghitung seberapa sering tiap skill yang kurang muncul pada seluruh proyek terbuka
   const missingSkillFrequency: Record<string, { count: number; name: string }> = {};
   for (const proj of projects) {

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FormItem } from "@/components/ui/form";
 import { PortfolioInput } from "@/components/talent/portfolio-input";
+import { CandidateCvSection } from "@/components/talent/candidate-cv-section";
 import { SkillSelector, type SelectedSkillItem } from "@/components/talent/skill-selector";
 import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import {
@@ -36,8 +37,16 @@ import {
   Star,
   Building2,
   MessageSquare,
+  Plus,
+  Trash2,
 } from "lucide-react";
-import type { WorkMode, SkillLevel } from "@/types/database";
+import type {
+  EducationHistoryItem,
+  WorkExperienceItem,
+  WorkMode,
+  SkillLevel,
+} from "@/types/database";
+import type { CandidateCvSummary } from "./cv-actions";
 
 export default function TalentProfilePage() {
   const [pageData, setPageData] = React.useState<TalentProfilePageData | null>(null);
@@ -57,6 +66,9 @@ export default function TalentProfilePage() {
   const [isAvailable, setIsAvailable] = React.useState<boolean>(true);
   const [bio, setBio] = React.useState("");
   const [portfolioUrls, setPortfolioUrls] = React.useState<string[]>([]);
+  const [educationHistory, setEducationHistory] = React.useState<EducationHistoryItem[]>([]);
+  const [workExperience, setWorkExperience] = React.useState<WorkExperienceItem[]>([]);
+  const [currentCv, setCurrentCv] = React.useState<CandidateCvSummary | null>(null);
 
   // Selected Skills state
   const [selectedSkills, setSelectedSkills] = React.useState<SelectedSkillItem[]>([]);
@@ -69,6 +81,7 @@ export default function TalentProfilePage() {
       if (res.data) {
         setPageData(res.data);
         setFullName(res.data.user.fullName || "");
+        setCurrentCv(res.data.currentCv);
         const tp = res.data.talentProfile;
         if (tp) {
           setHeadline(tp.headline || "");
@@ -79,6 +92,8 @@ export default function TalentProfilePage() {
           setIsAvailable(tp.is_available ?? true);
           setBio(tp.bio || "");
           setPortfolioUrls(tp.portfolio_urls || []);
+          setEducationHistory(tp.education_history || []);
+          setWorkExperience(tp.work_experience || []);
         }
 
         const initialSkills: SelectedSkillItem[] = res.data.talentSkills.map((ts) => ({
@@ -100,22 +115,17 @@ export default function TalentProfilePage() {
   // Calculate profile completeness score (0 - 100%)
   const calculateCompleteness = () => {
     let score = 0;
-    if (headline.trim().length >= 3) score += 15;
-    if (education.trim().length >= 2) score += 15;
-    if (location.trim().length >= 2) score += 15;
+    if (fullName.trim().length >= 2) score += 10;
+    if (headline.trim().length >= 3) score += 10;
+    if (education.trim().length >= 2 || educationHistory.length > 0) score += 10;
+    if (location.trim().length >= 2) score += 10;
     if (hoursPerWeek > 0) score += 10;
-    if (preferredMode) score += 10;
+    if (preferredMode) score += 5;
     if (bio.trim().length >= 10) score += 10;
-    if (portfolioUrls.length > 0) score += 10;
-
-    // Skills completeness (min 3 skills = 15%)
-    if (selectedSkills.length >= 3) {
-      score += 15;
-    } else if (selectedSkills.length === 2) {
-      score += 10;
-    } else if (selectedSkills.length === 1) {
-      score += 5;
-    }
+    if (portfolioUrls.length > 0) score += 5;
+    if (workExperience.length > 0) score += 10;
+    if (currentCv) score += 10;
+    score += Math.min(10, selectedSkills.length * 3);
 
     return Math.min(100, score);
   };
@@ -137,6 +147,8 @@ export default function TalentProfilePage() {
       preferredMode,
       isAvailable,
       portfolioUrls,
+      educationHistory,
+      workExperience,
     });
 
     if (result.success) {
@@ -191,6 +203,8 @@ export default function TalentProfilePage() {
       preferredMode,
       isAvailable,
       portfolioUrls,
+      educationHistory,
+      workExperience,
     });
 
     if (!profileRes.success) {
@@ -353,11 +367,11 @@ export default function TalentProfilePage() {
             />
 
             {/* Checklist items */}
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold text-slate-500">
+            <div className="mt-5 grid grid-cols-2 gap-3 text-xs font-semibold text-slate-500 sm:grid-cols-3 xl:grid-cols-6">
               <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
                 <CheckCircle2
                   className={`h-4 w-4 shrink-0 ${
-                    headline.trim() && education.trim() && location.trim()
+                    fullName.trim() && headline.trim() && (education.trim() || educationHistory.length > 0) && location.trim()
                       ? "text-emerald-500"
                       : "text-sky-300"
                   }`}
@@ -372,6 +386,20 @@ export default function TalentProfilePage() {
                   }`}
                 />
                 <span>Ketersediaan</span>
+              </div>
+
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
+                <CheckCircle2
+                  className={`h-4 w-4 shrink-0 ${workExperience.length > 0 ? "text-emerald-500" : "text-sky-300"}`}
+                />
+                <span>Pengalaman</span>
+              </div>
+
+              <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
+                <CheckCircle2
+                  className={`h-4 w-4 shrink-0 ${currentCv ? "text-emerald-500" : "text-sky-300"}`}
+                />
+                <span>CV</span>
               </div>
 
               <div className="flex items-center gap-2 bg-white/40 px-3 py-2 rounded-xl border border-sky-100/30">
@@ -428,6 +456,8 @@ export default function TalentProfilePage() {
                     <Input
                       id="fullName"
                       placeholder="mis. Aditya Pratama"
+                      autoComplete="name"
+                      maxLength={100}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -486,6 +516,139 @@ export default function TalentProfilePage() {
                       </div>
                     </FormItem>
                   </div>
+
+                  <section className="space-y-3 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-[#0F2A5E]">Riwayat Pendidikan</h3>
+                        <p className="text-xs text-[#4A7AAF]">Tambahkan institusi dan bidang studi secara terpisah.</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setEducationHistory((items) => [
+                            ...items,
+                            { institution: "", degree: "", fieldOfStudy: "", startDate: "", endDate: "" },
+                          ])
+                        }
+                        disabled={educationHistory.length >= 10}
+                        className="h-8 gap-1.5 border-sky-200 text-xs text-sky-800"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Tambah pendidikan
+                      </Button>
+                    </div>
+                    {educationHistory.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-sky-200 bg-white p-3 text-xs text-slate-500">
+                        Belum ada riwayat pendidikan terstruktur. Informasi pendidikan utama di atas tetap tersimpan.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {educationHistory.map((item, index) => (
+                          <div key={index} className="space-y-3 rounded-xl border border-sky-100 bg-white p-3">
+                            <div className="flex items-start gap-2">
+                              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                                <FormItem>
+                                  <Label htmlFor={`education-institution-${index}`}>Institusi</Label>
+                                  <Input
+                                    id={`education-institution-${index}`}
+                                    value={item.institution}
+                                    maxLength={150}
+                                    onChange={(e) =>
+                                      setEducationHistory((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, institution: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                    required
+                                  />
+                                </FormItem>
+                                <FormItem>
+                                  <Label htmlFor={`education-degree-${index}`}>Gelar / Jenjang</Label>
+                                  <Input
+                                    id={`education-degree-${index}`}
+                                    value={item.degree}
+                                    maxLength={100}
+                                    onChange={(e) =>
+                                      setEducationHistory((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, degree: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                    placeholder="mis. S1"
+                                  />
+                                </FormItem>
+                                <FormItem>
+                                  <Label htmlFor={`education-field-${index}`}>Bidang Studi</Label>
+                                  <Input
+                                    id={`education-field-${index}`}
+                                    value={item.fieldOfStudy}
+                                    maxLength={100}
+                                    onChange={(e) =>
+                                      setEducationHistory((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, fieldOfStudy: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                    placeholder="mis. Teknik Informatika"
+                                  />
+                                </FormItem>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <FormItem>
+                                    <Label htmlFor={`education-start-${index}`}>Mulai</Label>
+                                    <Input
+                                      id={`education-start-${index}`}
+                                      type="month"
+                                      value={item.startDate}
+                                      onChange={(e) =>
+                                        setEducationHistory((items) =>
+                                          items.map((entry, itemIndex) =>
+                                            itemIndex === index ? { ...entry, startDate: e.target.value } : entry,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                  <FormItem>
+                                    <Label htmlFor={`education-end-${index}`}>Selesai</Label>
+                                    <Input
+                                      id={`education-end-${index}`}
+                                      type="month"
+                                      value={item.endDate}
+                                      onChange={(e) =>
+                                        setEducationHistory((items) =>
+                                          items.map((entry, itemIndex) =>
+                                            itemIndex === index ? { ...entry, endDate: e.target.value } : entry,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Hapus riwayat pendidikan ${index + 1}`}
+                                onClick={() =>
+                                  setEducationHistory((items) => items.filter((_, itemIndex) => itemIndex !== index))
+                                }
+                                className="mt-6 shrink-0 text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
 
                   {/* Availability Hours & Mode */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -570,6 +733,157 @@ export default function TalentProfilePage() {
                     />
                   </FormItem>
 
+                  <section className="space-y-3 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-[#0F2A5E]">Pengalaman Kerja</h3>
+                        <p className="text-xs text-[#4A7AAF]">Pengalaman bersifat opsional, termasuk proyek freelance.</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setWorkExperience((items) => [
+                            ...items,
+                            { company: "", role: "", description: "", startDate: "", endDate: "", isCurrent: false },
+                          ])
+                        }
+                        disabled={workExperience.length >= 20}
+                        className="h-8 gap-1.5 border-sky-200 text-xs text-sky-800"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Tambah pengalaman
+                      </Button>
+                    </div>
+                    {workExperience.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-sky-200 bg-white p-3 text-xs text-slate-500">
+                        Belum ada pengalaman kerja. Kamu dapat menambahkannya kapan saja.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {workExperience.map((item, index) => (
+                          <div key={index} className="space-y-3 rounded-xl border border-sky-100 bg-white p-3">
+                            <div className="flex items-start gap-2">
+                              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                                <FormItem>
+                                  <Label htmlFor={`experience-role-${index}`}>Peran / Jabatan</Label>
+                                  <Input
+                                    id={`experience-role-${index}`}
+                                    value={item.role}
+                                    maxLength={120}
+                                    onChange={(e) =>
+                                      setWorkExperience((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, role: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                    required
+                                  />
+                                </FormItem>
+                                <FormItem>
+                                  <Label htmlFor={`experience-company-${index}`}>Perusahaan / Klien</Label>
+                                  <Input
+                                    id={`experience-company-${index}`}
+                                    value={item.company}
+                                    maxLength={150}
+                                    onChange={(e) =>
+                                      setWorkExperience((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, company: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                    required
+                                  />
+                                </FormItem>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <FormItem>
+                                    <Label htmlFor={`experience-start-${index}`}>Mulai</Label>
+                                    <Input
+                                      id={`experience-start-${index}`}
+                                      type="month"
+                                      value={item.startDate}
+                                      onChange={(e) =>
+                                        setWorkExperience((items) =>
+                                          items.map((entry, itemIndex) =>
+                                            itemIndex === index ? { ...entry, startDate: e.target.value } : entry,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                  <FormItem>
+                                    <Label htmlFor={`experience-end-${index}`}>Selesai</Label>
+                                    <Input
+                                      id={`experience-end-${index}`}
+                                      type="month"
+                                      value={item.endDate}
+                                      disabled={item.isCurrent}
+                                      onChange={(e) =>
+                                        setWorkExperience((items) =>
+                                          items.map((entry, itemIndex) =>
+                                            itemIndex === index ? { ...entry, endDate: e.target.value } : entry,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                </div>
+                                <label className="flex items-center gap-2 self-end pb-2 text-xs font-medium text-slate-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.isCurrent}
+                                    onChange={(e) =>
+                                      setWorkExperience((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index
+                                            ? { ...entry, isCurrent: e.target.checked, endDate: e.target.checked ? "" : entry.endDate }
+                                            : entry,
+                                        ),
+                                      )
+                                    }
+                                    className="h-4 w-4 rounded border-sky-300 accent-sky-700"
+                                  />
+                                  Masih bekerja di sini
+                                </label>
+                                <FormItem className="sm:col-span-2">
+                                  <Label htmlFor={`experience-description-${index}`}>Deskripsi</Label>
+                                  <Textarea
+                                    id={`experience-description-${index}`}
+                                    value={item.description}
+                                    maxLength={1000}
+                                    rows={3}
+                                    onChange={(e) =>
+                                      setWorkExperience((items) =>
+                                        items.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, description: e.target.value } : entry,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                </FormItem>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Hapus pengalaman kerja ${index + 1}`}
+                                onClick={() =>
+                                  setWorkExperience((items) => items.filter((_, itemIndex) => itemIndex !== index))
+                                }
+                                className="mt-6 shrink-0 text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
                   {/* Portfolio Input Component */}
                   <div className="pt-2 border-t border-[#DBEAFE]">
                     <PortfolioInput
@@ -577,6 +891,11 @@ export default function TalentProfilePage() {
                       onChange={(updated) => setPortfolioUrls(updated)}
                     />
                   </div>
+
+                  <CandidateCvSection
+                    initialCv={currentCv}
+                    onCvChange={setCurrentCv}
+                  />
 
                   <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <Button

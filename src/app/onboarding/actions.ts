@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { WorkMode } from "@/types/database";
+import { talentOnboardingSchema } from "@/lib/validators/talent";
 
 export interface TalentOnboardingData {
   fullName?: string;
@@ -29,6 +30,15 @@ export async function saveTalentOnboarding(data: TalentOnboardingData): Promise<
   error?: string;
 }> {
   try {
+    const parseResult = talentOnboardingSchema.safeParse(data);
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: parseResult.error.issues[0]?.message || "Data profil Talent tidak valid.",
+      };
+    }
+
+    const validated = parseResult.data;
     const supabase = await createClient();
     const {
       data: { user },
@@ -42,28 +52,33 @@ export async function saveTalentOnboarding(data: TalentOnboardingData): Promise<
       };
     }
 
-    if (!data.headline?.trim() || !data.education?.trim() || !data.location?.trim() || !data.hoursPerWeek) {
-      return {
-        success: false,
-        error: "Harap lengkapi semua kolom wajib (headline, pendidikan, lokasi, jam per minggu).",
-      };
-    }
-
     // 1. Ensure profile exists in profiles table and full_name is synchronized
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
       .select("id, role, full_name")
       .eq("id", user.id)
       .maybeSingle();
 
+    if (profileError) {
+      console.error("Talent onboarding role lookup error:", profileError);
+      return { success: false, error: "Gagal memverifikasi akun Talent." };
+    }
+    if (existingProfile && existingProfile.role !== "talent") {
+      return { success: false, error: "Akses ditolak. Akun ini bukan akun Talent." };
+    }
+
     const userFullName = data.fullName?.trim() || user.user_metadata?.full_name?.trim();
 
     if (!existingProfile) {
-      await supabase.from("profiles").upsert({
+      const { error: createProfileError } = await supabase.from("profiles").upsert({
         id: user.id,
         role: "talent",
         full_name: userFullName || "Talenta",
       });
+      if (createProfileError) {
+        console.error("Create talent profile error:", createProfileError);
+        return { success: false, error: "Gagal membuat profil Talent." };
+      }
     } else if (userFullName) {
       await supabase
         .from("profiles")
@@ -71,43 +86,18 @@ export async function saveTalentOnboarding(data: TalentOnboardingData): Promise<
         .eq("id", user.id);
     }
 
-    // 2. Check if talent_profiles exists
-    const { data: existingTalent } = await supabase
+    const { error: saveError } = await supabase
       .from("talent_profiles")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let saveError;
-    if (existingTalent) {
-      const res = await supabase
-        .from("talent_profiles")
-        .update({
-          headline: data.headline.trim(),
-          education: data.education.trim(),
-          location: data.location.trim(),
-          hours_per_week: Number(data.hoursPerWeek),
-          preferred_mode: data.preferredMode,
-          bio: data.bio?.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
-      saveError = res.error;
-    } else {
-      const res = await supabase
-        .from("talent_profiles")
-        .insert({
-          user_id: user.id,
-          headline: data.headline.trim(),
-          education: data.education.trim(),
-          location: data.location.trim(),
-          hours_per_week: Number(data.hoursPerWeek),
-          preferred_mode: data.preferredMode,
-          bio: data.bio?.trim() || null,
-          updated_at: new Date().toISOString(),
-        });
-      saveError = res.error;
-    }
+      .upsert({
+        user_id: user.id,
+        headline: validated.headline,
+        education: validated.education,
+        location: validated.location,
+        hours_per_week: validated.hoursPerWeek,
+        preferred_mode: validated.preferredMode,
+        bio: validated.bio || null,
+        updated_at: new Date().toISOString(),
+      });
 
     if (saveError) {
       console.error("Talent profile save error:", saveError);

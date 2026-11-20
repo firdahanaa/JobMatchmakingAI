@@ -40,6 +40,9 @@ import type {
   ProjectType,
   WorkMode,
   TalentProfile,
+  CvProcessingStatus,
+  EducationHistoryItem,
+  WorkExperienceItem,
 } from "@/types/database";
 
 export interface DetailedApplicantItem {
@@ -63,12 +66,16 @@ export interface DetailedApplicantItem {
   talentAvatar: string | null;
   headline: string | null;
   education: string | null;
+  educationHistory: EducationHistoryItem[];
+  workExperience: WorkExperienceItem[];
   bio: string | null;
   location: string | null;
   hoursPerWeek: number | null;
   preferredMode: WorkMode | null;
   isAvailable: boolean;
   portfolioUrls: string[];
+  candidateCvName: string | null;
+  candidateCvProcessingStatus: CvProcessingStatus | null;
 
   // Recalculated matching with latest data
   latestMatchScore: number;
@@ -270,6 +277,9 @@ export async function getProjectApplicantsRecalculated(
     const talentIds = apps.map((a) => a.talent_id);
 
     const appIds = apps.map((a) => a.id);
+    const cvIds = apps
+      .map((application) => application.candidate_cv_id)
+      .filter((cvId): cvId is string => Boolean(cvId));
 
     // 3. Batch fetch data talenta (Anti N+1)
     const [
@@ -308,6 +318,22 @@ export async function getProjectApplicantsRecalculated(
         .select("application_id, status, redirect_url")
         .in("application_id", appIds),
     ]);
+
+    const candidateCvsRes = cvIds.length > 0
+      ? await supabase
+          .from("candidate_cvs")
+          .select("id, original_filename, processing_status")
+          .in("id", cvIds)
+      : { data: [], error: null };
+
+    if (candidateCvsRes.error) {
+      console.error("Fetch applicant CV metadata error:", candidateCvsRes.error);
+      return { data: null, error: "Gagal memuat metadata CV pelamar." };
+    }
+
+    const candidateCvsMap = new Map(
+      (candidateCvsRes.data || []).map((cv) => [cv.id, cv]),
+    );
 
     // Map profiles
     const profilesMap = new Map<string, { full_name: string; avatar_url: string | null }>();
@@ -493,12 +519,20 @@ export async function getProjectApplicantsRecalculated(
         talentAvatar: prof?.avatar_url || null,
         headline: tProf?.headline || null,
         education: tProf?.education || null,
+        educationHistory: tProf?.education_history || [],
+        workExperience: tProf?.work_experience || [],
         bio: tProf?.bio || null,
         location: tProf?.location || null,
         hoursPerWeek: tProf?.hours_per_week ?? null,
         preferredMode: tProf?.preferred_mode ?? null,
         isAvailable: tProf?.is_available ?? true,
         portfolioUrls: tProf?.portfolio_urls || [],
+        candidateCvName: app.candidate_cv_id
+          ? candidateCvsMap.get(app.candidate_cv_id)?.original_filename || null
+          : null,
+        candidateCvProcessingStatus: app.candidate_cv_id
+          ? (candidateCvsMap.get(app.candidate_cv_id)?.processing_status as CvProcessingStatus | undefined) || null
+          : null,
         latestMatchScore: matchResult.score,
         snapshotMatchScore: app.match_score,
         matchBreakdown: matchResult.breakdown,

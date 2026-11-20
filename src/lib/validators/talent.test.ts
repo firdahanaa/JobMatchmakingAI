@@ -3,6 +3,8 @@ import {
   portfolioUrlSchema,
   talentProfileUpdateSchema,
   talentSkillsUpdateSchema,
+  candidateCvUploadSchema,
+  MAX_CANDIDATE_CV_BYTES,
 } from "./talent";
 
 describe("Talent Validators", () => {
@@ -20,6 +22,7 @@ describe("Talent Validators", () => {
 
   describe("talentProfileUpdateSchema", () => {
     const validData = {
+      fullName: "Ayu Pratama",
       headline: "Frontend Engineer (React / Next.js)",
       bio: "Mahasiswa tingkat akhir dengan minat di web development.",
       education: "S1 Teknik Informatika - ITB",
@@ -28,6 +31,25 @@ describe("Talent Validators", () => {
       preferredMode: "remote" as const,
       isAvailable: true,
       portfolioUrls: ["https://github.com/user", "https://behance.net/user"],
+      educationHistory: [
+        {
+          institution: "Institut Teknologi Bandung",
+          degree: "S1",
+          fieldOfStudy: "Informatika",
+          startDate: "2021-08",
+          endDate: "",
+        },
+      ],
+      workExperience: [
+        {
+          company: "Studio Nusantara",
+          role: "Frontend Developer",
+          description: "Membangun antarmuka web.",
+          startDate: "2024-01",
+          endDate: "",
+          isCurrent: true,
+        },
+      ],
     };
 
     it("memvalidasi data profil lengkap yang benar", () => {
@@ -36,6 +58,8 @@ describe("Talent Validators", () => {
       expect(parsed.hoursPerWeek).toBe(20);
       expect(parsed.preferredMode).toBe("remote");
       expect(parsed.portfolioUrls).toHaveLength(2);
+      expect(parsed.educationHistory[0].institution).toBe("Institut Teknologi Bandung");
+      expect(parsed.workExperience[0].isCurrent).toBe(true);
     });
 
     it("menolak jika headline kurang dari 3 karakter", () => {
@@ -135,6 +159,45 @@ describe("Talent Validators", () => {
           skills: [{ skillId: -1, level: "beginner" }],
         })
       ).toThrow();
+    });
+
+    describe("candidateCvUploadSchema", () => {
+      const validUpload = {
+        originalFilename: "Resume Ayu.pdf",
+        contentType: "application/pdf",
+        fileSizeBytes: 1024,
+        objectPath: "123e4567-e89b-42d3-a456-426614174000/123e4567-e89b-42d3-a456-426614174001.pdf",
+      };
+
+      it("menerima PDF yang valid dalam batas ukuran", () => {
+        expect(
+          candidateCvUploadSchema.parse({
+            ...validUpload,
+            fileSizeBytes: MAX_CANDIDATE_CV_BYTES,
+          }).contentType,
+        ).toBe("application/pdf");
+      });
+
+      it("menolak file bukan PDF, kosong, terlalu besar, atau path objek yang tidak valid", () => {
+        expect(() =>
+          candidateCvUploadSchema.parse({ ...validUpload, contentType: "text/plain" }),
+        ).toThrow();
+        expect(() =>
+          candidateCvUploadSchema.parse({ ...validUpload, originalFilename: "resume.docx" }),
+        ).toThrow();
+        expect(() =>
+          candidateCvUploadSchema.parse({ ...validUpload, fileSizeBytes: 0 }),
+        ).toThrow();
+        expect(() =>
+          candidateCvUploadSchema.parse({
+            ...validUpload,
+            fileSizeBytes: MAX_CANDIDATE_CV_BYTES + 1,
+          }),
+        ).toThrow();
+        expect(() =>
+          candidateCvUploadSchema.parse({ ...validUpload, objectPath: "../other-user/resume.pdf" }),
+        ).toThrow();
+      });
     });
   });
 });

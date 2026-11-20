@@ -148,7 +148,7 @@ export default async function TalentDashboardPage() {
     };
   });
 
-  // 7. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
+  // 6. Agregasi "Skill Gap Teratas" dari proyek-proyek terbuka
   // Menghitung seberapa sering tiap skill yang kurang muncul pada seluruh proyek terbuka
   const missingSkillFrequency: Record<string, { count: number; name: string }> = {};
   if (SHOW_MATCH_TO_TALENT) {

@@ -8,7 +8,13 @@ import {
   type TalentProfileUpdateInput,
   type TalentSkillsUpdateInput,
 } from "@/lib/validators/talent";
-import type { Skill, TalentSkill, TalentProfile, SkillLevel } from "@/types/database";
+import type {
+  CandidateCv,
+  Skill,
+  TalentSkill,
+  TalentProfile,
+  SkillLevel,
+} from "@/types/database";
 
 export interface TalentReceivedReview {
   id: string;
@@ -29,6 +35,7 @@ export interface TalentProfilePageData {
     fullName: string;
   };
   talentProfile: TalentProfile | null;
+  currentCv: CandidateCv | null;
   talentSkills: (TalentSkill & { skill: Skill })[];
   masterSkills: Skill[];
   reviews: TalentReceivedReview[];
@@ -57,15 +64,34 @@ export async function getTalentProfileData(): Promise<{
     // 1. Fetch profile & talent_profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, role")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (!profile || profile.role !== "talent") {
+      return { data: null, error: "Halaman profil hanya tersedia untuk akun Talent." };
+    }
 
     const { data: talentProfile } = await supabase
       .from("talent_profiles")
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    let currentCv: CandidateCv | null = null;
+    if (talentProfile?.current_cv_id) {
+      const { data: cv, error: cvError } = await supabase
+        .from("candidate_cvs")
+        .select("id, candidate_id, original_filename, file_size_bytes, processing_status, processing_error, uploaded_at, processed_at")
+        .eq("id", talentProfile.current_cv_id)
+        .maybeSingle();
+
+      if (cvError) {
+        console.error("Fetch current CV error:", cvError);
+        return { data: null, error: "Gagal memuat status CV." };
+      }
+      currentCv = cv as CandidateCv | null;
+    }
 
     // 2. Fetch talent_skills with skill metadata
     const { data: talentSkillsData } = await supabase
@@ -176,6 +202,7 @@ export async function getTalentProfileData(): Promise<{
           fullName: profile?.full_name || user.user_metadata?.full_name || "Talent",
         },
         talentProfile: talentProfile as TalentProfile | null,
+        currentCv,
         talentSkills,
         masterSkills: (masterSkills || []) as Skill[],
         reviews,
@@ -218,11 +245,16 @@ export async function updateTalentProfile(
     }
 
     // Ensure user has role 'talent'
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id, role")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (profileError) {
+      console.error("Profile role lookup error:", profileError);
+      return { success: false, error: "Gagal memverifikasi akun Talent." };
+    }
 
     if (profile && profile.role !== "talent") {
       return {
@@ -231,36 +263,34 @@ export async function updateTalentProfile(
       };
     }
 
-    const newFullName = validated.fullName?.trim();
-
     if (!profile) {
-      await supabase.from("profiles").upsert({
+      const { error: createProfileError } = await supabase.from("profiles").upsert({
         id: user.id,
         role: "talent",
-        full_name: newFullName || user.user_metadata?.full_name || "Talent",
+        full_name: validated.fullName,
       });
-    } else if (newFullName) {
-      await supabase
-        .from("profiles")
-        .update({ full_name: newFullName })
-        .eq("id", user.id);
+      if (createProfileError) {
+        console.error("Create candidate profile error:", createProfileError);
+        return { success: false, error: "Gagal membuat profil Talent." };
+      }
     }
 
-    const { error: upsertError } = await supabase.from("talent_profiles").upsert({
-      user_id: user.id,
-      headline: validated.headline,
-      bio: validated.bio || null,
-      education: validated.education,
-      location: validated.location,
-      hours_per_week: validated.hoursPerWeek,
-      preferred_mode: validated.preferredMode,
-      is_available: validated.isAvailable,
-      portfolio_urls: validated.portfolioUrls,
-      updated_at: new Date().toISOString(),
+    const { error: upsertError } = await supabase.rpc("save_candidate_profile", {
+      p_full_name: validated.fullName,
+      p_headline: validated.headline,
+      p_bio: validated.bio || null,
+      p_education: validated.education,
+      p_education_history: validated.educationHistory,
+      p_work_experience: validated.workExperience,
+      p_location: validated.location,
+      p_hours_per_week: validated.hoursPerWeek,
+      p_preferred_mode: validated.preferredMode,
+      p_is_available: validated.isAvailable,
+      p_portfolio_urls: validated.portfolioUrls,
     });
 
     if (upsertError) {
-      console.error("Supabase upsert error:", upsertError);
+      console.error("Candidate profile save error:", upsertError);
       return { success: false, error: upsertError.message };
     }
 

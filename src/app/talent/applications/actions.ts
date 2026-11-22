@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
+  APPLICATION_DOCX_MIME_TYPE,
   applicationAttachmentsSchema,
   applyApplicationSchema,
   MAX_APPLICATION_PDF_BYTES,
   submitWorkDocumentationSchema,
   uuidSchema,
 } from "@/lib/validators/application";
+import { hasValidDocxStructure } from "@/lib/cv/processing";
 import {
   canTransition,
   getApplicationStatusLabel,
@@ -60,6 +62,21 @@ async function hasPdfSignature(file: File): Promise<boolean> {
   return String.fromCharCode(...signature) === "%PDF-";
 }
 
+function isDocxFile(file: File): boolean {
+  return (
+    file.name.toLowerCase().endsWith(".docx") &&
+    (file.type === APPLICATION_DOCX_MIME_TYPE ||
+      file.type === "" ||
+      file.type === "application/octet-stream")
+  );
+}
+
+async function hasDocxSignature(file: File): Promise<boolean> {
+  if (file.size > MAX_APPLICATION_PDF_BYTES) return false;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return hasValidDocxStructure(bytes);
+}
+
 export async function createApplicationDocumentSignedUrl(
   applicationId: string,
   documentKind: ApplicationDocumentKind
@@ -101,8 +118,14 @@ export async function createApplicationDocumentSignedUrl(
   }
 
   const path = documentKind === "cv" ? application.cv_path : application.portfolio_path;
-  const expectedFileName = documentKind === "cv" ? "cv.pdf" : "portfolio.pdf";
-  if (path !== `${application.talent_id}/${application.id}/${expectedFileName}`) {
+  const allowedPaths =
+    documentKind === "cv"
+      ? [
+          `${application.talent_id}/${application.id}/cv.pdf`,
+          `${application.talent_id}/${application.id}/cv.docx`,
+        ]
+      : [`${application.talent_id}/${application.id}/portfolio.pdf`];
+  if (!path || !allowedPaths.includes(path)) {
     return { signedUrl: null, error: "Dokumen tidak tersedia." };
   }
 
@@ -183,10 +206,15 @@ export async function applyToProject(
     if (!attachments.success) {
       return {
         success: false,
-        error: attachments.error.issues[0]?.message || "Periksa kembali lampiran PDF.",
+        error: attachments.error.issues[0]?.message || "Periksa kembali lampiran dokumen.",
       };
     }
-    if (!(await hasPdfSignature(attachments.data.cv))) {
+    const cvIsDocx = isDocxFile(attachments.data.cv);
+    if (cvIsDocx) {
+      if (!(await hasDocxSignature(attachments.data.cv))) {
+        return { success: false, error: "Isi file CV tidak terdeteksi sebagai dokumen DOCX yang valid." };
+      }
+    } else if (!(await hasPdfSignature(attachments.data.cv))) {
       return { success: false, error: "Isi file CV tidak terdeteksi sebagai PDF yang valid." };
     }
     if (attachments.data.portfolio && !(await hasPdfSignature(attachments.data.portfolio))) {
@@ -475,7 +503,8 @@ export async function applyToProject(
       return { success: false, error: "Gagal mendapatkan ID lamaran." };
     }
 
-    const cvPath = `${user.id}/${createdAppId}/cv.pdf`;
+    const cvPath = `${user.id}/${createdAppId}/${cvIsDocx ? "cv.docx" : "cv.pdf"}`;
+    const cvContentType = cvIsDocx ? APPLICATION_DOCX_MIME_TYPE : "application/pdf";
     const portfolioPath = attachments.data.portfolio
       ? `${user.id}/${createdAppId}/portfolio.pdf`
       : null;
@@ -513,15 +542,15 @@ export async function applyToProject(
     };
 
     const filesToUpload = [
-      { path: cvPath, file: attachments.data.cv },
+      { path: cvPath, file: attachments.data.cv, contentType: cvContentType },
       ...(attachments.data.portfolio && portfolioPath
-        ? [{ path: portfolioPath, file: attachments.data.portfolio }]
+        ? [{ path: portfolioPath, file: attachments.data.portfolio, contentType: "application/pdf" }]
         : []),
     ];
-    for (const { path, file } of filesToUpload) {
+    for (const { path, file, contentType } of filesToUpload) {
       const { error: uploadError } = await supabase.storage
         .from("application-docs")
-        .upload(path, file, { contentType: "application/pdf", upsert: true });
+        .upload(path, file, { contentType, upsert: true });
       if (uploadError) {
         console.error("Storage upload error:", uploadError);
         await rollbackApplication();
@@ -540,7 +569,24 @@ export async function applyToProject(
           };
         }
 
-        return { success: false, error: "Gagal mengunggah lampiran. Coba kirim lamaran lagi." };
+        const isMimeOrPolicyBlocked =
+          errMsg.toLowerCase().includes("mime") ||
+          errMsg.toLowerCase().includes("row-level security") ||
+          errMsg.toLowerCase().includes("policy") ||
+          errMsg.toLowerCase().includes("not allowed");
+
+        if (isMimeOrPolicyBlocked && cvIsDocx) {
+          return {
+            success: false,
+            error:
+              "Supabase Storage belum mengizinkan file DOCX pada bucket 'application-docs'. Jalankan migrasi supabase/migrations/20261122000000_allow_docx_cv.sql di Supabase SQL Editor terlebih dahulu.",
+          };
+        }
+
+        return {
+          success: false,
+          error: `Gagal mengunggah lampiran (${errMsg || "periksa koneksi/policy Supabase"}). Coba kirim lamaran lagi.`,
+        };
       }
       uploadedPaths.push(path);
     }
@@ -566,6 +612,9 @@ export async function applyToProject(
       }
     }
 
+    if (existingApp?.cv_path && existingApp.cv_path !== cvPath) {
+      await supabase.storage.from("application-docs").remove([existingApp.cv_path]);
+    }
     if (existingApp?.portfolio_path && !portfolioPath) {
       await supabase.storage.from("application-docs").remove([existingApp.portfolio_path]);
     }

@@ -99,29 +99,52 @@ export const talentOnboardingSchema = z.object({
 export type TalentOnboardingInput = z.infer<typeof talentOnboardingSchema>;
 
 export const MAX_CANDIDATE_CV_BYTES = 10 * 1024 * 1024;
+export const PDF_MIME_TYPE = 'application/pdf';
+export const DOCX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const ALLOWED_CANDIDATE_CV_MIME_TYPES = [PDF_MIME_TYPE, DOCX_MIME_TYPE] as const;
+export const CANDIDATE_CV_ACCEPT_ATTRIBUTE = `${PDF_MIME_TYPE},.pdf,${DOCX_MIME_TYPE},.docx`;
 
-export const candidateCvUploadSchema = z.object({
-  originalFilename: z
-    .string()
-    .trim()
-    .min(1)
-    .max(255)
-    .refine((filename) => /\.pdf$/i.test(filename), 'CV harus berupa berkas PDF')
-    .refine((filename) => !/[\\/\u0000-\u001f\u007f]/.test(filename), 'Nama berkas tidak valid'),
-  contentType: z.literal('application/pdf', {
-    message: 'Tipe berkas harus PDF',
-  }),
-  fileSizeBytes: z
-    .number()
-    .int()
-    .min(1, 'Berkas PDF kosong')
-    .max(MAX_CANDIDATE_CV_BYTES, 'Ukuran CV maksimal 10 MB'),
-  objectPath: z
-    .string()
-    .regex(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.pdf$/i,
-      'Lokasi berkas CV tidak valid',
-    ),
-});
+export const candidateCvUploadSchema = z
+  .object({
+    originalFilename: z
+      .string()
+      .trim()
+      .min(1)
+      .max(255)
+      .refine((filename) => /\.(pdf|docx)$/i.test(filename), 'CV harus berupa berkas PDF atau DOCX')
+      .refine((filename) => !/[\\/\u0000-\u001f\u007f]/.test(filename), 'Nama berkas tidak valid'),
+    contentType: z.enum(ALLOWED_CANDIDATE_CV_MIME_TYPES, {
+      message: 'Tipe berkas harus PDF atau DOCX',
+    }),
+    fileSizeBytes: z
+      .number()
+      .int()
+      .min(1, 'Berkas CV kosong')
+      .max(MAX_CANDIDATE_CV_BYTES, 'Ukuran CV maksimal 10 MB'),
+    objectPath: z
+      .string()
+      .regex(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(pdf|docx)$/i,
+        'Lokasi berkas CV tidak valid',
+      ),
+  })
+  .superRefine((data, ctx) => {
+    const expectedExt = data.contentType === DOCX_MIME_TYPE ? '.docx' : '.pdf';
+    if (!data.originalFilename.toLowerCase().endsWith(expectedExt)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['originalFilename'],
+        message: 'Ekstensi berkas CV tidak sesuai dengan tipe berkas.',
+      });
+    }
+    if (!data.objectPath.toLowerCase().endsWith(expectedExt)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['objectPath'],
+        message: 'Ekstensi lokasi berkas CV tidak sesuai dengan tipe berkas.',
+      });
+    }
+  });
 
 export const candidateCvIdSchema = z.string().uuid('ID CV tidak valid');

@@ -14,9 +14,12 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { MatchScoreBadge } from "./match-score-badge";
 import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
 import type { ProjectForTalent, ProjectWithMatch } from "@/app/talent/projects/actions";
+import { normalizeSkill } from "@/lib/matching/talent-e5/skill-normalizer";
+import type { TalentRecommendationScore } from "@/lib/matching/talent-e5/types";
 
 interface ProjectCardProps {
   project: ProjectForTalent | ProjectWithMatch;
+  recommendation?: TalentRecommendationScore | null;
 }
 
 const difficultyLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "success" | "warning" }> = {
@@ -36,7 +39,7 @@ const modeLabels: Record<string, { label: string; icon: string }> = {
   hybrid: { label: "Hybrid", icon: "🔄" },
 };
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, recommendation }: ProjectCardProps) {
   const diffInfo = difficultyLabels[project.difficulty] || {
     label: project.difficulty,
     variant: "secondary" as const,
@@ -83,6 +86,15 @@ export function ProjectCard({ project }: ProjectCardProps) {
       )
     : null;
 
+  const matchedNormalizedKeys = React.useMemo(() => {
+    if (!recommendation) return new Set<string>();
+    return new Set(
+      recommendation.skillGap.matchedSkills
+        .map((name) => normalizeSkill(name)?.key)
+        .filter((key): key is string => Boolean(key))
+    );
+  }, [recommendation]);
+
   return (
     <Card
       className="group relative overflow-hidden flex flex-col justify-between transition-all duration-300 rounded-3xl"
@@ -95,7 +107,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       }}
     >
       <CardHeader className="p-5 sm:p-6 pb-3 space-y-3 relative z-10">
-        {/* Organization and optional Match Score Badge */}
+        {/* Organization and Recommendation Score Badge */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold truncate">
             <Building2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
@@ -112,10 +124,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </>
             )}
           </div>
-          {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
+          {recommendation ? (
             <div className="shrink-0">
-              <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+              <MatchScoreBadge score={Math.round(recommendation.weightedScore)} size="md" />
             </div>
+          ) : (
+            SHOW_MATCH_TO_TALENT &&
+            "matchResult" in project &&
+            (project as ProjectWithMatch).matchResult && (
+              <div className="shrink-0">
+                <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+              </div>
+            )
           )}
         </div>
 
@@ -125,6 +145,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
             {project.title}
           </h3>
         </Link>
+
+        {/* Breakdown SS & SM dari Multilingual E5-Small */}
+        {recommendation && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50/80 px-2.5 py-0.5 text-2xs font-bold text-sky-800">
+              Semantik (SS): {recommendation.semanticSimilarityScore.toFixed(1)}%
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50/80 px-2.5 py-0.5 text-2xs font-bold text-indigo-800">
+              Skill (SM): {recommendation.skillMatchingScore.toFixed(0)}%
+            </span>
+          </div>
+        )}
 
         {/* Badges: Difficulty, Type, Mode */}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
@@ -160,7 +192,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-2xs font-bold text-slate-500 uppercase tracking-wider">
             <span>Keahlian Yang Dibutuhkan</span>
-            {SHOW_MATCH_TO_TALENT && project.skills.some((s) => "talentStatus" in s) ? (
+            {recommendation ? (
+              <span className="text-sky-700 font-extrabold">
+                {recommendation.skillGap.matchedSkills.length} /{" "}
+                {recommendation.skillGap.totalRequiredSkills} sesuai
+              </span>
+            ) : SHOW_MATCH_TO_TALENT && project.skills.some((s) => "talentStatus" in s) ? (
               <span className="text-sky-700 font-extrabold">
                 {
                   project.skills.filter(
@@ -178,6 +215,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
           <div className="flex flex-wrap gap-1.5">
             {project.skills.map((skill) => {
+              const skillKey = normalizeSkill(skill.name)?.key ?? "";
+              const matchedByE5 = recommendation ? matchedNormalizedKeys.has(skillKey) : false;
+
               const skillWithStatus = skill as {
                 talentStatus?: { isAdequate?: boolean; possessed?: boolean };
               };
@@ -187,8 +227,21 @@ export function ProjectCard({ project }: ProjectCardProps) {
               return (
                 <span
                   key={skill.skillId}
+                  title={
+                    recommendation
+                      ? matchedByE5
+                        ? "Teridentifikasi pada profil/CV kamu"
+                        : "Belum teridentifikasi pada profil/CV kamu"
+                      : undefined
+                  }
                   className={
-                    SHOW_MATCH_TO_TALENT && skillWithStatus.talentStatus
+                    recommendation
+                      ? `inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                          matchedByE5
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-slate-50 text-slate-600 border border-slate-200"
+                        }`
+                      : SHOW_MATCH_TO_TALENT && skillWithStatus.talentStatus
                       ? `inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                           isAdequate
                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
@@ -199,10 +252,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
                       : "inline-flex items-center gap-1 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-bold text-slate-700"
                   }
                 >
-                  {isAdequate && (
+                  {(matchedByE5 || isAdequate) && (
                     <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
                   )}
-                  {possessed && !isAdequate && (
+                  {!recommendation && possessed && !isAdequate && (
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
                   )}
                   <span>{skill.name}</span>

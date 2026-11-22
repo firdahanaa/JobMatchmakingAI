@@ -1,9 +1,14 @@
+import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
+  extractCvText,
+  extractDocxText,
   extractPdfText,
+  hasValidDocxStructure,
   normalizeExtractedText,
   structureCvText,
 } from "./processing";
+import { DOCX_MIME_TYPE } from "@/lib/validators/talent";
 
 function createPdf(text: string): Uint8Array {
   const stream = text
@@ -80,5 +85,91 @@ describe("CV PDF processing", () => {
 
   it("rejects malformed or unreadable PDF data", async () => {
     await expect(extractPdfText(new TextEncoder().encode("not a PDF"))).rejects.toThrow();
+  });
+});
+
+function createMinimalDocx(paragraphs: string[]): Uint8Array {
+  const xmlBody = paragraphs
+    .map((p) => `<w:p><w:r><w:t>${p}</w:t></w:r></w:p>`)
+    .join("");
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${xmlBody}</w:body></w:document>`;
+
+  const fileNameBytes = new TextEncoder().encode("word/document.xml");
+  const uncompressed = new TextEncoder().encode(documentXml);
+  const compressed = new Uint8Array(deflateRawSync(uncompressed));
+
+  const localHeader = new Uint8Array(30 + fileNameBytes.length);
+  const lv = new DataView(localHeader.buffer);
+  lv.setUint32(0, 0x04034b50, true); // Local file header signature
+  lv.setUint16(4, 20, true);
+  lv.setUint16(8, 8, true); // Deflate
+  lv.setUint32(18, compressed.length, true);
+  lv.setUint32(22, uncompressed.length, true);
+  lv.setUint16(26, fileNameBytes.length, true);
+  localHeader.set(fileNameBytes, 30);
+
+  const centralHeader = new Uint8Array(46 + fileNameBytes.length);
+  const cv = new DataView(centralHeader.buffer);
+  cv.setUint32(0, 0x02014b50, true); // Central dir signature
+  cv.setUint16(4, 20, true);
+  cv.setUint16(6, 20, true);
+  cv.setUint16(10, 8, true); // Deflate
+  cv.setUint32(20, compressed.length, true);
+  cv.setUint32(24, uncompressed.length, true);
+  cv.setUint16(28, fileNameBytes.length, true);
+  cv.setUint32(42, 0, true); // Local header offset
+  centralHeader.set(fileNameBytes, 46);
+
+  const centralDirOffset = localHeader.length + compressed.length;
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true); // EOCD signature
+  ev.setUint16(8, 1, true);
+  ev.setUint16(10, 1, true);
+  ev.setUint32(12, centralHeader.length, true);
+  ev.setUint32(16, centralDirOffset, true);
+
+  const zip = new Uint8Array(
+    localHeader.length + compressed.length + centralHeader.length + eocd.length,
+  );
+  zip.set(localHeader, 0);
+  zip.set(compressed, localHeader.length);
+  zip.set(centralHeader, centralDirOffset);
+  zip.set(eocd, centralDirOffset + centralHeader.length);
+  return zip;
+}
+
+describe("CV DOCX processing", () => {
+  it("extracts ATS text, entities, and structured sections from valid DOCX", async () => {
+    const docxBytes = createMinimalDocx([
+      "rahil@example.com",
+      "RINGKASAN PROFESIONAL",
+      "Mahasiswa Sistem Informasi &amp; Frontend Developer",
+      "PENDIDIKAN",
+      "S1 Sistem Informasi Universitas Gunadarma",
+      "KETERAMPILAN",
+      "React, TypeScript, Next.js, SQL",
+    ]);
+
+    expect(hasValidDocxStructure(docxBytes)).toBe(true);
+
+    const result = await extractCvText(docxBytes, DOCX_MIME_TYPE);
+    expect(result.status).toBe("completed");
+    expect(result.text).toContain("Mahasiswa Sistem Informasi & Frontend Developer");
+    expect(result.structuredData.email).toBe("rahil@example.com");
+    expect(result.structuredData.educationHistory).toEqual([
+      "S1 Sistem Informasi Universitas Gunadarma",
+    ]);
+    expect(result.structuredData.skills).toEqual(["React", "TypeScript", "Next.js", "SQL"]);
+  });
+
+  it("marks DOCX with almost no text as needs_ocr and rejects invalid DOCX bytes", async () => {
+    const emptyDocx = createMinimalDocx([""]);
+    const emptyResult = await extractDocxText(emptyDocx);
+    expect(emptyResult.status).toBe("needs_ocr");
+
+    const invalidBytes = new TextEncoder().encode("not a docx zip archive");
+    expect(hasValidDocxStructure(invalidBytes)).toBe(false);
+    await expect(extractDocxText(invalidBytes)).rejects.toThrow();
   });
 });

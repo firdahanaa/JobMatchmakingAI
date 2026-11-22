@@ -255,17 +255,19 @@ export function ApplyDialog({
           <section className="space-y-4 rounded-xl border border-sky-100 bg-sky-50/50 p-4" aria-label="Persyaratan lampiran lamaran">
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-slate-800">Lampiran Lamaran</h3>
-              <p className="text-xs text-slate-600">File harus PDF dan maksimal 5 MB.</p>
+              <p className="text-xs text-slate-600">
+                CV dapat berformat PDF atau DOCX (maksimal 5 MB). Dokumen portofolio berformat PDF.
+              </p>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="application-cv" className="text-xs font-semibold text-slate-700">
-                CV / Resume <span className="text-rose-600">Wajib</span>
+                CV / Resume (PDF / DOCX) <span className="text-rose-600">Wajib</span>
               </label>
               <Input
                 id="application-cv"
                 type="file"
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
                 required
                 onChange={(event) => setCvFile(event.target.files?.[0] ?? null)}
                 className="text-xs file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-sky-800"

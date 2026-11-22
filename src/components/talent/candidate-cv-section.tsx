@@ -14,9 +14,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
-import { uploadCandidateCvWithProgress } from "@/lib/cv/upload";
 import {
+  resolveCandidateCvContentType,
+  uploadCandidateCvWithProgress,
+} from "@/lib/cv/upload";
+import {
+  CANDIDATE_CV_ACCEPT_ATTRIBUTE,
   candidateCvUploadSchema,
+  DOCX_MIME_TYPE,
   MAX_CANDIDATE_CV_BYTES,
 } from "@/lib/validators/talent";
 import type { CandidateCv } from "@/types/database";
@@ -96,8 +101,9 @@ export function CandidateCvSection({
     setUploadProgress(0);
 
     try {
-      if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
-        throw new Error("Pilih dokumen PDF.");
+      const contentType = resolveCandidateCvContentType(file);
+      if (!contentType) {
+        throw new Error("Pilih dokumen PDF atau DOCX.");
       }
       if (file.size < 1 || file.size > MAX_CANDIDATE_CV_BYTES) {
         throw new Error("Ukuran CV harus lebih dari 0 dan maksimal 10 MB.");
@@ -112,10 +118,11 @@ export function CandidateCvSection({
         throw new Error("Sesi telah berakhir. Silakan login kembali.");
       }
 
-      const objectPath = `${user.id}/${crypto.randomUUID()}.pdf`;
+      const extension = contentType === DOCX_MIME_TYPE ? "docx" : "pdf";
+      const objectPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
       const validation = candidateCvUploadSchema.safeParse({
         originalFilename: file.name,
-        contentType: file.type,
+        contentType,
         fileSizeBytes: file.size,
         objectPath,
       });
@@ -123,7 +130,7 @@ export function CandidateCvSection({
         throw new Error(validation.error.issues[0]?.message || "Informasi CV tidak valid.");
       }
 
-      await uploadCandidateCvWithProgress(file, objectPath, setUploadProgress);
+      await uploadCandidateCvWithProgress(file, objectPath, setUploadProgress, contentType);
       const result = await registerCandidateCv(validation.data);
       if (!result.success || !result.cv) {
         throw new Error(result.error || "Gagal menyimpan versi CV.");
@@ -186,8 +193,8 @@ export function CandidateCvSection({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold text-[#0F2A5E]">CV / Resume</h3>
           <p className="mt-1 text-xs leading-relaxed text-[#4A7AAF]">
-            Unggah PDF privat. Berkas hanya dapat diakses oleh kamu dan vendor pada lamaran terkait.
-            Maksimal 10 MB.
+            Unggah dokumen PDF atau DOCX (standar ATS) secara privat. Berkas hanya dapat diakses oleh
+            kamu dan vendor pada lamaran terkait. Maksimal 10 MB.
           </p>
         </div>
       </div>
@@ -264,7 +271,7 @@ export function CandidateCvSection({
       {uploadProgress !== null && (
         <div className="space-y-1.5" aria-live="polite">
           <div className="flex justify-between text-2xs font-semibold text-sky-800">
-            <span>Mengunggah PDF...</span>
+            <span>Mengunggah CV...</span>
             <span>{uploadProgress}%</span>
           </div>
           <Progress value={uploadProgress} className="h-2 bg-sky-100" />
@@ -282,11 +289,11 @@ export function CandidateCvSection({
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={CANDIDATE_CV_ACCEPT_ATTRIBUTE}
           onChange={handleUpload}
           disabled={uploadProgress !== null}
           className="sr-only"
-          aria-label="Pilih berkas CV PDF"
+          aria-label="Pilih berkas CV PDF atau DOCX"
         />
         <Button
           type="button"
@@ -295,7 +302,7 @@ export function CandidateCvSection({
           className="h-9 gap-2 bg-gradient-to-r from-sky-600 to-blue-600 text-xs font-semibold text-white hover:from-sky-700 hover:to-blue-700"
         >
           <UploadCloud className="h-4 w-4" />
-          {cv ? "Ganti CV" : "Unggah CV PDF"}
+          {cv ? "Ganti CV" : "Unggah CV PDF / DOCX"}
         </Button>
         <span className="text-2xs text-slate-500">
           Mengunggah CV baru tidak mengubah dokumen pada lamaran sebelumnya.

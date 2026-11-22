@@ -8,11 +8,15 @@ import {
 } from "@/lib/talent-project-utils";
 import { calculateMatch } from "@/lib/matching";
 import {
-  buildProjectTextDocument,
-  buildTalentTextDocument,
-  combineRecommendationScores,
-  rankDocumentsBySimilarity,
-} from "@/lib/matching";
+  DEFAULT_WEIGHT_CONFIG,
+  getDefaultTalentEmbedder,
+  rankOpportunitiesForTalent,
+  type OpportunityMatchInput,
+  type TalentEducationItem,
+  type TalentMatchProfileInput,
+  type TalentRecommendationScore,
+  type TalentWorkExperienceItem,
+} from "@/lib/matching/talent-e5";
 import { SKILL_LEVEL_NUMERIC } from "@/lib/matching/types";
 import { uuidSchema } from "@/lib/validators/project";
 import type {
@@ -82,6 +86,9 @@ export interface TalentProjectsFilter {
 
 export interface GetTalentProjectsResult {
   projects: (ProjectWithMatch | ProjectForTalent)[];
+  recommendationsByProjectId: Record<string, TalentRecommendationScore>;
+  usedCvForMatching: boolean;
+  excludedWithoutSkillsCount: number;
   totalOpenProjects: number;
   hasConfiguredSkills: boolean;
   talentAvailable: boolean;
@@ -130,6 +137,8 @@ type RawProject = {
  */
 export async function getTalentMatchingContext(): Promise<{
   context: TalentContext | null;
+  e5Profile: TalentMatchProfileInput | null;
+  usedCvForMatching: boolean;
   userId: string | null;
   hasConfiguredSkills: boolean;
   error: string | null;
@@ -144,6 +153,8 @@ export async function getTalentMatchingContext(): Promise<{
     if (authError || !user) {
       return {
         context: null,
+        e5Profile: null,
+        usedCvForMatching: false,
         userId: null,
         hasConfiguredSkills: false,
         error: "Sesi login telah berakhir. Silakan login kembali.",
@@ -154,7 +165,9 @@ export async function getTalentMatchingContext(): Promise<{
     const [profileRes, skillsRes, ratingRes] = await Promise.all([
       supabase
         .from("talent_profiles")
-        .select("headline, bio, hours_per_week, preferred_mode, is_available")
+        .select(
+          "headline, bio, education, education_history, work_experience, current_cv_id, hours_per_week, preferred_mode, is_available"
+        )
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -167,6 +180,54 @@ export async function getTalentMatchingContext(): Promise<{
         .eq("talent_id", user.id)
         .maybeSingle(),
     ]);
+
+    type TalentProfileRow = {
+      headline: string | null;
+      bio: string | null;
+      education?: string | null;
+      education_history?: TalentEducationItem[] | null;
+      work_experience?: TalentWorkExperienceItem[] | null;
+      current_cv_id?: string | null;
+      hours_per_week: number | null;
+      preferred_mode: WorkMode | null;
+      is_available: boolean | null;
+    };
+
+    let talentProfile: TalentProfileRow | null =
+      (profileRes.data as unknown as TalentProfileRow | null) ?? null;
+
+    // Fallback aman bila kolom migrasi CV belum terpasang di database lingkungan tertentu
+    if (profileRes.error && (profileRes.error.code === "42703" || profileRes.error.message?.includes("column"))) {
+      const legacyProfileRes = await supabase
+        .from("talent_profiles")
+        .select("headline, bio, education, hours_per_week, preferred_mode, is_available")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      talentProfile = (legacyProfileRes.data as unknown as TalentProfileRow | null) ?? null;
+    }
+
+    // Ambil hasil ekstraksi CV aktif (jika Talent sudah mengunggah & mengekstrak CV)
+    let cvExtractedText: string | null = null;
+    let cvStructuredSkills: string[] = [];
+
+    if (talentProfile?.current_cv_id) {
+      const { data: extractionRow } = await supabase
+        .from("candidate_cv_extractions")
+        .select("extracted_text, structured_data")
+        .eq("cv_id", talentProfile.current_cv_id)
+        .eq("candidate_id", user.id)
+        .maybeSingle();
+
+      if (extractionRow?.extracted_text?.trim()) {
+        cvExtractedText = extractionRow.extracted_text;
+      }
+      const structured = extractionRow?.structured_data as { skills?: unknown } | null | undefined;
+      if (structured && Array.isArray(structured.skills)) {
+        cvStructuredSkills = structured.skills.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        );
+      }
+    }
 
     type SkillJoinItem = {
       skill_id: number;
@@ -184,7 +245,6 @@ export async function getTalentMatchingContext(): Promise<{
       };
     });
 
-    const talentProfile = profileRes.data;
     const avgRatingVal =
       ratingRes.data?.avg_rating != null ? Number(ratingRes.data.avg_rating) : null;
 
@@ -198,16 +258,37 @@ export async function getTalentMatchingContext(): Promise<{
       avgRating: avgRatingVal,
     };
 
+    const e5Profile: TalentMatchProfileInput = {
+      headline: talentProfile?.headline ?? null,
+      bio: talentProfile?.bio ?? null,
+      education: talentProfile?.education ?? null,
+      educationHistory: Array.isArray(talentProfile?.education_history)
+        ? talentProfile.education_history
+        : [],
+      workExperience: Array.isArray(talentProfile?.work_experience)
+        ? talentProfile.work_experience
+        : [],
+      profileSkills: matchingSkills.map((s) => s.name),
+      cvExtractedText,
+      cvStructuredSkills,
+    };
+
+    const usedCvForMatching = Boolean(cvExtractedText?.trim());
+
     return {
       context: talentContext,
+      e5Profile,
+      usedCvForMatching,
       userId: user.id,
-      hasConfiguredSkills: matchingSkills.length > 0,
+      hasConfiguredSkills: matchingSkills.length > 0 || usedCvForMatching,
       error: null,
     };
   } catch (err: unknown) {
     console.error("Error fetching talent context:", err);
     return {
       context: null,
+      e5Profile: null,
+      usedCvForMatching: false,
       userId: null,
       hasConfiguredSkills: false,
       error: err instanceof Error ? err.message : "Gagal memuat profil talent.",
@@ -217,18 +298,26 @@ export async function getTalentMatchingContext(): Promise<{
 
 /**
  * Fetch all open projects with vendor and skills in a single query (Anti N+1)
- * and calculate match scores for the logged in talent.
+ * and calculate recommendation scores using Multilingual E5-Small + Skill Matching + Weighted Scoring.
  */
 export async function getTalentProjects(
   filter: TalentProjectsFilter = {}
 ): Promise<GetTalentProjectsResult> {
   try {
-    const { context: talentContext, error: contextError, hasConfiguredSkills } =
-      await getTalentMatchingContext();
+    const {
+      context: talentContext,
+      e5Profile,
+      usedCvForMatching,
+      error: contextError,
+      hasConfiguredSkills,
+    } = await getTalentMatchingContext();
 
-    if (contextError || !talentContext) {
+    if (contextError || !talentContext || !e5Profile) {
       return {
         projects: [],
+        recommendationsByProjectId: {},
+        usedCvForMatching: false,
+        excludedWithoutSkillsCount: 0,
         totalOpenProjects: 0,
         hasConfiguredSkills: false,
         talentAvailable: true,
@@ -338,6 +427,9 @@ export async function getTalentProjects(
           console.error("Error fetching projects for talent:", fallbackRes.error || projectsError);
           return {
             projects: [],
+            recommendationsByProjectId: {},
+            usedCvForMatching,
+            excludedWithoutSkillsCount: 0,
             totalOpenProjects: 0,
             hasConfiguredSkills,
             talentAvailable: talentContext.isAvailable,
@@ -348,6 +440,9 @@ export async function getTalentProjects(
         console.error("Error fetching projects for talent:", projectsError);
         return {
           projects: [],
+          recommendationsByProjectId: {},
+          usedCvForMatching,
+          excludedWithoutSkillsCount: 0,
           totalOpenProjects: 0,
           hasConfiguredSkills,
           talentAvailable: talentContext.isAvailable,
@@ -364,27 +459,50 @@ export async function getTalentProjects(
     }
 
     const projectsList = (rawProjectsData || []) as unknown as RawProject[];
-    const totalOpenProjects = projectsList.length;
-    const talentDocument = buildTalentTextDocument(talentContext);
-    const similarityByProjectId = new Map(
-      rankDocumentsBySimilarity(
-        talentDocument,
-        projectsList.map((project) => ({
+
+    // Rule-Based: peluang tanpa daftar keterampilan tidak ditampilkan karena tidak memiliki nilai Skill Matching
+    const projectsWithRequiredSkills = projectsList.filter(
+      (project) => (project.project_skills || []).length > 0
+    );
+    const excludedWithoutSkillsCount =
+      projectsList.length - projectsWithRequiredSkills.length;
+    const totalOpenProjects = projectsWithRequiredSkills.length;
+
+    // Hitung rekomendasi menggunakan Multilingual E5-Small + Cosine Similarity + Skill Matching + Weighted Scoring
+    const opportunityInputs: OpportunityMatchInput[] = projectsWithRequiredSkills.map(
+      (project) => {
+        const skills = (project.project_skills || []).map((skill) => {
+          const skillObject = Array.isArray(skill.skills) ? skill.skills[0] : skill.skills;
+          return {
+            name: skillObject?.name || `Skill #${skill.skill_id}`,
+            category: skillObject?.category,
+          };
+        });
+        return {
           id: project.id,
-          text: buildProjectTextDocument({
-            title: project.title,
-            description: project.description,
-            skills: (project.project_skills || []).map((skill) => {
-              const skillObject = Array.isArray(skill.skills) ? skill.skills[0] : skill.skills;
-              return { name: skillObject?.name || `Skill #${skill.skill_id}` };
-            }),
-          }),
-        }))
-      ).map(({ id, similarity }) => [id, similarity])
+          title: project.title,
+          description: project.description,
+          category: skills[0]?.category ?? null,
+          status: project.status,
+          requiredSkills: skills.map((s) => s.name),
+        };
+      }
     );
 
-    // Hitung calculateMatch untuk tiap proyek
-    const mappedProjects: ProjectWithMatch[] = projectsList.map((p) => {
+    const e5PipelineResult = await rankOpportunitiesForTalent(
+      e5Profile,
+      opportunityInputs,
+      getDefaultTalentEmbedder(),
+      DEFAULT_WEIGHT_CONFIG
+    );
+
+    const recommendationsByProjectId: Record<string, TalentRecommendationScore> = {};
+    for (const rec of e5PipelineResult.recommendations) {
+      recommendationsByProjectId[rec.opportunityId] = rec;
+    }
+
+    // Hitung proyek dengan skor E5 + struktur kompatibel
+    const mappedProjects: ProjectWithMatch[] = projectsWithRequiredSkills.map((p) => {
       const vendorObj = Array.isArray(p.vendor_profiles)
         ? p.vendor_profiles[0]
         : p.vendor_profiles;
@@ -408,7 +526,7 @@ export async function getTalentProjects(
       };
 
       const matchResult = calculateMatch(talentContext, projectContext);
-      const textSimilarity = similarityByProjectId.get(p.id) ?? 0;
+      const e5Rec = recommendationsByProjectId[p.id];
 
       // Detail skill proyek dengan indikator kepemilikan talent
       const enrichedSkills = pSkills.map((ps) => {
@@ -465,8 +583,8 @@ export async function getTalentProjects(
           : null,
         skills: enrichedSkills,
         matchResult,
-        textSimilarityScore: Math.round(textSimilarity * 100),
-        recommendationScore: combineRecommendationScores(matchResult.score, textSimilarity),
+        textSimilarityScore: e5Rec ? Math.round(e5Rec.semanticSimilarityScore) : undefined,
+        recommendationScore: e5Rec ? e5Rec.weightedScore : undefined,
       };
     });
 
@@ -499,7 +617,7 @@ export async function getTalentProjects(
       filtered = filtered.filter((p) => p.mode === filter.mode);
     }
 
-    // Urutkan (Sorting): default adalah match score tertinggi
+    // Urutkan (Sorting): default adalah Weighted Score (WS) tertinggi dari Multilingual E5-Small
     const sort = filter.sort || "match";
     filtered.sort((a, b) => {
       if (sort === "newest") {
@@ -510,12 +628,16 @@ export async function getTalentProjects(
         if (!b.deadline) return -1;
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       }
-      // default: "match" (Match Score Tertinggi)
-      const scoreDifference =
-        (b.recommendationScore ?? b.matchResult.score) -
-        (a.recommendationScore ?? a.matchResult.score);
-      if (scoreDifference !== 0) {
-        return scoreDifference;
+      // default: "match" (Weighted Score Tertinggi)
+      const recA = recommendationsByProjectId[a.id];
+      const recB = recommendationsByProjectId[b.id];
+      const wsDiff = (recB?.weightedScore ?? -1) - (recA?.weightedScore ?? -1);
+      if (wsDiff !== 0) {
+        return wsDiff;
+      }
+      const smDiff = (recB?.skillMatchingScore ?? -1) - (recA?.skillMatchingScore ?? -1);
+      if (smDiff !== 0) {
+        return smDiff;
       }
       // Jika skor sama, dahulukan yang lebih baru dibuat
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -527,6 +649,9 @@ export async function getTalentProjects(
 
     return {
       projects: sanitizedProjects,
+      recommendationsByProjectId,
+      usedCvForMatching,
+      excludedWithoutSkillsCount,
       totalOpenProjects,
       hasConfiguredSkills,
       talentAvailable: talentContext.isAvailable,
@@ -536,6 +661,9 @@ export async function getTalentProjects(
     console.error("Error in getTalentProjects:", err);
     return {
       projects: [],
+      recommendationsByProjectId: {},
+      usedCvForMatching: false,
+      excludedWithoutSkillsCount: 0,
       totalOpenProjects: 0,
       hasConfiguredSkills: false,
       talentAvailable: true,
@@ -549,19 +677,30 @@ export async function getTalentProjects(
  */
 export async function getTalentProjectDetail(projectId: string): Promise<{
   project: ProjectWithMatch | ProjectForTalent | null;
+  recommendation: TalentRecommendationScore | null;
+  usedCvForMatching: boolean;
   error: string | null;
 }> {
   try {
     const idValidation = uuidSchema.safeParse(projectId);
     if (!idValidation.success) {
-      return { project: null, error: "ID proyek tidak valid." };
+      return { project: null, recommendation: null, usedCvForMatching: false, error: "ID proyek tidak valid." };
     }
 
-    const { context: talentContext, error: contextError } =
-      await getTalentMatchingContext();
+    const {
+      context: talentContext,
+      e5Profile,
+      usedCvForMatching,
+      error: contextError,
+    } = await getTalentMatchingContext();
 
-    if (contextError || !talentContext) {
-      return { project: null, error: contextError || "Autentikasi gagal." };
+    if (contextError || !talentContext || !e5Profile) {
+      return {
+        project: null,
+        recommendation: null,
+        usedCvForMatching: false,
+        error: contextError || "Autentikasi gagal.",
+      };
     }
 
     const supabase = await createClient();
@@ -665,15 +804,30 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
             portfolio_required: false,
           } as unknown as RawProject;
         } else {
-          return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+          return {
+            project: null,
+            recommendation: null,
+            usedCvForMatching,
+            error: "Proyek tidak ditemukan atau telah ditutup.",
+          };
         }
       } else {
-        return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+        return {
+          project: null,
+          recommendation: null,
+          usedCvForMatching,
+          error: "Proyek tidak ditemukan atau telah ditutup.",
+        };
       }
     }
 
     if (!rawProjectData) {
-      return { project: null, error: "Proyek tidak ditemukan atau telah ditutup." };
+      return {
+        project: null,
+        recommendation: null,
+        usedCvForMatching,
+        error: "Proyek tidak ditemukan atau telah ditutup.",
+      };
     }
 
     const p = rawProjectData as unknown as RawProject;
@@ -734,6 +888,23 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
       };
     });
 
+    const e5DetailResult = await rankOpportunitiesForTalent(
+      e5Profile,
+      [
+        {
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          category: enrichedSkills[0]?.category ?? null,
+          status: p.status,
+          requiredSkills: enrichedSkills.map((s) => s.name),
+        },
+      ],
+      getDefaultTalentEmbedder(),
+      DEFAULT_WEIGHT_CONFIG
+    );
+    const recommendation = e5DetailResult.recommendations[0] ?? null;
+
     const projectWithMatch: ProjectWithMatch = {
       id: p.id,
       vendorId: p.vendor_id,
@@ -762,17 +933,23 @@ export async function getTalentProjectDetail(projectId: string): Promise<{
         : null,
       skills: enrichedSkills,
       matchResult,
+      textSimilarityScore: recommendation
+        ? Math.round(recommendation.semanticSimilarityScore)
+        : undefined,
+      recommendationScore: recommendation ? recommendation.weightedScore : undefined,
     };
 
     const finalProject = SHOW_MATCH_TO_TALENT
       ? projectWithMatch
       : sanitizeProjectForTalent(projectWithMatch);
 
-    return { project: finalProject, error: null };
+    return { project: finalProject, recommendation, usedCvForMatching, error: null };
   } catch (err: unknown) {
     console.error("Error in getTalentProjectDetail:", err);
     return {
       project: null,
+      recommendation: null,
+      usedCvForMatching: false,
       error: err instanceof Error ? err.message : "Gagal memuat rincian proyek.",
     };
   }

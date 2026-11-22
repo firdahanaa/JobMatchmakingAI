@@ -52,9 +52,14 @@ describe("Application Validators", () => {
     ).toBe(false);
   });
 
-  it("memvalidasi CV wajib dan portofolio opsional sebagai PDF maksimal 5 MB", () => {
-    const cv = new File(["%PDF-1.7"], "cv.pdf", { type: "application/pdf" });
-    expect(applicationAttachmentsSchema.safeParse({ cv, portfolio: null }).success).toBe(true);
+  it("memvalidasi CV wajib (PDF atau DOCX) dan portofolio opsional sebagai PDF maksimal 5 MB", () => {
+    const cvPdf = new File(["%PDF-1.7"], "cv.pdf", { type: "application/pdf" });
+    expect(applicationAttachmentsSchema.safeParse({ cv: cvPdf, portfolio: null }).success).toBe(true);
+
+    const cvDocx = new File(["PK\x03\x04dummy"], "cv.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    expect(applicationAttachmentsSchema.safeParse({ cv: cvDocx, portfolio: null }).success).toBe(true);
     expect(applicationAttachmentsSchema.safeParse({ cv: null }).success).toBe(false);
 
     const oversized = new File([new Uint8Array(MAX_APPLICATION_PDF_BYTES + 1)], "cv.pdf", {
@@ -64,6 +69,9 @@ describe("Application Validators", () => {
 
     const imageRenamedAsPdf = new File(["not a pdf"], "cv.pdf", { type: "image/png" });
     expect(applicationAttachmentsSchema.safeParse({ cv: imageRenamedAsPdf }).success).toBe(false);
+
+    const imageRenamedAsDocx = new File(["not a docx"], "cv.docx", { type: "image/png" });
+    expect(applicationAttachmentsSchema.safeParse({ cv: imageRenamedAsDocx }).success).toBe(false);
   });
 
   it("memvalidasi update status lamaran untuk status yang diizinkan", () => {

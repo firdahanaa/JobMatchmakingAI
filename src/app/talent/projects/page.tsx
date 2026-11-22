@@ -53,6 +53,8 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
 
   const {
     projects,
+    recommendationsByProjectId,
+    usedCvForMatching,
     totalOpenProjects,
     hasConfiguredSkills,
     error,
@@ -75,7 +77,9 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-md">
                     <Search className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-sky-800">Eksplorasi AI</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-sky-800">
+                    Eksplorasi AI • Multilingual E5
+                  </span>
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-[#0F172A] leading-tight">
@@ -86,7 +90,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                 </h1>
 
                 <p className="max-w-xl text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
-                  Temukan project freelance dan volunteer yang paling relevan dengan keahlian serta preferensimu.
+                  Temukan pekerjaan dan proyek paling relevan berdasarkan kemiripan semantik profil{usedCvForMatching ? " & CV ATS" : ""} serta kecocokan keterampilanmu.
                 </p>
               </div>
 
@@ -109,7 +113,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                       Profil Keahlianmu Belum Dilengkapi
                     </h3>
                     <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                      Tambahkan keahlian dan preferensi jam kerja agar rekomendasi project semakin relevan.
+                      Tambahkan keahlian atau unggah CV ATS agar rekomendasi berbasis AI semakin relevan.
                     </p>
                   </div>
                 </div>
@@ -118,7 +122,7 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
                     size="sm"
                     className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-1.5 rounded-xl shadow-xs"
                   >
-                    <span>Lengkapi Keahlian Sekarang</span>
+                    <span>Lengkapi Keahlian & CV</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
@@ -138,15 +142,15 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
           )}
 
           {/* Results Count & Current Active Sort/Filters */}
-          <div className="flex items-center justify-between text-xs text-slate-500 px-1 font-medium">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1 font-medium">
             <span>
               Menampilkan <strong className="text-[#0F172A] font-bold">{projects.length}</strong> dari{" "}
-              <strong className="text-[#0F172A] font-bold">{totalOpenProjects}</strong> proyek terbuka
+              <strong className="text-[#0F172A] font-bold">{totalOpenProjects}</strong> proyek rekomendasi aktif
             </span>
             {filter.sort === "match" && (
               <span className="text-sky-700 font-extrabold flex items-center gap-1">
                 <Sparkles className="h-3.5 w-3.5 text-sky-600" />
-                Urutkan: Paling relevan
+                Urutkan: Paling relevan (E5 + Skill)
               </span>
             )}
             {filter.sort === "newest" && (
@@ -165,7 +169,11 @@ export default async function TalentProjectsPage({ searchParams }: TalentProject
           {projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {projects.map((project) => (
-                <ProjectCard key={project.id} project={sanitizeProjectForTalent(project)} />
+                <ProjectCard
+                  key={project.id}
+                  project={sanitizeProjectForTalent(project)}
+                  recommendation={recommendationsByProjectId[project.id] ?? null}
+                />
               ))}
             </div>
           ) : (

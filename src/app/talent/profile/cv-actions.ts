@@ -1,9 +1,8 @@
 "use server";
 
-import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { extractPdfText } from "@/lib/cv/processing";
+import { extractCvText } from "@/lib/cv/processing";
 import { canVendorAccessApplicationCv } from "@/lib/cv/authorization";
 import {
   candidateCvIdSchema,
@@ -96,12 +95,12 @@ export async function registerCandidateCv(input: {
   const uploadedObject = storedObjects?.find((object) => object.name === objectName);
   if (
     !uploadedObject ||
-    uploadedObject.metadata?.mimetype !== "application/pdf" ||
+    uploadedObject.metadata?.mimetype !== parsed.data.contentType ||
     uploadedObject.metadata.size !== parsed.data.fileSizeBytes
   ) {
     return {
       success: false,
-      error: "Berkas PDF tidak ditemukan atau metadata ukurannya tidak sesuai.",
+      error: "Berkas CV (PDF/DOCX) tidak ditemukan atau metadata ukurannya tidak sesuai.",
     };
   }
 
@@ -122,6 +121,8 @@ export async function registerCandidateCv(input: {
     };
   }
 
+  await processCandidateCv(cvId, user.id, supabase);
+
   const { data: cv, error: cvError } = await supabase
     .from("candidate_cvs")
     .select(CV_FIELDS)
@@ -134,8 +135,8 @@ export async function registerCandidateCv(input: {
     return { success: false, error: "CV tersimpan, tetapi statusnya gagal dimuat." };
   }
 
-  after(async () => processCandidateCv(cvId, user.id));
   revalidatePath("/talent/profile");
+  revalidatePath("/talent/projects");
   return { success: true, cv: cv as CandidateCvSummary, error: null };
 }
 
@@ -152,7 +153,7 @@ export async function getCandidateCvStatus(
     return { cv: null, error: accessError };
   }
 
-  const { data: cv, error } = await supabase
+  const { data: initialCv, error } = await supabase
     .from("candidate_cvs")
     .select(CV_FIELDS)
     .eq("id", idResult.data)
@@ -163,7 +164,19 @@ export async function getCandidateCvStatus(
     console.error("Candidate CV status error:", error);
     return { cv: null, error: "Gagal memuat status pemrosesan CV." };
   }
-  return { cv: (cv as CandidateCvSummary | null) ?? null, error: null };
+
+  if (initialCv && initialCv.processing_status === "pending") {
+    await processCandidateCv(initialCv.id, user.id, supabase);
+    const { data: refreshedCv } = await supabase
+      .from("candidate_cvs")
+      .select(CV_FIELDS)
+      .eq("id", idResult.data)
+      .eq("candidate_id", user.id)
+      .maybeSingle();
+    return { cv: (refreshedCv as CandidateCvSummary | null) ?? (initialCv as CandidateCvSummary), error: null };
+  }
+
+  return { cv: (initialCv as CandidateCvSummary | null) ?? null, error: null };
 }
 
 export async function retryCandidateCvProcessing(
@@ -200,13 +213,20 @@ export async function retryCandidateCvProcessing(
     return { success: false, error: "Hanya CV yang gagal diproses yang dapat dicoba ulang." };
   }
 
-  after(async () => processCandidateCv(cv.id, user.id));
+  await processCandidateCv(cv.id, user.id, supabase);
   revalidatePath("/talent/profile");
+  revalidatePath("/talent/projects");
   return { success: true, error: null };
 }
 
-async function processCandidateCv(cvId: string, candidateId: string): Promise<void> {
-  const supabase = await createClient();
+type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+async function processCandidateCv(
+  cvId: string,
+  candidateId: string,
+  existingClient?: ServerSupabaseClient,
+): Promise<void> {
+  const supabase = existingClient ?? (await createClient());
   const {
     data: { user },
     error: authError,
@@ -227,7 +247,7 @@ async function processCandidateCv(cvId: string, candidateId: string): Promise<vo
     .eq("id", cvId)
     .eq("candidate_id", candidateId)
     .eq("processing_status", "pending")
-    .select("object_path, file_size_bytes")
+    .select("object_path, content_type, file_size_bytes")
     .maybeSingle();
 
   if (claimError) {
@@ -251,7 +271,7 @@ async function processCandidateCv(cvId: string, candidateId: string): Promise<vo
       throw new Error("Ukuran berkas CV berubah setelah diunggah.");
     }
 
-    const extraction = await extractPdfText(bytes);
+    const extraction = await extractCvText(bytes, cv.content_type || cv.object_path);
     const { error: extractionError } = await supabase
       .from("candidate_cv_extractions")
       .upsert({
@@ -280,7 +300,7 @@ async function processCandidateCv(cvId: string, candidateId: string): Promise<vo
     }
     revalidatePath("/talent/profile");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "PDF tidak dapat diproses.";
+    const message = error instanceof Error ? error.message : "Berkas CV tidak dapat diproses.";
     console.error("CV processing error:", error);
     const { error: updateError } = await supabase
       .from("candidate_cvs")

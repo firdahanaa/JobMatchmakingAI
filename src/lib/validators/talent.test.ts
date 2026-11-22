@@ -164,26 +164,44 @@ describe("Talent Validators", () => {
     describe("candidateCvUploadSchema", () => {
       const validUpload = {
         originalFilename: "Resume Ayu.pdf",
-        contentType: "application/pdf",
+        contentType: "application/pdf" as const,
         fileSizeBytes: 1024,
         objectPath: "123e4567-e89b-42d3-a456-426614174000/123e4567-e89b-42d3-a456-426614174001.pdf",
       };
+      const validDocxUpload = {
+        originalFilename: "Resume Ayu.docx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" as const,
+        fileSizeBytes: 2048,
+        objectPath:
+          "123e4567-e89b-42d3-a456-426614174000/123e4567-e89b-42d3-a456-426614174001.docx",
+      };
 
-      it("menerima PDF yang valid dalam batas ukuran", () => {
+      it("menerima PDF dan DOCX yang valid dalam batas ukuran", () => {
         expect(
           candidateCvUploadSchema.parse({
             ...validUpload,
             fileSizeBytes: MAX_CANDIDATE_CV_BYTES,
           }).contentType,
         ).toBe("application/pdf");
+
+        expect(
+          candidateCvUploadSchema.parse({
+            ...validDocxUpload,
+            fileSizeBytes: MAX_CANDIDATE_CV_BYTES,
+          }).contentType,
+        ).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
       });
 
-      it("menolak file bukan PDF, kosong, terlalu besar, atau path objek yang tidak valid", () => {
+      it("menolak file bukan PDF/DOCX, ekstensi tidak cocok, kosong, terlalu besar, atau path objek tidak valid", () => {
         expect(() =>
           candidateCvUploadSchema.parse({ ...validUpload, contentType: "text/plain" }),
         ).toThrow();
         expect(() =>
           candidateCvUploadSchema.parse({ ...validUpload, originalFilename: "resume.docx" }),
+        ).toThrow();
+        expect(() =>
+          candidateCvUploadSchema.parse({ ...validDocxUpload, originalFilename: "resume.pdf" }),
         ).toThrow();
         expect(() =>
           candidateCvUploadSchema.parse({ ...validUpload, fileSizeBytes: 0 }),

@@ -1,13 +1,27 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { DOCX_MIME_TYPE, PDF_MIME_TYPE } from "@/lib/validators/talent";
 
 const CV_BUCKET = "talent-cvs";
+
+export function resolveCandidateCvContentType(file: File): string | null {
+  const lowerName = file.name.toLowerCase();
+  const isGenericOrEmpty = file.type === "" || file.type === "application/octet-stream";
+  if (lowerName.endsWith(".pdf") && (file.type === PDF_MIME_TYPE || isGenericOrEmpty)) {
+    return PDF_MIME_TYPE;
+  }
+  if (lowerName.endsWith(".docx") && (file.type === DOCX_MIME_TYPE || isGenericOrEmpty)) {
+    return DOCX_MIME_TYPE;
+  }
+  return null;
+}
 
 export async function uploadCandidateCvWithProgress(
   file: File,
   objectPath: string,
   onProgress: (progress: number) => void,
+  contentType: string = resolveCandidateCvContentType(file) ?? PDF_MIME_TYPE,
 ): Promise<void> {
   const supabase = createClient();
   const {
@@ -37,7 +51,7 @@ export async function uploadCandidateCvWithProgress(
     );
     request.setRequestHeader("apikey", anonKey);
     request.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
-    request.setRequestHeader("Content-Type", "application/pdf");
+    request.setRequestHeader("Content-Type", contentType);
     request.setRequestHeader("x-upsert", "false");
     request.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {

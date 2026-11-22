@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { MatchScoreBadge } from "@/components/talent/match-score-badge";
 import { MatchBreakdownPanel } from "@/components/talent/match-breakdown-panel";
+import { TalentE5RecommendationPanel } from "@/components/talent/talent-e5-recommendation-panel";
 import { ApplyDialog } from "@/components/talent/apply-dialog";
 import { TalentPageNavigation } from "@/components/talent/talent-page-navigation";
 import { SHOW_MATCH_TO_TALENT } from "@/lib/config";
@@ -67,7 +68,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     redirect("/login");
   }
 
-  const { project, error } = await getTalentProjectDetail(id);
+  const { project, recommendation, usedCvForMatching, error } = await getTalentProjectDetail(id);
   const { application: existingApplication } = await getApplicationForProject(id);
 
   if (error || !project) {
@@ -157,15 +158,21 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               <div className="flex justify-center rounded-2xl border border-sky-100 bg-sky-50/70 p-1.5">
                 <TalentPageNavigation activePage="projects" />
               </div>
-              {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
-                <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+              {recommendation ? (
+                <MatchScoreBadge score={Math.round(recommendation.weightedScore)} size="md" />
+              ) : (
+                SHOW_MATCH_TO_TALENT &&
+                "matchResult" in project &&
+                (project as ProjectWithMatch).matchResult && (
+                  <MatchScoreBadge score={(project as ProjectWithMatch).matchResult.score} size="md" />
+                )
               )}
             </div>
           </div>
 
-          {/* Main Content: full-width or 2-column if match visible */}
-          <div className={SHOW_MATCH_TO_TALENT && "matchResult" in project ? "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" : "space-y-6"}>
-            <div className={SHOW_MATCH_TO_TALENT && "matchResult" in project ? "lg:col-span-7 space-y-6" : "space-y-6"}>
+          {/* Main Content: 2-column when E5 recommendation or legacy match panel is visible */}
+          <div className={recommendation || (SHOW_MATCH_TO_TALENT && "matchResult" in project) ? "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" : "space-y-6"}>
+            <div className={recommendation || (SHOW_MATCH_TO_TALENT && "matchResult" in project) ? "lg:col-span-7 space-y-6" : "space-y-6"}>
             {/* Project Header Card */}
             <Card className="border-sky-100 bg-white shadow-md shadow-sky-100/50">
               <CardHeader className="p-6 space-y-4">
@@ -378,7 +385,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                       Tertarik dengan Proyek Ini?
                     </h4>
                     <p className="text-xs text-slate-500">
-                      CV PDF wajib disertakan{project.portfolioRequired ? "; portofolio PDF juga wajib" : "; portofolio PDF opsional"}. Maksimal 5 MB per file.
+                      CV (PDF atau DOCX) wajib disertakan{project.portfolioRequired ? "; portofolio PDF juga wajib" : "; portofolio PDF opsional"}. Maksimal 5 MB per file.
                     </p>
                   </div>
 
@@ -406,13 +413,24 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             </Card>
             </div>
 
-            {SHOW_MATCH_TO_TALENT && "matchResult" in project && (project as ProjectWithMatch).matchResult && (
+            {recommendation ? (
               <div className="lg:col-span-5 sticky top-6 space-y-4">
-                <MatchBreakdownPanel
-                  matchResult={(project as ProjectWithMatch).matchResult}
-                  hasConfiguredSkills={true}
+                <TalentE5RecommendationPanel
+                  recommendation={recommendation}
+                  usedCvForMatching={usedCvForMatching}
                 />
               </div>
+            ) : (
+              SHOW_MATCH_TO_TALENT &&
+              "matchResult" in project &&
+              (project as ProjectWithMatch).matchResult && (
+                <div className="lg:col-span-5 sticky top-6 space-y-4">
+                  <MatchBreakdownPanel
+                    matchResult={(project as ProjectWithMatch).matchResult}
+                    hasConfiguredSkills={true}
+                  />
+                </div>
+              )
             )}
           </div>
         </div>

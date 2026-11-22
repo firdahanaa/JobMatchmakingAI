@@ -32,6 +32,8 @@ export const applyApplicationSchema = z.object({
 });
 
 export const MAX_APPLICATION_PDF_BYTES = 5 * 1024 * 1024;
+export const APPLICATION_DOCX_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export const applicationPdfFileSchema = z
   .custom<File>(
@@ -42,8 +44,28 @@ export const applicationPdfFileSchema = z
   .refine((file) => file.size <= MAX_APPLICATION_PDF_BYTES, "Ukuran file maksimal 5 MB")
   .refine((file) => file.type === "application/pdf", "File harus berformat PDF");
 
+export const applicationCvFileSchema = z
+  .custom<File>(
+    (file): file is File => typeof File !== "undefined" && file instanceof File,
+    "File CV (PDF atau DOCX) wajib dipilih"
+  )
+  .refine((file) => file.size > 0, "File CV tidak boleh kosong")
+  .refine((file) => file.size <= MAX_APPLICATION_PDF_BYTES, "Ukuran file CV maksimal 5 MB")
+  .refine((file) => {
+    const lowerName = file.name.toLowerCase();
+    const isPdf =
+      lowerName.endsWith(".pdf") &&
+      (file.type === "application/pdf" || file.type === "" || file.type === "application/octet-stream");
+    const isDocx =
+      lowerName.endsWith(".docx") &&
+      (file.type === APPLICATION_DOCX_MIME_TYPE ||
+        file.type === "" ||
+        file.type === "application/octet-stream");
+    return isPdf || isDocx;
+  }, "File CV harus berformat PDF atau DOCX");
+
 export const applicationAttachmentsSchema = z.object({
-  cv: applicationPdfFileSchema,
+  cv: applicationCvFileSchema,
   portfolio: applicationPdfFileSchema.nullable().optional(),
 });
 

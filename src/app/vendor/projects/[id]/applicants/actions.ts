@@ -2,13 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { calculateMatch, calculateSkillGap } from "@/lib/matching";
+import { calculateMatch, calculateSkillGap, WEIGHTS } from "@/lib/matching";
 import {
-  buildProjectTextDocument,
-  buildTalentTextDocument,
-  combineRecommendationScores,
-  rankDocumentsBySimilarity,
-} from "@/lib/matching";
+  evaluateApplicantCvScreening,
+  type AiCvScreeningReport,
+} from "@/lib/screening/ai-screening";
 import { updateApplicationStatusSchema, uuidSchema } from "@/lib/validators/application";
 import { reviewSchema, type ReviewInput } from "@/lib/validators/review";
 import type {
@@ -27,7 +25,9 @@ import type {
   CvProcessingStatus,
   EducationHistoryItem,
   WorkExperienceItem,
+  ScreeningStatus,
 } from "@/types/database";
+import type { StructuredCvData } from "@/lib/cv/processing";
 
 export interface DetailedApplicantItem {
   id: string; // application id
@@ -53,10 +53,12 @@ export interface DetailedApplicantItem {
   portfolioUrls: string[];
   candidateCvName: string | null;
   candidateCvProcessingStatus: CvProcessingStatus | null;
+  screeningStatus: ScreeningStatus;
+  aiScreening: AiCvScreeningReport;
 
-  // Recalculated matching with latest data
+  // Recalculated deterministic matching with latest data
   latestMatchScore: number;
-  textSimilarityScore: number;
+  textSimilarityScore?: number;
   recommendationScore: number;
   snapshotMatchScore: number | null;
   matchBreakdown: {
@@ -108,19 +110,64 @@ export interface DetailedApplicantItem {
   } | null;
 }
 
+export interface RecommendedTalentItem {
+  talentId: string;
+  talentName: string;
+  headline: string | null;
+  education: string | null;
+  location: string | null;
+  hoursPerWeek: number | null;
+  preferredMode: WorkMode | null;
+  isAvailable: boolean;
+  hasUploadedCv: boolean;
+  matchScore: number;
+  matchBreakdown: {
+    skill: number;
+    levelFit: number;
+    availability: number;
+    rating: number;
+  };
+  matchedSkills: string[];
+  missingSkills: string[];
+  underLevelSkills: {
+    name: string;
+    has: SkillLevel;
+    needs: SkillLevel;
+  }[];
+  explanation: string;
+  recommendationSource: string;
+}
+
 export interface ProjectApplicantsData {
   project: {
     id: string;
     title: string;
+    description: string;
     status: string;
     difficulty: ProjectDifficulty;
     type: ProjectType;
     mode: WorkMode;
+    durationWeeks: number | null;
     hoursPerWeek: number | null;
     rewardAmount: number | null;
+    rewardNote: string | null;
     deadline: string | null;
+    createdAt: string;
+    skills: {
+      skillId: number;
+      name: string;
+      category: string;
+      minLevel: SkillLevel;
+      isRequired: boolean;
+    }[];
+    evaluationCriteria: {
+      name: string;
+      weightPercent: number;
+      description: string;
+    }[];
   };
   applicants: DetailedApplicantItem[];
+  recommendedTalents: RecommendedTalentItem[];
 }
 
 /**
@@ -146,32 +193,31 @@ export async function getProjectApplicantsRecalculated(
       return { data: null, error: "ID proyek tidak valid." };
     }
 
-    // Role verification (defense-in-depth)
+    // Role & Company membership verification (defense-in-depth)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, platform_role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
-      return { data: null, error: "Akses ditolak. Hanya akun Vendor yang dapat melihat daftar pelamar." };
-    }
-
-    // 1. Ambil proyek dan verifikasi bahwa vendor adalah pemilik proyek
     const { data: rawProject, error: projectError } = await supabase
       .from("projects")
       .select(`
         id,
         vendor_id,
+        company_id,
         title,
         description,
         status,
         difficulty,
         type,
         mode,
+        duration_weeks,
         hours_per_week,
         reward_amount,
+        reward_note,
         deadline,
+        created_at,
         project_skills (
           skill_id,
           min_level,
@@ -187,11 +233,34 @@ export async function getProjectApplicantsRecalculated(
       .maybeSingle();
 
     if (projectError || !rawProject) {
-      return { data: null, error: "Proyek tidak ditemukan." };
+      return { data: null, error: "Lowongan tidak ditemukan." };
     }
 
-    if (rawProject.vendor_id !== user.id) {
-      return { data: null, error: "Kamu tidak memiliki izin untuk melihat pelamar proyek ini." };
+    const projectCompanyId = (rawProject as { company_id?: string | null }).company_id ?? null;
+    let isAuthorizedCompanyMember = rawProject.vendor_id === user.id && profile?.role === "vendor";
+
+    if (!isAuthorizedCompanyMember && projectCompanyId) {
+      const { data: memberRow } = await supabase
+        .from("company_members")
+        .select("role, status")
+        .eq("company_id", projectCompanyId)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (memberRow) {
+        isAuthorizedCompanyMember = true;
+      }
+    }
+
+    const isPlatformAdmin =
+      (profile as { platform_role?: string } | null)?.platform_role === "platform_admin";
+
+    if (!isAuthorizedCompanyMember && !isPlatformAdmin) {
+      return {
+        data: null,
+        error: "Akses ditolak. Kamu bukan anggota HR aktif dari perusahaan pemilik lowongan ini.",
+      };
     }
 
     // Siapkan ProjectContext
@@ -213,17 +282,170 @@ export async function getProjectApplicantsRecalculated(
       };
     });
 
+    const projectOverviewSkills = pSkillsList.map((ps) => {
+      const sObj = Array.isArray(ps.skills) ? ps.skills[0] : ps.skills;
+      return {
+        skillId: ps.skill_id,
+        name: sObj?.name || `Skill #${ps.skill_id}`,
+        category: sObj?.category || "Umum",
+        minLevel: ps.min_level,
+        isRequired: ps.is_required,
+      };
+    });
+
+    const evaluationCriteria = [
+      {
+        name: "Required & Preferred Skills",
+        weightPercent: Math.round(WEIGHTS.skill * 100),
+        description: "Kesesuaian keahlian kandidat terhadap skill wajib (bobot 1.0) dan opsional (bobot 0.5).",
+      },
+      {
+        name: "Competency Level Fit",
+        weightPercent: Math.round(WEIGHTS.levelFit * 100),
+        description: "Kecukupan tingkat penguasaan keahlian (Beginner, Intermediate, Advanced) terhadap standar lowongan.",
+      },
+      {
+        name: "Work Mode & Availability",
+        weightPercent: Math.round(WEIGHTS.availability * 100),
+        description: "Ketersediaan komitmen jam kerja per minggu serta kesesuaian mode kerja (Remote/Onsite/Hybrid).",
+      },
+      {
+        name: "Track Record & Rating",
+        weightPercent: Math.round(WEIGHTS.rating * 100),
+        description: "Rata-rata penilaian kinerja terdahulu (skor netral cold-start 60% bagi kandidat baru).",
+      },
+    ];
+
     const projectContext: ProjectContext = {
       skills: matchingProjectSkills,
       hoursPerWeek: rawProject.hours_per_week,
       mode: rawProject.mode as WorkMode,
     };
 
-    // 2. Ambil seluruh lamaran untuk proyek ini
+    // Helper function to compute Recommended Talent (candidates who have NOT applied to this vacancy)
+    const buildRecommendedTalents = async (
+      appliedTalentIdSet: ReadonlySet<string>,
+    ): Promise<RecommendedTalentItem[]> => {
+      if (matchingProjectSkills.length === 0) return [];
+      const projectSkillIds = matchingProjectSkills.map((s) => s.skillId);
+
+      // Find talent_skills matching at least one required/preferred skill of this vacancy
+      const { data: matchingTalentSkillRows } = await supabase
+        .from("talent_skills")
+        .select("talent_id, skill_id, level, skills(id, name, category)")
+        .in("skill_id", projectSkillIds);
+
+      if (!matchingTalentSkillRows || matchingTalentSkillRows.length === 0) {
+        return [];
+      }
+
+      const candidateIds = Array.from(
+        new Set(
+          matchingTalentSkillRows
+            .map((r) => r.talent_id as string)
+            .filter((tid) => !appliedTalentIdSet.has(tid) && tid !== rawProject.vendor_id),
+        ),
+      ).slice(0, 15);
+
+      if (candidateIds.length === 0) return [];
+
+      const [recProfilesRes, recTalentProfilesRes, recAllSkillsRes, recRatingsRes] =
+        await Promise.all([
+          supabase.from("profiles").select("id, full_name").in("id", candidateIds),
+          supabase
+            .from("talent_profiles")
+            .select(
+              "user_id, headline, education, location, hours_per_week, preferred_mode, is_available, current_cv_id",
+            )
+            .in("user_id", candidateIds),
+          supabase
+            .from("talent_skills")
+            .select("talent_id, skill_id, level, skills(id, name, category)")
+            .in("talent_id", candidateIds),
+          supabase
+            .from("talent_ratings")
+            .select("talent_id, avg_rating")
+            .in("talent_id", candidateIds),
+        ]);
+
+      const recNameMap = new Map(
+        (recProfilesRes.data || []).map((p) => [p.id, p.full_name]),
+      );
+      const recTpMap = new Map(
+        (recTalentProfilesRes.data || []).map((tp) => [tp.user_id, tp]),
+      );
+      const recRatingMap = new Map(
+        (recRatingsRes.data || []).map((r) => [r.talent_id, Number(r.avg_rating)]),
+      );
+
+      type RecSkillRow = {
+        talent_id: string;
+        skill_id: number;
+        level: SkillLevel;
+        skills:
+          | { id: number; name: string; category: string }
+          | { id: number; name: string; category: string }[];
+      };
+
+      const recSkillsByTalent = new Map<string, MatchingTalentSkill[]>();
+      for (const row of (recAllSkillsRes.data || []) as unknown as RecSkillRow[]) {
+        const sObj = Array.isArray(row.skills) ? row.skills[0] : row.skills;
+        const list = recSkillsByTalent.get(row.talent_id) || [];
+        list.push({
+          skillId: row.skill_id,
+          name: sObj?.name || `Skill #${row.skill_id}`,
+          level: row.level,
+        });
+        recSkillsByTalent.set(row.talent_id, list);
+      }
+
+      const recommendations: RecommendedTalentItem[] = candidateIds
+        .map((tid) => {
+          const tp = recTpMap.get(tid);
+          const tSkills = recSkillsByTalent.get(tid) || [];
+          const tContext: TalentContext = {
+            skills: tSkills,
+            hoursPerWeek: tp?.hours_per_week ?? null,
+            preferredMode: (tp?.preferred_mode as WorkMode) ?? null,
+            isAvailable: tp?.is_available ?? true,
+            avgRating: recRatingMap.get(tid) ?? null,
+          };
+
+          const match = calculateMatch(tContext, projectContext);
+          return {
+            talentId: tid,
+            talentName: recNameMap.get(tid) || "Kandidat Talenta",
+            headline: tp?.headline ?? null,
+            education: tp?.education ?? null,
+            location: tp?.location ?? null,
+            hoursPerWeek: tp?.hours_per_week ?? null,
+            preferredMode: (tp?.preferred_mode as WorkMode) ?? null,
+            isAvailable: tp?.is_available ?? true,
+            hasUploadedCv: Boolean(tp?.current_cv_id),
+            matchScore: match.score,
+            matchBreakdown: match.breakdown,
+            matchedSkills: match.matchedSkills,
+            missingSkills: match.missingSkills,
+            underLevelSkills: match.underLevelSkills,
+            explanation: match.explanation,
+            recommendationSource: tp?.current_cv_id
+              ? "Profil Terstruktur & CV Terdaftar (Deterministic Criteria Match)"
+              : "Profil Keahlian Terstruktur (Deterministic Criteria Match)",
+          };
+        })
+        .filter((item) => item.matchedSkills.length > 0 || item.underLevelSkills.length > 0)
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 6);
+
+      return recommendations;
+    };
+
+    // 2. Ambil seluruh lamaran aktif untuk proyek ini (kecuali withdrawn)
     const { data: rawApplications, error: appsError } = await supabase
       .from("applications")
       .select("*")
       .eq("project_id", projectId)
+      .neq("status", "withdrawn")
       .order("created_at", { ascending: false });
 
     if (appsError) {
@@ -232,21 +454,33 @@ export async function getProjectApplicantsRecalculated(
     }
 
     const apps = rawApplications || [];
+    const appliedTalentIdSet = new Set(apps.map((a) => a.talent_id as string));
+    const recommendedTalents = await buildRecommendedTalents(appliedTalentIdSet);
+
+    const projectOverviewPayload: ProjectApplicantsData["project"] = {
+      id: rawProject.id,
+      title: rawProject.title,
+      description: rawProject.description,
+      status: rawProject.status,
+      difficulty: rawProject.difficulty,
+      type: rawProject.type,
+      mode: rawProject.mode,
+      durationWeeks: rawProject.duration_weeks ?? null,
+      hoursPerWeek: rawProject.hours_per_week,
+      rewardAmount: rawProject.reward_amount,
+      rewardNote: rawProject.reward_note ?? null,
+      deadline: rawProject.deadline,
+      createdAt: rawProject.created_at,
+      skills: projectOverviewSkills,
+      evaluationCriteria,
+    };
+
     if (apps.length === 0) {
       return {
         data: {
-          project: {
-            id: rawProject.id,
-            title: rawProject.title,
-            status: rawProject.status,
-            difficulty: rawProject.difficulty,
-            type: rawProject.type,
-            mode: rawProject.mode,
-            hoursPerWeek: rawProject.hours_per_week,
-            rewardAmount: rawProject.reward_amount,
-            deadline: rawProject.deadline,
-          },
+          project: projectOverviewPayload,
           applicants: [],
+          recommendedTalents,
         },
         error: null,
       };
@@ -292,12 +526,20 @@ export async function getProjectApplicantsRecalculated(
         .in("application_id", appIds),
     ]);
 
-    const candidateCvsRes = cvIds.length > 0
-      ? await supabase
-          .from("candidate_cvs")
-          .select("id, original_filename, processing_status")
-          .in("id", cvIds)
-      : { data: [], error: null };
+    const [candidateCvsRes, cvExtractionsRes] = await Promise.all([
+      cvIds.length > 0
+        ? supabase
+            .from("candidate_cvs")
+            .select("id, original_filename, processing_status")
+            .in("id", cvIds)
+        : Promise.resolve({ data: [], error: null }),
+      cvIds.length > 0
+        ? supabase
+            .from("candidate_cv_extractions")
+            .select("cv_id, extracted_text, structured_data")
+            .in("cv_id", cvIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
     if (candidateCvsRes.error) {
       console.error("Fetch applicant CV metadata error:", candidateCvsRes.error);
@@ -306,6 +548,19 @@ export async function getProjectApplicantsRecalculated(
 
     const candidateCvsMap = new Map(
       (candidateCvsRes.data || []).map((cv) => [cv.id, cv]),
+    );
+
+    const cvExtractionsMap = new Map<
+      string,
+      { extracted_text: string; structured_data: Partial<StructuredCvData> | null }
+    >(
+      (cvExtractionsRes.data || []).map((ext) => [
+        ext.cv_id as string,
+        {
+          extracted_text: (ext.extracted_text as string) || "",
+          structured_data: (ext.structured_data as Partial<StructuredCvData> | null) || null,
+        },
+      ]),
     );
 
     // Map profiles
@@ -381,11 +636,8 @@ export async function getProjectApplicantsRecalculated(
       appReviewsMap.set(ar.application_id, ar);
     }
 
-    // 4. Hitung ulang kecocokan (Real-time Recalculated Match Score) untuk setiap pelamar
-    const applicantsWithoutRecommendation: Omit<
-      DetailedApplicantItem,
-      "textSimilarityScore" | "recommendationScore"
-    >[] = apps.map((app) => {
+    // 4. Hitung ulang kecocokan deterministik (Deterministic Weighted Scoring, tanpa TF-IDF) untuk setiap pelamar
+    const applicantsList: DetailedApplicantItem[] = apps.map((app) => {
       const prof = profilesMap.get(app.talent_id);
       const tProf = talentProfilesMap.get(app.talent_id);
       const tSkills = skillsMap.get(app.talent_id) || [];
@@ -451,6 +703,38 @@ export async function getProjectApplicantsRecalculated(
         };
       });
 
+      const cvMeta = app.candidate_cv_id ? candidateCvsMap.get(app.candidate_cv_id) : undefined;
+      const cvExtraction = app.candidate_cv_id
+        ? cvExtractionsMap.get(app.candidate_cv_id)
+        : undefined;
+      const cvProcStatus = (cvMeta?.processing_status as CvProcessingStatus | undefined) || null;
+      let screeningStatus: ScreeningStatus = "completed";
+      if (cvProcStatus === "pending") screeningStatus = "queued";
+      else if (cvProcStatus === "processing") screeningStatus = "processing";
+      else if (cvProcStatus === "failed") screeningStatus = "failed";
+      else if (cvProcStatus === "needs_ocr") screeningStatus = "needs_review";
+
+      const aiScreening = evaluateApplicantCvScreening({
+        candidateName: prof?.full_name || "Talenta",
+        vacancyTitle: rawProject.title,
+        deterministicScore: matchResult.score,
+        matchBreakdown: matchResult.breakdown,
+        projectSkills: matchingProjectSkills.map((ps) => ({
+          name: ps.name,
+          minLevel: ps.minLevel,
+          isRequired: ps.isRequired,
+        })),
+        matchedSkills: skillGap.matchedSkills,
+        missingSkills: skillGap.missingSkills,
+        underLevelSkills: skillGap.underLevelSkills,
+        profileHeadline: tProf?.headline || null,
+        profileEducation: tProf?.education || null,
+        profileEducationHistory: tProf?.education_history || [],
+        profileWorkExperience: tProf?.work_experience || [],
+        extractedCvText: cvExtraction?.extracted_text ?? null,
+        structuredCvData: cvExtraction?.structured_data ?? null,
+      });
+
       return {
         id: app.id,
         projectId: app.project_id,
@@ -471,19 +755,23 @@ export async function getProjectApplicantsRecalculated(
         preferredMode: tProf?.preferred_mode ?? null,
         isAvailable: tProf?.is_available ?? true,
         portfolioUrls: tProf?.portfolio_urls || [],
-        candidateCvName: app.candidate_cv_id
-          ? candidateCvsMap.get(app.candidate_cv_id)?.original_filename || null
-          : null,
-        candidateCvProcessingStatus: app.candidate_cv_id
-          ? (candidateCvsMap.get(app.candidate_cv_id)?.processing_status as CvProcessingStatus | undefined) || null
-          : null,
-        latestMatchScore: matchResult.score,
+        candidateCvName: cvMeta?.original_filename || null,
+        candidateCvProcessingStatus: cvProcStatus,
+        screeningStatus,
+        aiScreening,
+        latestMatchScore: aiScreening.overallScore,
+        recommendationScore: aiScreening.overallScore,
         snapshotMatchScore: app.match_score,
-        matchBreakdown: matchResult.breakdown,
-        matchedSkills: skillGap.matchedSkills,
-        missingSkills: skillGap.missingSkills,
-        underLevelSkills: skillGap.underLevelSkills,
-        explanation: matchResult.explanation,
+        matchBreakdown: {
+          skill: aiScreening.criteriaBreakdown.requiredAndPreferredSkillsScore,
+          levelFit: aiScreening.criteriaBreakdown.competencyLevelFitScore,
+          availability: aiScreening.criteriaBreakdown.workModeAndAvailabilityScore,
+          rating: aiScreening.criteriaBreakdown.trackRecordAndCvEvidenceScore,
+        },
+        matchedSkills: aiScreening.matchedSkills,
+        missingSkills: aiScreening.missingSkills,
+        underLevelSkills: aiScreening.underLevelSkills,
+        explanation: aiScreening.explanation,
         avgRating: ratingInfo?.avg_rating ?? null,
         reviewCount: ratingInfo?.review_count || 0,
         completedProjectsCount: completedCount,
@@ -505,61 +793,19 @@ export async function getProjectApplicantsRecalculated(
       };
     });
 
-    const projectDocument = buildProjectTextDocument({
-      title: rawProject.title,
-      description: rawProject.description,
-      skills: matchingProjectSkills,
-    });
-    const similarityByApplicationId = new Map(
-      rankDocumentsBySimilarity(
-        projectDocument,
-        applicantsWithoutRecommendation.map((applicant) => ({
-          id: applicant.id,
-          text: buildTalentTextDocument({
-            headline: applicant.headline,
-            bio: applicant.bio,
-            skills: applicant.allTalentSkills,
-          }),
-        }))
-      ).map(({ id, similarity }) => [id, similarity])
-    );
-
-    const applicantsList: DetailedApplicantItem[] = applicantsWithoutRecommendation.map(
-      (applicant) => {
-        const textSimilarity = similarityByApplicationId.get(applicant.id) ?? 0;
-        return {
-          ...applicant,
-          textSimilarityScore: Math.round(textSimilarity * 100),
-          recommendationScore: combineRecommendationScores(
-            applicant.latestMatchScore,
-            textSimilarity
-          ),
-        };
-      }
-    );
-
-    // The legacy composite score remains visible; the combined score only determines ranking.
+    // Rank applicants deterministically by weighted criteria score (latestMatchScore)
     applicantsList.sort((a, b) => {
-      if (b.recommendationScore !== a.recommendationScore) {
-        return b.recommendationScore - a.recommendationScore;
+      if (b.latestMatchScore !== a.latestMatchScore) {
+        return b.latestMatchScore - a.latestMatchScore;
       }
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
     return {
       data: {
-        project: {
-          id: rawProject.id,
-          title: rawProject.title,
-          status: rawProject.status,
-          difficulty: rawProject.difficulty,
-          type: rawProject.type,
-          mode: rawProject.mode,
-          hoursPerWeek: rawProject.hours_per_week,
-          rewardAmount: rawProject.reward_amount,
-          deadline: rawProject.deadline,
-        },
+        project: projectOverviewPayload,
         applicants: applicantsList,
+        recommendedTalents,
       },
       error: null,
     };
@@ -604,6 +850,23 @@ export async function updateApplicantStatus(
       return { success: false, error: "ID lamaran atau ID proyek tidak valid." };
     }
 
+    // Try atomic Phase 1 RPC hr_update_application_status first
+    const { error: rpcError } = await supabase.rpc("hr_update_application_status", {
+      p_application_id: applicationId,
+      p_new_status: newStatus,
+    });
+
+    if (!rpcError) {
+      revalidatePath(`/vendor/projects/${projectId}/applicants`);
+      revalidatePath(`/vendor/projects/${projectId}/edit`);
+      revalidatePath("/vendor/dashboard");
+      revalidatePath("/vendor/applicants");
+      revalidatePath("/talent/applications");
+      revalidatePath(`/talent/projects/${projectId}`);
+      return { success: true, error: null };
+    }
+
+    // Fallback if Phase 1 migration RPC hasn't been executed on remote DB yet
     // Role verification
     const { data: profile } = await supabase
       .from("profiles")

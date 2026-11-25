@@ -68,7 +68,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   }
 
   const { project, error } = await getTalentProjectDetail(id);
-  const { application: existingApplication } = await getApplicationForProject(id);
+  const { application: existingApplication, readiness } = await getApplicationForProject(id);
 
   if (error || !project) {
     return (
@@ -399,6 +399,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                         projectStatus={project.status}
                         currentMatchScore={project.matchResult.score}
                         existingApplication={existingApplication}
+                        readiness={readiness}
                       />
                     </div>
                   </div>

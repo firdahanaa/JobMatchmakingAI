@@ -15,7 +15,7 @@ export function ProjectStatusBadge({ status, className }: ProjectStatusBadgeProp
           variant="success"
           className={`bg-emerald-100 text-emerald-800 border-emerald-200 ${className || ""}`}
         >
-          ● Terbuka (Open)
+          ● Active (Open)
         </Badge>
       );
     case "draft":

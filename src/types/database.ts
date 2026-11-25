@@ -1,4 +1,16 @@
 export type UserRole = 'talent' | 'vendor';
+export type PlatformRole = 'user' | 'platform_admin';
+export type CompanyRole = 'company_owner' | 'hr_admin' | 'hr_recruiter';
+export type CompanyMemberStatus = 'active' | 'disabled';
+export type CompanyStatus = 'active' | 'deactivated' | 'archived';
+export type CompanyInvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+export type BusinessRole =
+  | 'talent'
+  | 'company_owner'
+  | 'hr_admin'
+  | 'hr_recruiter'
+  | 'platform_admin';
+
 export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ProjectDifficulty = 'beginner' | 'intermediate' | 'advanced';
 export type ProjectType = 'freelance' | 'volunteer';
@@ -6,11 +18,61 @@ export type WorkMode = 'remote' | 'onsite' | 'hybrid';
 export type ProjectStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'closed';
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'completed' | 'withdrawn';
 
+export type ScreeningStatus =
+  | 'not_started'
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'needs_review';
+
 export interface Profile {
   id: string;
   role: UserRole;
+  platform_role?: PlatformRole;
   full_name: string;
   avatar_url: string | null;
+  created_at: string;
+}
+
+export interface Company {
+  id: string;
+  legacy_vendor_user_id: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  location: string | null;
+  status: CompanyStatus;
+  deactivated_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompanyMember {
+  id: string;
+  company_id: string;
+  user_id: string;
+  role: CompanyRole;
+  status: CompanyMemberStatus;
+  invited_by: string | null;
+  joined_at: string;
+  created_at: string;
+  updated_at: string;
+  profile?: Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'role'>;
+}
+
+export interface CompanyInvitation {
+  id: string;
+  company_id: string;
+  email: string;
+  role: Extract<CompanyRole, 'hr_admin' | 'hr_recruiter'>;
+  token_hash: string;
+  status: CompanyInvitationStatus;
+  invited_by: string;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  expires_at: string;
   created_at: string;
 }
 
@@ -90,6 +152,7 @@ export interface TalentSkill {
 export interface Project {
   id: string;
   vendor_id: string;
+  company_id?: string;
   title: string;
   description: string;
   difficulty: ProjectDifficulty;

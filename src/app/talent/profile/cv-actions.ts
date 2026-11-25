@@ -205,7 +205,7 @@ export async function retryCandidateCvProcessing(
   return { success: true, error: null };
 }
 
-async function processCandidateCv(cvId: string, candidateId: string): Promise<void> {
+export async function processCandidateCv(cvId: string, candidateId: string): Promise<void> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -343,9 +343,14 @@ export async function getApplicantCvDownloadUrl(
     return { url: null, error: "ID lamaran tidak valid." };
   }
 
-  const { supabase, user, error: accessError } = await getUserForRole("vendor");
-  if (!user) {
-    return { url: null, error: accessError };
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { url: null, error: "Sesi telah berakhir. Silakan login kembali." };
   }
 
   const { data: application, error: applicationError } = await supabase
@@ -364,13 +369,45 @@ export async function getApplicantCvDownloadUrl(
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, vendor_id")
+    .select("*")
     .eq("id", application.project_id)
-    .eq("vendor_id", user.id)
     .maybeSingle();
 
   if (projectError || !project) {
-    return { url: null, error: "CV hanya dapat diakses oleh vendor pemilik proyek lamaran." };
+    return { url: null, error: "CV hanya dapat diakses oleh tim HR perusahaan pemilik proyek." };
+  }
+
+  const projectCompanyId = (project as { company_id?: string | null }).company_id ?? null;
+
+  // Check active company membership or legacy vendor ownership
+  let resolvedHrRole: string = "talent";
+  let userCompanyId: string | null = null;
+  let companyMemberStatus: "active" | "disabled" = "active";
+
+  if (projectCompanyId) {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status")
+      .eq("company_id", projectCompanyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (memberRow) {
+      resolvedHrRole = memberRow.role;
+      userCompanyId = memberRow.company_id;
+      companyMemberStatus = memberRow.status as "active" | "disabled";
+    }
+  }
+
+  if (resolvedHrRole === "talent" && project.vendor_id === user.id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role === "vendor") {
+      resolvedHrRole = "vendor";
+    }
   }
 
   const { data: cv, error: cvError } = await supabase
@@ -386,9 +423,12 @@ export async function getApplicantCvDownloadUrl(
   }
   if (
     !canVendorAccessApplicationCv({
-      userRole: "vendor",
+      userRole: resolvedHrRole,
       vendorId: user.id,
       projectVendorId: project.vendor_id,
+      userCompanyId,
+      projectCompanyId,
+      companyMemberStatus,
       applicationCandidateId: application.talent_id,
       cvCandidateId: cv.candidate_id,
       applicationCvId: application.candidate_cv_id,

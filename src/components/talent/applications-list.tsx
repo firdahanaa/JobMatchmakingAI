@@ -167,6 +167,31 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                   <Badge variant={conf.variant} className="text-2xs font-extrabold px-2.5 py-0.5 capitalize">
                     {conf.label}
                   </Badge>
+                  {app.screeningStatus && (
+                    <Badge
+                      variant="outline"
+                      className="text-2xs font-semibold border-sky-200 bg-sky-50 text-sky-800"
+                    >
+                      Screening:{" "}
+                      {app.screeningStatus === "completed"
+                        ? "Selesai"
+                        : app.screeningStatus === "processing"
+                        ? "Sedang Diproses"
+                        : app.screeningStatus === "queued"
+                        ? "Dalam Antrean"
+                        : app.screeningStatus === "needs_review"
+                        ? "Tinjauan Manual"
+                        : "Gagal"}
+                    </Badge>
+                  )}
+                  {app.candidateCvFilename && (
+                    <Badge
+                      variant="outline"
+                      className="text-2xs border-emerald-200 bg-emerald-50/70 text-emerald-800"
+                    >
+                      CV: {app.candidateCvFilename}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-2xs capitalize border-sky-200 text-slate-600">
                     {app.difficulty}
                   </Badge>

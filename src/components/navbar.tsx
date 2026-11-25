@@ -104,44 +104,40 @@ export function Navbar({ initialUser }: NavbarProps) {
             <>
               <Link
                 href="/talent/dashboard"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                  pathname.startsWith("/talent/dashboard")
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/talent/dashboard")
                     ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
                     : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-                }`}
+                  }`}
               >
                 <House className="h-4 w-4 text-sky-600" />
                 Dashboard
               </Link>
               <Link
                 href="/talent/projects"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                  pathname.startsWith("/talent/projects")
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/talent/projects")
                     ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
                     : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-                }`}
+                  }`}
               >
                 <Search className="h-4 w-4 text-sky-600" />
                 Jelajahi Proyek
               </Link>
               <Link
                 href="/talent/applications"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                  pathname.startsWith("/talent/applications")
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/talent/applications")
                     ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
                     : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-                }`}
+                  }`}
               >
                 <ClipboardList className="h-4 w-4 text-sky-700" />
                 Lamaran Saya
               </Link>
               <Link
                 href="/talent/profile"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                  pathname.startsWith("/talent/profile")
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/talent/profile")
                     ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
                     : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-                }`}
+                  }`}
               >
                 <CircleUser className="h-4 w-4 text-sky-700" />
                 Profil Saya
@@ -149,18 +145,50 @@ export function Navbar({ initialUser }: NavbarProps) {
             </>
           )}
 
-          {user && isVendor && !pathname.startsWith("/vendor/dashboard") && (
-            <Link
-              href="/vendor/projects/new"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 ${
-                pathname.startsWith("/vendor/projects/new")
-                  ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
-                  : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
-              }`}
-            >
-              <PlusCircle className="h-4 w-4 text-sky-600" />
-              Posting Proyek
-            </Link>
+          {user && isVendor && (
+            <>
+              <Link
+                href="/vendor/dashboard"
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/vendor/dashboard")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                  }`}
+              >
+                <House className="h-4 w-4 text-sky-600" />
+                Dashboard
+              </Link>
+              <Link
+                href="/vendor/dashboard#my-vacancies"
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${
+                  pathname.includes("/applicants")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                }`}
+              >
+                <ClipboardList className="h-4 w-4 text-sky-600" />
+                My Vacancies
+              </Link>
+              <Link
+                href="/vendor/projects/new"
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/vendor/projects/new")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                  }`}
+              >
+                <PlusCircle className="h-4 w-4 text-sky-600" />
+                Create Vacancy
+              </Link>
+              <Link
+                href="/vendor/team"
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${pathname.startsWith("/vendor/team") || pathname.startsWith("/vendor/invitations")
+                    ? "bg-sky-50 text-sky-700 border border-sky-200/80 font-bold shadow-2xs"
+                    : "text-slate-600 hover:text-sky-700 hover:bg-sky-50/60"
+                  }`}
+              >
+                <CircleUser className="h-4 w-4 text-sky-700" />
+                HR Team
+              </Link>
+            </>
           )}
         </nav>
 
@@ -190,10 +218,24 @@ export function Navbar({ initialUser }: NavbarProps) {
                   </DropdownMenuItem>
                 )}
                 {isVendor && (
-                  <DropdownMenuItem onClick={() => router.push("/vendor/profile")} className="focus:bg-sky-50 focus:text-sky-800 cursor-pointer rounded-xl">
-                    <CircleUser className="h-4 w-4 text-sky-700" />
-                    <span>Profil Vendor</span>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => router.push("/vendor/profile")} className="focus:bg-sky-50 focus:text-sky-800 cursor-pointer rounded-xl">
+                      <CircleUser className="h-4 w-4 text-sky-700" />
+                      <span>Company Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/vendor/team")} className="focus:bg-sky-50 focus:text-sky-800 cursor-pointer rounded-xl">
+                      <ClipboardList className="h-4 w-4 text-sky-700" />
+                      <span>Team Management</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/vendor/invitations")} className="focus:bg-sky-50 focus:text-sky-800 cursor-pointer rounded-xl">
+                      <PlusCircle className="h-4 w-4 text-sky-700" />
+                      <span>Invitations</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/vendor/settings")} className="focus:bg-sky-50 focus:text-sky-800 cursor-pointer rounded-xl">
+                      <Sparkles className="h-4 w-4 text-sky-700" />
+                      <span>Workspace Settings</span>
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator className="bg-sky-100" />
                 <DropdownMenuItem

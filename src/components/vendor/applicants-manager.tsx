@@ -18,6 +18,9 @@ import {
   FolderCheck,
   Eye,
   Info,
+  FileText,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +38,19 @@ interface ApplicantsManagerProps {
   initialApplicants: DetailedApplicantItem[];
 }
 
+export type ApplicantStageFilter =
+  | "all"
+  | "new"
+  | "screening"
+  | "shortlisted"
+  | "interview"
+  | "rejected";
+
+function isWithinHours(isoDate: string, hours: number): boolean {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  return diffMs >= 0 && diffMs <= hours * 3600 * 1000;
+}
+
 export function ApplicantsManager({
   projectId,
   projectTitle,
@@ -42,10 +58,83 @@ export function ApplicantsManager({
 }: ApplicantsManagerProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [stageFilter, setStageFilter] = useState<ApplicantStageFilter>("all");
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [detailApplicant, setDetailApplicant] = useState<DetailedApplicantItem | null>(null);
   const [reviewApplicant, setReviewApplicant] = useState<DetailedApplicantItem | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const matchesStageFilter = (
+    app: DetailedApplicantItem,
+    filter: ApplicantStageFilter,
+  ): boolean => {
+    switch (filter) {
+      case "all":
+        return true;
+      case "new":
+        return app.status === "pending";
+      case "screening":
+        return (
+          app.status === "pending" &&
+          (app.screeningStatus === "completed" ||
+            app.screeningStatus === "processing" ||
+            app.screeningStatus === "queued" ||
+            app.screeningStatus === "needs_review")
+        );
+      case "shortlisted":
+        return (
+          (app.status === "pending" && app.latestMatchScore >= 75) ||
+          app.status === "accepted"
+        );
+      case "interview":
+        return app.status === "accepted" || app.status === "completed";
+      case "rejected":
+        return app.status === "rejected";
+      default:
+        return true;
+    }
+  };
+
+  const STAGE_FILTER_TABS: {
+    key: ApplicantStageFilter;
+    label: string;
+    count: number;
+  }[] = [
+    {
+      key: "all",
+      label: "All Applicants",
+      count: initialApplicants.length,
+    },
+    {
+      key: "new",
+      label: "New",
+      count: initialApplicants.filter((a) => matchesStageFilter(a, "new")).length,
+    },
+    {
+      key: "screening",
+      label: "Screening",
+      count: initialApplicants.filter((a) => matchesStageFilter(a, "screening")).length,
+    },
+    {
+      key: "shortlisted",
+      label: "Shortlisted",
+      count: initialApplicants.filter((a) => matchesStageFilter(a, "shortlisted")).length,
+    },
+    {
+      key: "interview",
+      label: "Interview",
+      count: initialApplicants.filter((a) => matchesStageFilter(a, "interview")).length,
+    },
+    {
+      key: "rejected",
+      label: "Rejected",
+      count: initialApplicants.filter((a) => matchesStageFilter(a, "rejected")).length,
+    },
+  ];
+
+  const filteredApplicants = initialApplicants.filter((app) =>
+    matchesStageFilter(app, stageFilter),
+  );
 
   const handleToggleSelect = (applicantId: string) => {
     setSelectedIds((prev) => {
@@ -112,14 +201,48 @@ export function ApplicantsManager({
         </div>
       </div>
 
+      {/* Stage Filter Tabs: All Applicants, New, Screening, Shortlisted, Interview, Rejected */}
+      <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-[#e8d5d0] bg-white p-2 shadow-2xs">
+        {STAGE_FILTER_TABS.map((tab) => {
+          const isActive = stageFilter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setStageFilter(tab.key)}
+              className={`flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                isActive
+                  ? "bg-[#b87a65] text-white shadow-sm"
+                  : "text-[#695449] hover:bg-[#F7ECEA] hover:text-[#4a3728]"
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : tab.key === "new" && tab.count > 0
+                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                    : "bg-[#F7ECEA] text-[#695449]"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Action & Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-[#e8d5d0] shadow-2xs">
         <div className="flex items-center gap-2 text-xs font-semibold text-[#695449]">
           <Users className="h-4 w-4 text-[#C98B75]" />
-          <span>Total {initialApplicants.length} Pelamar Masuk</span>
+          <span>
+            Menampilkan {filteredApplicants.length} dari {initialApplicants.length} Pelamar
+          </span>
           <span className="text-[#d4b0a5]">•</span>
           <span className="text-2xs font-normal text-[#8a7668]">
-            Terurut real-time skor kecocokan gabungan tertinggi
+            Terurut otomatis berdasarkan AI Screening Score deterministik tertinggi
           </span>
         </div>
 
@@ -153,10 +276,12 @@ export function ApplicantsManager({
       </div>
 
       {/* Applicants List */}
-      {initialApplicants.length > 0 ? (
+      {filteredApplicants.length > 0 ? (
         <div className="space-y-4">
-          {initialApplicants.map((app) => {
+          {filteredApplicants.map((app) => {
             const isSelected = selectedIds.includes(app.id);
+            const isNewUnprocessed = app.status === "pending";
+            const isRecentlyApplied = isWithinHours(app.createdAt, 72);
 
             return (
               <div
@@ -182,6 +307,8 @@ export function ApplicantsManager({
                     </div>
 
                     <Avatar
+                      src={app.talentAvatar || undefined}
+                      alt={app.talentName}
                       fallback={app.talentName}
                       className="h-12 w-12 text-base font-bold bg-[#F7ECEA] text-[#b87a65] shrink-0"
                     />
@@ -191,6 +318,15 @@ export function ApplicantsManager({
                         <h3 className="font-bold text-[#4a3728] text-base truncate">
                           {app.talentName}
                         </h3>
+
+                        {isNewUnprocessed && (
+                          <Badge
+                            variant="warning"
+                            className="text-3xs font-extrabold uppercase bg-amber-100 text-amber-900 border-amber-300"
+                          >
+                            {isRecentlyApplied ? "NEW" : "Belum Ditinjau"}
+                          </Badge>
+                        )}
 
                         <Badge
                           variant={
@@ -204,10 +340,30 @@ export function ApplicantsManager({
                           }
                           className="capitalize text-3xs font-semibold px-2"
                         >
+                          Application:{" "}
                           {app.status === "pending"
-                            ? "Menunggu Keputusan"
+                            ? "New / Pending"
+                            : app.status === "accepted"
+                            ? "Interview / Accepted"
                             : app.status}
                         </Badge>
+                        {app.screeningStatus && (
+                          <Badge
+                            variant="outline"
+                            className="text-3xs font-semibold border-sky-200 bg-sky-50 text-sky-800"
+                          >
+                            AI Screening:{" "}
+                            {app.screeningStatus === "completed"
+                              ? "Completed"
+                              : app.screeningStatus === "processing"
+                              ? "Processing"
+                              : app.screeningStatus === "queued"
+                              ? "Queued"
+                              : app.screeningStatus === "needs_review"
+                              ? "Needs Review"
+                              : "Failed"}
+                          </Badge>
+                        )}
                       </div>
 
                       {app.headline && (
@@ -216,27 +372,76 @@ export function ApplicantsManager({
                         </p>
                       )}
 
-                      {/* Privasi: Email talent hanya terlihat oleh vendor setelah talent melamar (Requirement 10) */}
-                      <div className="flex items-center gap-1.5 text-xs text-[#b87a65] font-semibold pt-0.5">
-                        <Mail className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">
-                          {app.contactEmail ? app.contactEmail : "Email tersimpan di akun pelamar"}
+                      {/* Applied Date, CV Snapshot & Contact Email */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5 text-xs">
+                        <span className="inline-flex items-center gap-1 text-[#7a6559] font-medium">
+                          <Calendar className="h-3.5 w-3.5 text-[#C98B75]" />
+                          <span>
+                            Applied:{" "}
+                            <strong className="text-[#4a3728]">
+                              {new Date(app.createdAt).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </strong>
+                          </span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
+                          <FileText className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate max-w-[200px]">
+                            CV: {app.candidateCvName || "Profil Terstruktur (Tanpa PDF)"}
+                          </span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 text-[#b87a65] font-semibold">
+                          <Mail className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {app.contactEmail ? app.contactEmail : "Email tersimpan di akun pelamar"}
+                          </span>
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Match Score Badge (Real-time Recalculated) */}
+                  {/* AI Screening Score Badge (Deterministic Weighted Criteria Score) */}
                   <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F7ECEA]">
-                    <div className="text-3xs text-[#a89080] font-semibold uppercase">
-                      Match Score (Terbaru)
+                    <div className="text-3xs text-[#a89080] font-semibold uppercase flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-[#b87a65]" />
+                      <span>AI Screening Score</span>
                     </div>
                     <MatchScoreBadge score={app.latestMatchScore} size="md" />
-                    <div className="text-3xs text-[#8a7668] font-semibold">
-                      Similarity teks {app.textSimilarityScore}%
-                    </div>
+                    {app.snapshotMatchScore !== null && (
+                      <div className="text-3xs text-[#8a7668] font-semibold">
+                        Snapshot saat melamar: {Math.round(app.snapshotMatchScore)}%
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* AI Candidate Summary Preview */}
+                {app.aiScreening && (
+                  <div className="rounded-xl border border-sky-200/80 bg-sky-50/50 p-3.5 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 font-bold text-sky-900 text-2xs uppercase tracking-wider">
+                        <Sparkles className="h-3.5 w-3.5 text-sky-600" />
+                        <span>Ringkasan AI Screening &amp; Bukti CV</span>
+                      </span>
+                      {app.aiScreening.cvEvidence.length > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="text-3xs border-sky-200 bg-white text-sky-800"
+                        >
+                          {app.aiScreening.cvEvidence.length} Referensi Bukti CV
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-slate-700 leading-relaxed">
+                      {app.aiScreening.candidateSummary}
+                    </p>
+                  </div>
+                )}
 
                 {/* Metrics Strip: Rating, Selesai, Jam Kerja, Mode */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-[#F7ECEA] text-xs">
@@ -337,10 +542,10 @@ export function ApplicantsManager({
                     variant="outline"
                     size="sm"
                     onClick={() => setDetailApplicant(app)}
-                    className="text-xs gap-1.5 h-8 font-semibold text-[#695449]"
+                    className="text-xs gap-1.5 h-8 font-bold text-[#4a3728] border-[#d4b0a5] hover:bg-[#F7ECEA]"
                   >
                     <Eye className="h-3.5 w-3.5 text-[#C98B75]" />
-                    <span>Lihat Profil Lengkap & Portofolio</span>
+                    <span>View Details &amp; AI Screening Results</span>
                   </Button>
 
                   <div className="flex items-center gap-2">

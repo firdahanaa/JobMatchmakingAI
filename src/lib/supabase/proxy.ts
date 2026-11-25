@@ -54,24 +54,53 @@ export async function updateSession(request: NextRequest) {
 
   // 2. Authenticated user logic
   if (user) {
-    // Determine user role
-    const userRole = (user.user_metadata?.role as 'talent' | 'vendor') || 'talent';
+    // Authoritatively determine user role and HR company membership from database
+    let baseRole = (user.user_metadata?.role as 'talent' | 'vendor') || 'talent';
+    let hasActiveHrMembership = baseRole === 'vendor';
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile?.role === 'talent' || profile?.role === 'vendor') {
+      baseRole = profile.role;
+      hasActiveHrMembership = profile.role === 'vendor';
+    }
+
+    if (!hasActiveHrMembership && (isVendorRoute || isAuthRoute)) {
+      const { data: memberRow } = await supabase
+        .from('company_members')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      if (memberRow?.company_id) {
+        hasActiveHrMembership = true;
+      }
+    }
 
     // If user is logged in and visits /login or /register, redirect to dashboard
     if (isAuthRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = userRole === 'talent' ? '/talent/dashboard' : '/vendor/dashboard';
+      url.pathname =
+        baseRole === 'vendor' || (hasActiveHrMembership && baseRole !== 'talent')
+          ? '/vendor/dashboard'
+          : '/talent/dashboard';
       return NextResponse.redirect(url);
     }
 
     // Role-based route enforcement
-    if (isTalentRoute && userRole !== 'talent') {
+    if (isTalentRoute && baseRole !== 'talent') {
       const url = request.nextUrl.clone();
       url.pathname = '/vendor/dashboard';
       return NextResponse.redirect(url);
     }
 
-    if (isVendorRoute && userRole !== 'vendor') {
+    if (isVendorRoute && !hasActiveHrMembership) {
       const url = request.nextUrl.clone();
       url.pathname = '/talent/dashboard';
       return NextResponse.redirect(url);

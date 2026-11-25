@@ -1,12 +1,21 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { processCandidateCv } from "@/app/talent/profile/cv-actions";
 import { applyApplicationSchema, uuidSchema } from "@/lib/validators/application";
 import { calculateMatch } from "@/lib/matching";
 import { getTalentMatchingContext } from "@/app/talent/projects/actions";
 import type { ProjectContext, ProjectSkill, SkillLevel } from "@/lib/matching/types";
-import type { ApplicationStatus, ProjectDifficulty, ProjectType, WorkMode } from "@/types/database";
+import type {
+  ApplicationStatus,
+  CvProcessingStatus,
+  ProjectDifficulty,
+  ProjectType,
+  ScreeningStatus,
+  WorkMode,
+} from "@/types/database";
 
 export interface TalentApplicationItem {
   id: string;
@@ -22,9 +31,21 @@ export interface TalentApplicationItem {
   projectStatus: string;
   matchScore: number | null;
   status: ApplicationStatus;
+  screeningStatus: ScreeningStatus;
+  candidateCvFilename: string | null;
   message: string | null;
   contactEmail: string | null;
   createdAt: string;
+}
+
+export interface TalentApplyReadiness {
+  hasHeadlineAndLocation: boolean;
+  hasSkills: boolean;
+  currentCv: {
+    id: string;
+    originalFilename: string;
+    processingStatus: CvProcessingStatus;
+  } | null;
 }
 
 /**
@@ -78,7 +99,7 @@ export async function applyToProject(
     // 2. Periksa status proyek (harus 'open')
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, title, status, hours_per_week, mode, vendor_id")
+      .select("*")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -93,12 +114,29 @@ export async function applyToProject(
       };
     }
 
-    // Cegah vendor melamar ke proyeknya sendiri
+    // Cegah vendor atau anggota HR perusahaan melamar ke proyek perusahaannya sendiri
     if (project.vendor_id === user.id) {
       return {
         success: false,
         error: "Kamu tidak dapat melamar ke proyek milik organisasi kamu sendiri.",
       };
+    }
+
+    const projectCompanyId = (project as { company_id?: string | null }).company_id ?? null;
+    if (projectCompanyId) {
+      const { data: selfMember } = await supabase
+        .from("company_members")
+        .select("id")
+        .eq("company_id", projectCompanyId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (selfMember) {
+        return {
+          success: false,
+          error: "Anggota tim HR/perusahaan tidak dapat melamar ke lowongan perusahaannya sendiri.",
+        };
+      }
     }
 
     // 3. Periksa apakah sudah pernah melamar (cegah apply ganda)
@@ -132,6 +170,32 @@ export async function applyToProject(
     }
 
     const candidateCvId = talentProfile?.current_cv_id ?? null;
+
+    let cvNeedsAsyncProcessing = false;
+
+    // Verifikasi eksplisit kepemilikan CV terhadap candidate_cvs
+    if (candidateCvId) {
+      const { data: verifiedCv, error: verifyCvError } = await supabase
+        .from("candidate_cvs")
+        .select("id, candidate_id, processing_status")
+        .eq("id", candidateCvId)
+        .eq("candidate_id", user.id)
+        .maybeSingle();
+
+      if (verifyCvError || !verifiedCv) {
+        return {
+          success: false,
+          error: "Dokumen CV aktif tidak valid atau bukan milik akun kamu.",
+        };
+      }
+
+      if (
+        verifiedCv.processing_status === "pending" ||
+        verifiedCv.processing_status === "failed"
+      ) {
+        cvNeedsAsyncProcessing = true;
+      }
+    }
 
     // 4. Hitung Match Score di server (bukan dari client)
     const { context: talentContext, error: contextError } = await getTalentMatchingContext();
@@ -187,12 +251,13 @@ export async function applyToProject(
     let createdAppId = existingApp?.id;
 
     if (existingApp && existingApp.status === "withdrawn") {
-      // Re-apply: update existing withdrawn record to pending
+      // Re-apply: update existing withdrawn record to pending AND update candidate_cv_id snapshot to current valid CV
       const { data: updatedApp, error: updateError } = await supabase
         .from("applications")
         .update({
           message: finalStoredMessage,
           match_score: serverMatchScore,
+          candidate_cv_id: candidateCvId,
           status: "pending",
           created_at: new Date().toISOString(),
         })
@@ -233,10 +298,18 @@ export async function applyToProject(
       createdAppId = newApp.id;
     }
 
+    if (candidateCvId && cvNeedsAsyncProcessing) {
+      const targetUserId = user.id;
+      after(async () => {
+        await processCandidateCv(candidateCvId, targetUserId);
+      });
+    }
+
     revalidatePath("/talent/projects");
     revalidatePath(`/talent/projects/${projectId}`);
     revalidatePath("/talent/applications");
     revalidatePath("/talent/dashboard");
+    revalidatePath("/vendor/dashboard");
     revalidatePath(`/vendor/projects/${projectId}/applicants`);
 
     return {
@@ -378,6 +451,7 @@ export async function getMyApplications(): Promise<{
         status,
         message,
         match_score,
+        candidate_cv_id,
         created_at,
         projects (
           id,
@@ -409,6 +483,7 @@ export async function getMyApplications(): Promise<{
       status: ApplicationStatus;
       message: string | null;
       match_score: number | null;
+      candidate_cv_id: string | null;
       created_at: string;
       projects: {
         id: string;
@@ -437,6 +512,32 @@ export async function getMyApplications(): Promise<{
 
     const rawList = (applicationsData || []) as unknown as RawApp[];
 
+    const cvIds = Array.from(
+      new Set(
+        rawList
+          .map((app) => app.candidate_cv_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const cvMap = new Map<
+      string,
+      { original_filename: string; processing_status: CvProcessingStatus }
+    >();
+    if (cvIds.length > 0) {
+      const { data: cvsData } = await supabase
+        .from("candidate_cvs")
+        .select("id, original_filename, processing_status")
+        .in("id", cvIds);
+
+      for (const cv of cvsData || []) {
+        cvMap.set(cv.id, {
+          original_filename: cv.original_filename,
+          processing_status: cv.processing_status as CvProcessingStatus,
+        });
+      }
+    }
+
     const items: TalentApplicationItem[] = rawList.map((app) => {
       const p = Array.isArray(app.projects) ? app.projects[0] : app.projects;
       const v = Array.isArray(p?.vendor_profiles)
@@ -455,6 +556,24 @@ export async function getMyApplications(): Promise<{
         }
       }
 
+      const attachedCv = app.candidate_cv_id ? cvMap.get(app.candidate_cv_id) : undefined;
+      let screeningStatus: ScreeningStatus = "completed";
+      if (attachedCv) {
+        if (attachedCv.processing_status === "pending") {
+          screeningStatus = "queued";
+        } else if (attachedCv.processing_status === "processing") {
+          screeningStatus = "processing";
+        } else if (attachedCv.processing_status === "failed") {
+          screeningStatus = "failed";
+        } else if (attachedCv.processing_status === "needs_ocr") {
+          screeningStatus = "needs_review";
+        } else {
+          screeningStatus = "completed";
+        }
+      } else if (app.match_score === null) {
+        screeningStatus = "queued";
+      }
+
       return {
         id: app.id,
         projectId: app.project_id,
@@ -469,6 +588,8 @@ export async function getMyApplications(): Promise<{
         projectStatus: p?.status || "open",
         matchScore: app.match_score,
         status: app.status,
+        screeningStatus,
+        candidateCvFilename: attachedCv?.original_filename ?? null,
         message: cleanMsg || null,
         contactEmail,
         createdAt: app.created_at,
@@ -487,10 +608,24 @@ export async function getMyApplications(): Promise<{
 
 /**
  * Check whether logged-in talent has already applied to a specific project
+ * and fetch current CV & profile readiness for the Apply dialog
  */
 export async function getApplicationForProject(projectId: string): Promise<{
-  application: { id: string; status: ApplicationStatus; matchScore: number | null } | null;
+  application: {
+    id: string;
+    status: ApplicationStatus;
+    matchScore: number | null;
+    candidateCvFilename: string | null;
+    screeningStatus: ScreeningStatus;
+  } | null;
+  readiness: TalentApplyReadiness;
 }> {
+  const defaultReadiness: TalentApplyReadiness = {
+    hasHeadlineAndLocation: false,
+    hasSkills: false,
+    currentCv: null,
+  };
+
   try {
     const supabase = await createClient();
     const {
@@ -498,23 +633,81 @@ export async function getApplicationForProject(projectId: string): Promise<{
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { application: null };
+      return { application: null, readiness: defaultReadiness };
     }
+
+    const [tpRes, skillsRes] = await Promise.all([
+      supabase
+        .from("talent_profiles")
+        .select("headline, location, current_cv_id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("talent_skills")
+        .select("skill_id")
+        .eq("talent_id", user.id)
+        .limit(1),
+    ]);
+
+    let currentCv: TalentApplyReadiness["currentCv"] = null;
+    if (tpRes.data?.current_cv_id) {
+      const { data: cvRow } = await supabase
+        .from("candidate_cvs")
+        .select("id, original_filename, processing_status")
+        .eq("id", tpRes.data.current_cv_id)
+        .eq("candidate_id", user.id)
+        .maybeSingle();
+
+      if (cvRow) {
+        currentCv = {
+          id: cvRow.id,
+          originalFilename: cvRow.original_filename,
+          processingStatus: cvRow.processing_status as CvProcessingStatus,
+        };
+      }
+    }
+
+    const readiness: TalentApplyReadiness = {
+      hasHeadlineAndLocation: Boolean(
+        tpRes.data?.headline?.trim() && tpRes.data?.location?.trim(),
+      ),
+      hasSkills: (skillsRes.data?.length ?? 0) > 0,
+      currentCv,
+    };
 
     const idValidation = uuidSchema.safeParse(projectId);
     if (!idValidation.success) {
-      return { application: null };
+      return { application: null, readiness };
     }
 
     const { data: app } = await supabase
       .from("applications")
-      .select("id, status, match_score")
+      .select("id, status, match_score, candidate_cv_id")
       .eq("project_id", projectId)
       .eq("talent_id", user.id)
       .maybeSingle();
 
     if (!app) {
-      return { application: null };
+      return { application: null, readiness };
+    }
+
+    let snapshotFilename: string | null = null;
+    let screeningStatus: ScreeningStatus = "completed";
+
+    if (app.candidate_cv_id) {
+      const { data: snapCv } = await supabase
+        .from("candidate_cvs")
+        .select("original_filename, processing_status")
+        .eq("id", app.candidate_cv_id)
+        .maybeSingle();
+
+      if (snapCv) {
+        snapshotFilename = snapCv.original_filename;
+        if (snapCv.processing_status === "pending") screeningStatus = "queued";
+        else if (snapCv.processing_status === "processing") screeningStatus = "processing";
+        else if (snapCv.processing_status === "failed") screeningStatus = "failed";
+        else if (snapCv.processing_status === "needs_ocr") screeningStatus = "needs_review";
+      }
     }
 
     return {
@@ -522,9 +715,12 @@ export async function getApplicationForProject(projectId: string): Promise<{
         id: app.id,
         status: app.status as ApplicationStatus,
         matchScore: app.match_score,
+        candidateCvFilename: snapshotFilename,
+        screeningStatus,
       },
+      readiness,
     };
   } catch {
-    return { application: null };
+    return { application: null, readiness: defaultReadiness };
   }
 }

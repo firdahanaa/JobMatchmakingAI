@@ -16,6 +16,8 @@ import type {
 
 export interface VendorProjectWithStats extends Project {
   applicantCount: number;
+  unprocessedApplicantCount: number;
+  vendorLocation: string | null;
   skills: (ProjectSkill & { skill: Skill })[];
   topApplicant?: {
     id: string;
@@ -93,34 +95,57 @@ export async function getVendorProjects(): Promise<{
       };
     }
 
-    // Role verification (defense in depth)
+    // Role & Company membership verification (supports company_owner, hr_admin, hr_recruiter)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, full_name")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status, companies:company_id(id, name, legacy_vendor_user_id)")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
       return {
         data: [],
         user: null,
-        error: "Akses ditolak. Fitur ini hanya untuk pengguna Vendor.",
+        error: "Akses ditolak. Fitur ini hanya untuk tim HR / Perusahaan.",
       };
     }
 
-    // Get vendor profile for organization name
+    type JoinedCompany = { id: string; name: string; legacy_vendor_user_id: string };
+    const joinedComp = Array.isArray(memberRow?.companies)
+      ? (memberRow?.companies[0] as JoinedCompany | undefined)
+      : (memberRow?.companies as JoinedCompany | null | undefined);
+
+    const targetVendorId = joinedComp?.legacy_vendor_user_id || user.id;
+
+    // Get vendor profile for organization name and location
     const { data: vendorProfile } = await supabase
       .from("vendor_profiles")
-      .select("organization_name")
-      .eq("user_id", user.id)
+      .select("organization_name, location")
+      .eq("user_id", targetVendorId)
       .maybeSingle();
 
-    // Fetch projects
-    const { data: projectsData, error: projectsError } = await supabase
+    // Fetch projects belonging to the company / vendor
+    let projectsQuery = supabase
       .from("projects")
       .select("*")
-      .eq("vendor_id", user.id)
       .order("created_at", { ascending: false });
+
+    if (memberRow?.company_id) {
+      projectsQuery = projectsQuery.eq("company_id", memberRow.company_id);
+    } else {
+      projectsQuery = projectsQuery.eq("vendor_id", targetVendorId);
+    }
+
+    const { data: projectsData, error: projectsError } = await projectsQuery;
 
     if (projectsError) throw projectsError;
 
@@ -138,13 +163,17 @@ export async function getVendorProjects(): Promise<{
 
     const projectIds = projectsData.map((p) => p.id);
 
-    // Fetch applications and top applicants
+    // Fetch applications and top applicants (only real confirmed applications, excluding withdrawn)
     const { data: applicationsData } = await supabase
       .from("applications")
-      .select("id, project_id, talent_id, match_score, created_at")
+      .select("id, project_id, talent_id, status, match_score, created_at")
       .in("project_id", projectIds);
 
-    const talentIds = Array.from(new Set((applicationsData || []).map((a) => a.talent_id)));
+    const activeApplications = (applicationsData || []).filter(
+      (app) => app.status !== "withdrawn",
+    );
+
+    const talentIds = Array.from(new Set(activeApplications.map((a) => a.talent_id)));
     const profilesMap = new Map<string, string>();
     if (talentIds.length > 0) {
       const { data: profilesData } = await supabase
@@ -157,13 +186,18 @@ export async function getVendorProjects(): Promise<{
     }
 
     const countMap: Record<string, number> = {};
+    const unprocessedCountMap: Record<string, number> = {};
     const topApplicantMap: Record<
       string,
       { id: string; talentName: string; matchScore: number | null }
     > = {};
 
-    for (const app of applicationsData || []) {
+    for (const app of activeApplications) {
       countMap[app.project_id] = (countMap[app.project_id] || 0) + 1;
+      if (app.status === "pending") {
+        unprocessedCountMap[app.project_id] =
+          (unprocessedCountMap[app.project_id] || 0) + 1;
+      }
 
       const currentTop = topApplicantMap[app.project_id];
       const appScore = app.match_score != null ? Number(app.match_score) : null;
@@ -212,6 +246,8 @@ export async function getVendorProjects(): Promise<{
     const result: VendorProjectWithStats[] = projectsData.map((p) => ({
       ...p,
       applicantCount: countMap[p.id] || 0,
+      unprocessedApplicantCount: unprocessedCountMap[p.id] || 0,
+      vendorLocation: vendorProfile?.location || null,
       skills: projectSkillsMap[p.id] || [],
       topApplicant: topApplicantMap[p.id] || null,
     }));
@@ -259,15 +295,25 @@ export async function getProjectForEdit(projectId: string): Promise<{
       return { data: null, error: "ID proyek tidak valid." };
     }
 
-    // Role verification
+    // Role verification (company_owner, hr_admin, or legacy vendor)
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
-      return { data: null, error: "Akses ditolak. Hanya vendor yang dapat mengelola proyek." };
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .in("role", ["company_owner", "hr_admin"])
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
+      return { data: null, error: "Akses ditolak. Hanya Company Owner atau HR Admin yang dapat mengedit lowongan." };
     }
 
     // 1. Fetch project and verify ownership
@@ -281,7 +327,11 @@ export async function getProjectForEdit(projectId: string): Promise<{
       return { data: null, error: "Proyek tidak ditemukan." };
     }
 
-    if (project.vendor_id !== user.id) {
+    const ownsViaCompany =
+      memberRow?.company_id && project.company_id === memberRow.company_id;
+    const ownsViaLegacyVendor = project.vendor_id === user.id;
+
+    if (!ownsViaCompany && !ownsViaLegacyVendor) {
       return {
         data: null,
         error: "Kamu tidak memiliki izin untuk mengedit proyek ini.",
@@ -362,35 +412,55 @@ export async function createProject(
       return { success: false, error: "Kamu harus login untuk membuat proyek." };
     }
 
-    // Role verification: strictly require vendor role
+    // Role verification: require company_owner, hr_admin, or legacy vendor role
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, full_name")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status, companies:company_id(id, legacy_vendor_user_id)")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .in("role", ["company_owner", "hr_admin"])
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
       return {
         success: false,
-        error: "Akses ditolak. Hanya akun Vendor terdaftar yang dapat membuat proyek.",
+        error: "Akses ditolak. Hanya Company Owner atau HR Admin yang dapat membuat lowongan.",
       };
     }
 
-    // Ensure vendor profile exists
-    const { data: existingVendor } = await supabase
-      .from("vendor_profiles")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    type JoinedComp = { id: string; legacy_vendor_user_id: string };
+    const joinedCompany = Array.isArray(memberRow?.companies)
+      ? (memberRow?.companies[0] as JoinedComp | undefined)
+      : (memberRow?.companies as JoinedComp | null | undefined);
 
-    if (!existingVendor) {
-      await supabase.from("vendor_profiles").upsert({
-        user_id: user.id,
-        organization_name:
-          user.user_metadata?.full_name ||
-          user.user_metadata?.organization_name ||
-          "Organisasi Vendor",
-      });
+    const targetVendorId = joinedCompany?.legacy_vendor_user_id || user.id;
+    const targetCompanyId = memberRow?.company_id || null;
+
+    if (isLegacyVendor && targetVendorId === user.id) {
+      // Ensure vendor profile exists for legacy vendor
+      const { data: existingVendor } = await supabase
+        .from("vendor_profiles")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!existingVendor) {
+        await supabase.from("vendor_profiles").upsert({
+          user_id: user.id,
+          organization_name:
+            user.user_metadata?.full_name ||
+            user.user_metadata?.organization_name ||
+            "Organisasi Vendor",
+        });
+      }
     }
 
     // Verify all skill IDs exist in skills table
@@ -408,7 +478,8 @@ export async function createProject(
     const { data: newProject, error: projectInsertError } = await supabase
       .from("projects")
       .insert({
-        vendor_id: user.id,
+        vendor_id: targetVendorId,
+        ...(targetCompanyId ? { company_id: targetCompanyId } : {}),
         title: validated.title,
         description: validated.description,
         difficulty: validated.difficulty,
@@ -503,24 +574,34 @@ export async function updateProject(
       return { success: false, error: "ID proyek tidak valid." };
     }
 
-    // Role verification
+    // Role verification (company_owner, hr_admin, or legacy vendor)
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .in("role", ["company_owner", "hr_admin"])
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
       return {
         success: false,
-        error: "Akses ditolak. Hanya akun Vendor yang dapat memperbarui proyek.",
+        error: "Akses ditolak. Hanya Company Owner atau HR Admin yang dapat memperbarui lowongan.",
       };
     }
 
     // Verify ownership (Double check RLS + server action authorization)
     const { data: existingProject, error: checkError } = await supabase
       .from("projects")
-      .select("vendor_id")
+      .select("vendor_id, company_id")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -528,7 +609,11 @@ export async function updateProject(
       return { success: false, error: "Proyek tidak ditemukan." };
     }
 
-    if (existingProject.vendor_id !== user.id) {
+    const ownsViaCompany =
+      memberRow?.company_id && existingProject.company_id === memberRow.company_id;
+    const ownsViaLegacyVendor = existingProject.vendor_id === user.id;
+
+    if (!ownsViaCompany && !ownsViaLegacyVendor) {
       return {
         success: false,
         error: "Kamu tidak memiliki hak untuk mengubah proyek ini.",
@@ -562,8 +647,7 @@ export async function updateProject(
         deadline: validated.deadline || null,
         status: validated.status || "open",
       })
-      .eq("id", projectId)
-      .eq("vendor_id", user.id);
+      .eq("id", projectId);
 
     if (updateError) {
       console.error("Update project error:", updateError);
@@ -645,28 +729,42 @@ export async function updateProjectStatus(
       return { success: false, error: "ID proyek tidak valid." };
     }
 
-    // Role verification
+    // Role verification (company_owner, hr_admin, or legacy vendor)
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .in("role", ["company_owner", "hr_admin"])
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
       return {
         success: false,
-        error: "Akses ditolak. Hanya akun Vendor yang dapat mengubah status proyek.",
+        error: "Akses ditolak. Hanya Company Owner atau HR Admin yang dapat mengubah status lowongan.",
       };
     }
 
-    // Authorization check: verify vendor ownership
+    // Authorization check: verify vendor / company ownership
     const { data: project } = await supabase
       .from("projects")
-      .select("vendor_id, status")
+      .select("vendor_id, company_id, status")
       .eq("id", projectId)
       .maybeSingle();
 
-    if (!project || project.vendor_id !== user.id) {
+    const ownsViaCompany =
+      memberRow?.company_id && project?.company_id === memberRow.company_id;
+    const ownsViaLegacyVendor = project?.vendor_id === user.id;
+
+    if (!project || (!ownsViaCompany && !ownsViaLegacyVendor)) {
       return {
         success: false,
         error: "Kamu tidak memiliki izin untuk mengubah status proyek ini.",
@@ -676,8 +774,7 @@ export async function updateProjectStatus(
     const { error: updateError } = await supabase
       .from("projects")
       .update({ status: newStatus })
-      .eq("id", projectId)
-      .eq("vendor_id", user.id);
+      .eq("id", projectId);
 
     if (updateError) {
       return { success: false, error: updateError.message };
@@ -717,24 +814,34 @@ export async function deleteProject(
       return { success: false, error: "ID proyek tidak valid." };
     }
 
-    // Role verification
+    // Role verification (company_owner, hr_admin, or legacy vendor)
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== "vendor") {
+    const { data: memberRow } = await supabase
+      .from("company_members")
+      .select("company_id, role, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .in("role", ["company_owner", "hr_admin"])
+      .limit(1)
+      .maybeSingle();
+
+    const isLegacyVendor = profile?.role === "vendor";
+    if (!isLegacyVendor && !memberRow) {
       return {
         success: false,
-        error: "Akses ditolak. Hanya akun Vendor yang dapat menghapus proyek.",
+        error: "Akses ditolak. Hanya Company Owner atau HR Admin yang dapat menghapus lowongan.",
       };
     }
 
     // Check ownership explicitly before deleting
     const { data: project, error: checkError } = await supabase
       .from("projects")
-      .select("vendor_id, title")
+      .select("vendor_id, company_id, title")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -742,10 +849,14 @@ export async function deleteProject(
       return { success: false, error: "Proyek tidak ditemukan." };
     }
 
-    if (project.vendor_id !== user.id) {
+    const ownsViaCompany =
+      memberRow?.company_id && project.company_id === memberRow.company_id;
+    const ownsViaLegacyVendor = project.vendor_id === user.id;
+
+    if (!ownsViaCompany && !ownsViaLegacyVendor) {
       return {
         success: false,
-        error: "Kamu tidak berhak menghapus proyek milik vendor lain.",
+        error: "Kamu tidak berhak menghapus proyek milik perusahaan lain.",
       };
     }
 
@@ -753,8 +864,7 @@ export async function deleteProject(
     const { error: deleteError } = await supabase
       .from("projects")
       .delete()
-      .eq("id", projectId)
-      .eq("vendor_id", user.id);
+      .eq("id", projectId);
 
     if (deleteError) {
       return { success: false, error: deleteError.message };

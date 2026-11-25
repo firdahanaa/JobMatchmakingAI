@@ -22,6 +22,12 @@ import {
   FileText,
   Download,
   LoaderCircle,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  BookOpen,
+  Briefcase,
+  ShieldAlert,
 } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { Button } from "@/components/ui/button";
@@ -177,6 +183,224 @@ export function ApplicantDetailModal({
             </div>
           </div>
         </div>
+
+        {/* ================================================================= */}
+        {/* AI SCREENING RESULTS & CV EVIDENCE SECTION                        */}
+        {/* ================================================================= */}
+        {applicant.aiScreening && (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4 space-y-4 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-200/70 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    AI Screening Evaluation &amp; CV Evidence
+                  </h4>
+                  <p className="text-3xs text-slate-600">
+                    Evaluasi deterministik berbasis kriteria HR dan hasil ekstraksi teks CV
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className="text-3xs border-sky-300 bg-white text-sky-900 font-bold"
+              >
+                Status Screening: {applicant.screeningStatus.toUpperCase()}
+              </Badge>
+            </div>
+
+            {/* AI Candidate Summary & Explanation */}
+            <div className="space-y-2 rounded-xl bg-white border border-sky-100 p-3.5">
+              <p className="text-2xs font-bold uppercase tracking-wider text-sky-800">
+                AI-Generated Candidate Summary
+              </p>
+              <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                {applicant.aiScreening.candidateSummary}
+              </p>
+              <p className="text-2xs text-slate-600 leading-relaxed pt-1 border-t border-slate-100">
+                <strong>Rincian Evaluasi Kriteria:</strong> {applicant.aiScreening.explanation}
+              </p>
+            </div>
+
+            {/* Deterministic Weighted Breakdown Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-xl bg-white border border-sky-100 p-2.5">
+                <span className="text-3xs text-slate-500 block font-semibold">
+                  Skill Match (55%)
+                </span>
+                <span className="text-sm font-black text-sky-800">
+                  {applicant.aiScreening.criteriaBreakdown.requiredAndPreferredSkillsScore}%
+                </span>
+              </div>
+              <div className="rounded-xl bg-white border border-sky-100 p-2.5">
+                <span className="text-3xs text-slate-500 block font-semibold">
+                  Level Fit (20%)
+                </span>
+                <span className="text-sm font-black text-sky-800">
+                  {applicant.aiScreening.criteriaBreakdown.competencyLevelFitScore}%
+                </span>
+              </div>
+              <div className="rounded-xl bg-white border border-sky-100 p-2.5">
+                <span className="text-3xs text-slate-500 block font-semibold">
+                  Availability (15%)
+                </span>
+                <span className="text-sm font-black text-sky-800">
+                  {applicant.aiScreening.criteriaBreakdown.workModeAndAvailabilityScore}%
+                </span>
+              </div>
+              <div className="rounded-xl bg-white border border-sky-100 p-2.5">
+                <span className="text-3xs text-slate-500 block font-semibold">
+                  Track Record (10%)
+                </span>
+                <span className="text-sm font-black text-sky-800">
+                  {applicant.aiScreening.criteriaBreakdown.trackRecordAndCvEvidenceScore}%
+                </span>
+              </div>
+            </div>
+
+            {/* Matched Skills & Missing Skills */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white border border-emerald-200/80 p-3 space-y-1.5">
+                <span className="text-2xs font-bold text-emerald-900 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  Matched Skills ({applicant.aiScreening.matchedSkills.length})
+                </span>
+                {applicant.aiScreening.matchedSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {applicant.aiScreening.matchedSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-3xs font-semibold text-emerald-800"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-2xs text-slate-500 italic">Belum ada skill yang cocok.</p>
+                )}
+              </div>
+
+              <div className="rounded-xl bg-white border border-rose-200/80 p-3 space-y-1.5">
+                <span className="text-2xs font-bold text-rose-900 flex items-center gap-1">
+                  <XCircle className="h-3.5 w-3.5 text-rose-600" />
+                  Missing Skills ({applicant.aiScreening.missingSkills.length})
+                </span>
+                {applicant.aiScreening.missingSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {applicant.aiScreening.missingSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-3xs font-semibold text-rose-800"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-2xs text-emerald-700 font-semibold">
+                    Seluruh keahlian lowongan terpenuhi.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Relevant Experience & Qualifications */}
+            {(applicant.aiScreening.relevantExperience.length > 0 ||
+              applicant.aiScreening.relevantQualifications.length > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl bg-white border border-sky-100 p-3 space-y-1.5">
+                  <span className="text-2xs font-bold text-slate-800 flex items-center gap-1">
+                    <Briefcase className="h-3.5 w-3.5 text-sky-700" />
+                    Pengalaman Relevan
+                  </span>
+                  {applicant.aiScreening.relevantExperience.length > 0 ? (
+                    <ul className="space-y-1 text-2xs text-slate-700 list-disc pl-4">
+                      {applicant.aiScreening.relevantExperience.map((exp, i) => (
+                        <li key={i}>{exp}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-2xs text-slate-500 italic">
+                      Belum ada riwayat pengalaman kerja terstruktur.
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl bg-white border border-sky-100 p-3 space-y-1.5">
+                  <span className="text-2xs font-bold text-slate-800 flex items-center gap-1">
+                    <GraduationCap className="h-3.5 w-3.5 text-sky-700" />
+                    Kualifikasi &amp; Pendidikan Relevan
+                  </span>
+                  {applicant.aiScreening.relevantQualifications.length > 0 ? (
+                    <ul className="space-y-1 text-2xs text-slate-700 list-disc pl-4">
+                      {applicant.aiScreening.relevantQualifications.map((qual, i) => (
+                        <li key={i}>{qual}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-2xs text-slate-500 italic">
+                      Belum ada data pendidikan tercantum.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* CV Page References & Evidence Snippets */}
+            <div className="rounded-xl bg-white border border-sky-100 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-2xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5 text-sky-700" />
+                  Bukti &amp; Referensi Halaman CV ({applicant.aiScreening.cvEvidence.length})
+                </span>
+                {applicant.aiScreening.cvPageCount && (
+                  <span className="text-3xs font-semibold text-slate-500">
+                    Total {applicant.aiScreening.cvPageCount} Halaman PDF
+                  </span>
+                )}
+              </div>
+
+              {applicant.aiScreening.cvEvidence.length > 0 ? (
+                <div className="space-y-2">
+                  {applicant.aiScreening.cvEvidence.map((ev, idx) => (
+                    <div
+                      key={`${ev.label}-${idx}`}
+                      className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-2.5 space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-2xs text-slate-800">{ev.label}</span>
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-2 py-0 bg-sky-100 text-sky-900"
+                        >
+                          {ev.sectionLabel}
+                        </Badge>
+                      </div>
+                      <p className="text-2xs text-slate-600 italic leading-relaxed">
+                        &ldquo;{ev.excerpt}&rdquo;
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-2xs text-slate-500 italic">
+                  Tidak ada teks PDF CV yang diekstraksi; evaluasi didasarkan pada profil keahlian dan pengalaman kandidat.
+                </p>
+              )}
+            </div>
+
+            {/* Assistive AI Governance Notice */}
+            <div className="flex items-center gap-2 rounded-xl bg-amber-50/90 border border-amber-200 px-3 py-2 text-2xs text-amber-900">
+              <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" />
+              <span>
+                <strong>Catatan HR:</strong> AI hanya memberikan rekomendasi dan evaluasi berbasis bukti. Keputusan shortlist, interview, atau reject tetap berada sepenuhnya di tangan HR.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Bio */}
         {applicant.bio && (

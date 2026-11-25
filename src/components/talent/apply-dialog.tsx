@@ -9,6 +9,8 @@ import {
   Sparkles,
   FileText,
   RotateCcw,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,8 +23,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { applyToProject, withdrawApplication } from "@/app/talent/applications/actions";
-import type { ApplicationStatus } from "@/types/database";
+import {
+  applyToProject,
+  withdrawApplication,
+  type TalentApplyReadiness,
+} from "@/app/talent/applications/actions";
+import type { ApplicationStatus, ScreeningStatus } from "@/types/database";
 
 interface ApplyDialogProps {
   projectId: string;
@@ -34,8 +40,20 @@ interface ApplyDialogProps {
     id: string;
     status: ApplicationStatus;
     matchScore: number | null;
+    candidateCvFilename?: string | null;
+    screeningStatus?: ScreeningStatus;
   } | null;
+  readiness?: TalentApplyReadiness;
 }
+
+const SCREENING_LABELS: Record<ScreeningStatus, string> = {
+  not_started: "Belum Dimulai",
+  queued: "Antrean Screening AI",
+  processing: "Sedang Dievaluasi AI",
+  completed: "Screening Selesai",
+  failed: "Screening Gagal",
+  needs_review: "Menunggu Tinjauan HR",
+};
 
 export function ApplyDialog({
   projectId,
@@ -44,6 +62,7 @@ export function ApplyDialog({
   projectStatus,
   currentMatchScore,
   existingApplication,
+  readiness,
 }: ApplyDialogProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -124,7 +143,7 @@ export function ApplyDialog({
             <span className="text-xs font-bold text-[#0F172A] block">
               Status Lamaran Kamu:
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant={
                   status === "accepted"
@@ -138,7 +157,7 @@ export function ApplyDialog({
                 className="capitalize text-xs font-semibold px-2.5 py-0.5"
               >
                 {status === "pending"
-                  ? "Menunggu Review Vendor"
+                  ? "Menunggu Review HR"
                   : status === "accepted"
                   ? "Diterima (Accepted)"
                   : status === "rejected"
@@ -147,12 +166,28 @@ export function ApplyDialog({
                   ? "Proyek Selesai"
                   : status}
               </Badge>
+              {existingApplication.screeningStatus && (
+                <Badge
+                  variant="outline"
+                  className="text-2xs font-semibold border-sky-200 bg-sky-50 text-sky-800"
+                >
+                  Screening: {SCREENING_LABELS[existingApplication.screeningStatus]}
+                </Badge>
+              )}
               {existingApplication.matchScore !== null && (
                 <span className="text-2xs text-slate-500 font-medium">
                   (Snapshot: {Math.round(existingApplication.matchScore)}%)
                 </span>
               )}
             </div>
+            {existingApplication.candidateCvFilename && (
+              <p className="text-2xs text-slate-500 pt-0.5">
+                Snapshot CV:{" "}
+                <strong className="text-slate-700">
+                  {existingApplication.candidateCvFilename}
+                </strong>
+              </p>
+            )}
           </div>
 
           <Link href="/talent/applications">
@@ -234,8 +269,61 @@ export function ApplyDialog({
               </span>
             </div>
             <span className="text-3xs text-slate-500 max-w-[200px] text-right">
-              Dihitung otomatis di server berdasarkan profil & kebutuhan skill proyek.
+              Dihitung otomatis di server berdasarkan profil & kebutuhan skill lowongan.
             </span>
+          </div>
+
+          {/* Current CV Snapshot & Profile Readiness Card */}
+          <div className="rounded-2xl border border-sky-100 bg-white p-3.5 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-sky-600" />
+                Snapshot CV yang Disertakan
+              </span>
+              <Link
+                href="/talent/profile"
+                className="text-2xs font-bold text-sky-700 hover:underline"
+              >
+                Kelola CV di Profil
+              </Link>
+            </div>
+
+            {readiness?.currentCv ? (
+              <div className="flex items-center justify-between rounded-xl bg-emerald-50/70 border border-emerald-200 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="truncate font-semibold text-emerald-950">
+                    {readiness.currentCv.originalFilename}
+                  </span>
+                </div>
+                <Badge variant="success" className="text-3xs shrink-0">
+                  CV Aktif
+                </Badge>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-amber-900">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-2xs">Belum ada CV PDF di profilmu</p>
+                  <p className="text-3xs text-amber-800">
+                    Kamu tetap bisa melamar, namun sangat disarankan mengunggah CV PDF di halaman Profil agar hasil AI Screening lebih optimal.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {readiness && (!readiness.hasHeadlineAndLocation || !readiness.hasSkills) && (
+              <div className="flex items-start gap-2 rounded-xl bg-amber-50/70 border border-amber-200 px-3 py-2 text-amber-900">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-3xs leading-relaxed">
+                  Profil atau daftar keahlianmu belum lengkap. Lengkapi di{" "}
+                  <Link href="/talent/profile" className="font-bold underline">
+                    Profil Saya
+                  </Link>{" "}
+                  untuk meningkatkan skor evaluasi.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Short Message Input (Optional, max 500 chars) */}

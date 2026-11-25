@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { VendorProjectsList } from "@/components/vendor/vendor-projects-list";
+import { VendorPageNavigation } from "@/components/vendor/vendor-page-navigation";
 import { getVendorProjects } from "../projects/actions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,6 +36,17 @@ export default async function VendorDashboardPage() {
   const totalCompleted = projects.filter((p) => p.status === "completed").length;
   const totalApplicants = projects.reduce((acc, p) => acc + p.applicantCount, 0);
 
+  const scoredTopApplicants = projects
+    .map((p) => p.topApplicant?.matchScore)
+    .filter((s): s is number => s != null);
+  const actualAvgTopMatch =
+    scoredTopApplicants.length > 0
+      ? Math.round(
+          scoredTopApplicants.reduce((sum, val) => sum + val, 0) /
+            scoredTopApplicants.length,
+        )
+      : 0;
+
   const topVendorProject = projects[0] ? {
     id: projects[0].id,
     title: projects[0].title,
@@ -44,7 +56,9 @@ export default async function VendorDashboardPage() {
       ? `Rp ${projects[0].reward_amount?.toLocaleString("id-ID")}`
       : "Sertifikat & Portofolio",
     duration: `${projects[0].duration_weeks || 4} Minggu (${projects[0].hours_per_week || 15} jam/mgg)`,
-    matchScore: 98,
+    matchScore: projects[0].topApplicant?.matchScore != null
+      ? Math.round(projects[0].topApplicant.matchScore)
+      : actualAvgTopMatch,
     description: projects[0].description,
     workMode: projects[0].mode,
   } : null;
@@ -60,12 +74,13 @@ export default async function VendorDashboardPage() {
             stats={{
               totalProjects: projects.length,
               activeApplications: totalApplicants,
-              avgMatch: 98,
+              avgMatch: actualAvgTopMatch,
             }}
           />
         </div>
 
         <div className="mx-auto max-w-7xl space-y-8 px-2 sm:px-4">
+          <VendorPageNavigation activePage="dashboard" />
 
           {/* Quick Metrics: Proyek Aktif, Total Pelamar, Proyek Selesai */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -139,18 +154,18 @@ export default async function VendorDashboardPage() {
           )}
 
           {/* Projects Management List */}
-          <div className="space-y-4">
+          <div id="my-vacancies" className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-[#4a3728] tracking-tight">
-                  Daftar Proyek Organisasi
+                  My Vacancies (Lowongan Perusahaan)
                 </h2>
                 <p className="text-xs text-[#8a7668]">
-                  Kelola status, pantau pelamar, dan perbarui detail proyek dalam satu tempat.
+                  Klik judul lowongan atau tombol pelamar untuk membuka detail lowongan, hasil AI screening pelamar, dan rekomendasi talenta.
                 </p>
               </div>
               <span className="w-fit rounded-full border border-[#e8d5d0] bg-white px-3 py-1 text-xs font-semibold text-[#7a6559]">
-                {projects.length} proyek
+                {projects.length} lowongan
               </span>
             </div>
 

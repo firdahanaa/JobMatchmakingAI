@@ -7,6 +7,7 @@ import {
   Search,
   Calendar,
   Users,
+  Bell,
   Edit,
   Trash2,
   Coins,
@@ -96,11 +97,11 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
   };
 
   const STATUS_TABS = [
-    { label: "Semua", value: "all", count: projects.length },
-    { label: "Open", value: "open", count: projects.filter((p) => p.status === "open").length },
+    { label: "All Vacancies", value: "all", count: projects.length },
+    { label: "Active", value: "open", count: projects.filter((p) => p.status === "open").length },
     { label: "Draft", value: "draft", count: projects.filter((p) => p.status === "draft").length },
-    { label: "Selesai", value: "completed", count: projects.filter((p) => p.status === "completed").length },
-    { label: "Ditutup", value: "closed", count: projects.filter((p) => p.status === "closed").length },
+    { label: "Completed", value: "completed", count: projects.filter((p) => p.status === "completed").length },
+    { label: "Closed", value: "closed", count: projects.filter((p) => p.status === "closed").length },
   ];
 
   return (
@@ -170,29 +171,69 @@ export function VendorProjectsList({ initialProjects }: VendorProjectsListProps)
                       </Badge>
                       <span className="flex items-center gap-1 text-xs text-[#8a7668] font-medium">
                         <MapPin className="h-3.5 w-3.5 text-[#a89080]" />
-                        <span className="capitalize">{project.mode}</span>
+                        <span className="capitalize">
+                          {project.vendorLocation
+                            ? `${project.vendorLocation} (${project.mode})`
+                            : project.mode}
+                        </span>
                       </span>
+                      {project.unprocessedApplicantCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold text-amber-900 shadow-2xs">
+                          <Bell className="h-3 w-3 text-amber-700" />
+                          <span>
+                            {project.unprocessedApplicantCount} New Applicant
+                            {project.unprocessedApplicantCount > 1 ? "s" : ""}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
-                    <h3 className="text-lg font-bold leading-snug text-[#4a3728] sm:text-xl">
-                      {project.title}
-                    </h3>
+                    <Link
+                      href={`/vendor/projects/${project.id}/applicants`}
+                      className="block group"
+                    >
+                      <h3 className="text-lg font-bold leading-snug text-[#4a3728] group-hover:text-[#b87a65] transition-colors sm:text-xl">
+                        {project.title}
+                      </h3>
+                    </Link>
                   </div>
 
-                  {/* Applicants Count Badge / Link */}
-                  <Link
-                    href={`/vendor/projects/${project.id}/applicants`}
-                    aria-label={`Lihat ${project.applicantCount} pelamar untuk ${project.title}`}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#eadfd9] bg-[#fbf8f6] px-3.5 py-2.5 transition-colors hover:border-[#d4b0a5] hover:bg-[#F7ECEA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b87a65] focus-visible:ring-offset-2"
-                  >
-                    <Users className="h-4 w-4 text-[#b87a65]" />
-                    <div className="text-left">
-                      <span className="block text-xs font-bold leading-none text-[#7a4f3f]">
-                        {project.applicantCount} Pelamar
+                  {/* Applicants Summary & View Applicants CTA */}
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+                    <div className="rounded-xl border border-[#eadfd9] bg-[#fbf8f6] px-3 py-2 text-left">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#4a3728]">
+                        <Users className="h-3.5 w-3.5 text-[#b87a65]" />
+                        <span>{project.applicantCount} Applicants</span>
+                      </div>
+                      <span
+                        className={`block text-[11px] font-semibold ${
+                          project.unprocessedApplicantCount > 0
+                            ? "text-amber-700"
+                            : "text-[#8a7668]"
+                        }`}
+                      >
+                        {project.unprocessedApplicantCount} New Applicants
                       </span>
-                      <span className="text-[10px] text-[#8a7668]">Lihat kandidat</span>
                     </div>
-                  </Link>
+
+                    <Link
+                      href={`/vendor/projects/${project.id}/applicants`}
+                      aria-label={`View Applicants for ${project.title}`}
+                    >
+                      <Button
+                        size="sm"
+                        className="h-10 rounded-xl bg-[#b87a65] hover:bg-[#a66d5a] text-white text-xs font-bold px-4 gap-1.5 shadow-sm"
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                        <span>View Applicants</span>
+                        {project.unprocessedApplicantCount > 0 && (
+                          <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-300 px-1.5 text-[10px] font-black text-amber-950">
+                            {project.unprocessedApplicantCount}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Description snippet */}
